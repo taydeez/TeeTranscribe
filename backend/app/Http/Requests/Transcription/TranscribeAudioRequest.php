@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Transcription;
 
 use App\Infrastructure\Persistence\Eloquent\Models\GuestSession;
+use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,7 +27,9 @@ class TranscribeAudioRequest extends FormRequest
     {
         return [
             'audio_url' => ['required', 'url:http,https', 'max:8192'],
+            'user_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'guest_session_id' => ['nullable', 'uuid', Rule::exists(GuestSession::class, 'id')],
+            'folder_id' => ['nullable', 'ulid'],
             'file_name' => ['sometimes', 'required', 'string', 'max:255'],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'folder_name' => ['nullable', 'string', 'max:255'],

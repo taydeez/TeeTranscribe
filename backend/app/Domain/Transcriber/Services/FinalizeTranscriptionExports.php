@@ -14,7 +14,7 @@ class FinalizeTranscriptionExports
             $exports = $transcription->exports()->lockForUpdate()->get()->keyBy('format');
 
             if ($exports->contains(fn ($export): bool => $export->status === 'failed')) {
-                $transcription->update(['status' => 'export_failed']);
+                $transcription->update(['status' => 'failed']);
 
                 return;
             }
@@ -22,7 +22,7 @@ class FinalizeTranscriptionExports
             if ($exports->has('txt') && $exports->has('pdf')
                 && $exports['txt']->status === 'completed' && filled($exports['txt']->storage_path)
                 && $exports['pdf']->status === 'completed' && filled($exports['pdf']->storage_path)) {
-                $transcription->update(['status' => 'exports_completed']);
+                $transcription->update(['status' => 'complete']);
             }
         });
     }

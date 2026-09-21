@@ -1,4 +1,5 @@
 <?php
+
 /*
  * © 2026 Demilade Oyewusi
  * Licensed under the MIT License.
@@ -10,10 +11,10 @@ namespace App\Infrastructure\Upload\R2;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-final class R2Client {
-
-
-    public function Presignupload($data){
+final class R2Client
+{
+    public function Presignupload($data)
+    {
         foreach (['key', 'secret', 'bucket', 'endpoint'] as $setting) {
             abort_unless(config('filesystems.disks.r2.'.$setting), 503, 'Audio storage is not configured.');
         }

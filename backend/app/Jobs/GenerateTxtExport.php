@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Transcriber\Services\FinalizeTranscriptionExports;
+use App\Domain\Transcriber\Services\TranscriptionExportFileName;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,47 +42,42 @@ class GenerateTxtExport implements ShouldQueue
     {
         $transcription = Transcription::query()
             ->findOrFail($this->transcriptionId);
-
-        if ($transcription->status !== 'completed') {
-            throw new RuntimeException(
-                'Transcription is not completed yet.'
-            );
-        }
-
-        if (
-            ! is_string($transcription->transcript)
-            || trim($transcription->transcript) === ''
-        ) {
-            throw new RuntimeException(
-                'Transcription has no text to export.'
-            );
-        }
-
-        // Create or retrieve the export record.
-        $export = TranscriptionExport::firstOrCreate(
-            [
-                'transcription_id' => $transcription->id,
-                'format' => 'txt',
-            ],
-            [
-                'status' => 'pending',
-            ]
-        );
-
-        // A duplicate event should not regenerate the file.
-        if ($export->status === 'completed') {
-            return;
-        }
-
-        $path = "exports/{$transcription->id}/transcript.txt";
-
-        $export->update([
-            'status' => 'pending',
-            'processing_started_at' => now(),
-            'failure_reason' => null,
-        ]);
+        $export = null;
 
         try {
+            if ($transcription->status === 'complete') {
+                return;
+            }
+
+            if (! in_array($transcription->status, ['processing', 'failed'], true)) {
+                throw new RuntimeException('Transcription is not ready for export.');
+            }
+
+            if ($transcription->status === 'failed') {
+                $transcription->update(['status' => 'processing']);
+            }
+
+            if (! is_string($transcription->transcript) || trim($transcription->transcript) === '') {
+                throw new RuntimeException('Transcription has no text to export.');
+            }
+
+            $export = TranscriptionExport::firstOrCreate(
+                ['transcription_id' => $transcription->id, 'format' => 'txt'],
+                ['status' => 'pending'],
+            );
+
+            if ($export->status === 'completed') {
+                app(FinalizeTranscriptionExports::class)->handle($transcription->id);
+
+                return;
+            }
+
+            $path = "exports/{$transcription->id}/".TranscriptionExportFileName::make($transcription->name, 'txt');
+            $export->update([
+                'status' => 'pending',
+                'processing_started_at' => now(),
+                'failure_reason' => null,
+            ]);
             $disk = Storage::disk('r2');
 
             // The previous attempt may have uploaded the file
@@ -113,16 +109,12 @@ class GenerateTxtExport implements ShouldQueue
             ]);
             app(FinalizeTranscriptionExports::class)->handle($transcription->id);
         } catch (Throwable $exception) {
-            $export->update([
+            $export?->update([
                 'status' => 'failed',
-                'failure_reason' => mb_substr(
-                    $exception->getMessage(),
-                    0,
-                    1000
-                ),
+                'failure_reason' => mb_substr($exception->getMessage(), 0, 1000),
             ]);
+            $transcription->update(['status' => 'failed']);
 
-            // Let Laravel retry according to the queue settings.
             throw $exception;
         }
     }

@@ -19,7 +19,7 @@ test('persists reads updates and clears audio duration in seconds', function () 
     expect($created->duration)->toBe(123.456);
     expect($repository->find($created->id)?->duration)->toBe(123.456);
     expect($repository->all()[0]->duration)->toBe(123.456);
-    expect($repository->update($created->id, ['status' => 'completed'])->duration)->toBe(123.456);
+    expect($repository->update($created->id, ['status' => 'complete'])->duration)->toBe(123.456);
     expect($repository->update($created->id, ['duration' => 0])->duration)->toBe(0.0);
     $this->assertDatabaseHas('transcriptions', ['id' => $created->id, 'duration' => 0]);
     expect($repository->update($created->id, ['duration' => null])->duration)->toBeNull();
@@ -118,7 +118,7 @@ test('lists transcriptions newest id first', function () {
 
 test('updates selected fields and preserves the remaining transcription data', function () {
     $transcription = Transcription::factory()->create();
-    $data = ['status' => 'completed', 'transcript' => 'Hello world.', 'provider_request_id' => 'request-123'];
+    $data = ['status' => 'complete', 'transcript' => 'Hello world.', 'provider_request_id' => 'request-123'];
 
     $updated = app(TranscriptionRepositoryInterface::class)->update($transcription->id, $data);
 
@@ -140,7 +140,7 @@ test('deletes only the requested transcription', function () {
 });
 
 test('rejects updating a missing transcription', function () {
-    app(TranscriptionRepositoryInterface::class)->update('01arz3ndektsv4rrffq69g5fav', ['status' => 'completed']);
+    app(TranscriptionRepositoryInterface::class)->update('01arz3ndektsv4rrffq69g5fav', ['status' => 'complete']);
 })->throws(TranscriptionNotFoundException::class);
 
 test('rejects deleting a missing transcription', function () {
@@ -149,7 +149,7 @@ test('rejects deleting a missing transcription', function () {
 
 test('clears nullable fields without changing omitted fields', function () {
     $transcription = Transcription::factory()->create([
-        'status' => 'completed', 'provider_request_id' => 'request-42', 'transcript' => 'Old text.',
+        'status' => 'complete', 'provider_request_id' => 'request-42', 'transcript' => 'Old text.',
     ]);
 
     $updated = app(TranscriptionRepositoryInterface::class)->update($transcription->id, [
@@ -159,7 +159,7 @@ test('clears nullable fields without changing omitted fields', function () {
     expect($updated->providerRequestId)->toBeNull();
     expect($updated->transcript)->toBeNull();
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $transcription->id, 'status' => 'completed',
+        'id' => $transcription->id, 'status' => 'complete',
         'provider_request_id' => null, 'transcript' => null,
     ]);
 });
@@ -190,7 +190,7 @@ test('does not return unsaved changes when an update is cancelled', function () 
 
     try {
         expect(fn () => app(TranscriptionRepositoryInterface::class)->update(
-            $transcription->id, ['status' => 'completed'],
+            $transcription->id, ['status' => 'complete'],
         ))->toThrow(RuntimeException::class, 'The transcription could not be updated.');
         $this->assertDatabaseHas('transcriptions', ['id' => $transcription->id, 'status' => 'pending']);
     } finally {

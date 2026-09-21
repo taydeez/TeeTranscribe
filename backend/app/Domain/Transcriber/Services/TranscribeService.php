@@ -12,6 +12,7 @@ use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Entities\Transcription;
 use App\Infrastructure\AI\TranscriberGatewayResolver;
 use InvalidArgumentException;
+use Throwable;
 
 class TranscribeService
 {
@@ -20,20 +21,21 @@ class TranscribeService
         private readonly TranscriptionRepositoryInterface $transcriptionRepository,
     ) {}
 
-
     /** @param array<string, mixed> $transcriptionData */
     public function startNewTranscription(array $transcriptionData): Transcription
     {
         $audioPath = $transcriptionData['audio_path'] ?? $transcriptionData['audio_url'] ?? null;
 
-        if (!is_string($audioPath) || $audioPath === '') {
+        if (! is_string($audioPath) || $audioPath === '') {
             throw new InvalidArgumentException('An audio path or URL is required.');
         }
 
         $language = $transcriptionData['language_code'] ?? null;
 
-        $fileName = $transcriptionData['file_name']
-            ?? rawurldecode(basename(parse_url($audioPath, PHP_URL_PATH) ?: $audioPath));
+        $urlFileName = rawurldecode(basename(parse_url($audioPath, PHP_URL_PATH) ?: $audioPath));
+        $derivedName = pathinfo($urlFileName, PATHINFO_FILENAME);
+        $derivedName = $derivedName !== '' ? $derivedName : 'transcription';
+        $fileName = $transcriptionData['file_name'] ?? $derivedName;
         $name = $transcriptionData['name'] ?? pathinfo($fileName, PATHINFO_FILENAME);
 
         unset($transcriptionData['audio_url'], $transcriptionData['language_code']);
@@ -45,18 +47,22 @@ class TranscribeService
             'name' => $name,
         ]);
 
-        $this->transcribe($audioPath, $language, $newTranscription->id);
+        try {
+            $providerRequestId = $this->transcribe($audioPath, $language, $newTranscription->id);
+            $newTranscription = $this->transcriptionRepository->update($newTranscription->id, [
+                'provider_request_id' => $providerRequestId,
+            ]);
+        } catch (Throwable $exception) {
+            $this->transcriptionRepository->update($newTranscription->id, ['status' => 'failed']);
+
+            throw $exception;
+        }
 
         return $newTranscription;
     }
-
-
 
     private function transcribe(string $audioUrl, string $languageCode, string $transcriptionId): string
     {
         return $this->transcriberGatewayResolver->resolve()->transcribe($audioUrl, $languageCode, $transcriptionId);
     }
-
-
-
 }

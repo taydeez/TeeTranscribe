@@ -1,4 +1,5 @@
 <?php
+
 /*
  * © 2026 Demilade Oyewusi
  * Licensed under the MIT License.
@@ -7,8 +8,4 @@
 
 namespace App\Infrastructure\AI\Translator\OpenApi;
 
-final class OpenApiClient {
-
-
-
-}
+final class OpenApiClient {}

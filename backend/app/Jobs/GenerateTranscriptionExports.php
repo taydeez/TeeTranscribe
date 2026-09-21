@@ -20,7 +20,7 @@ class GenerateTranscriptionExports implements ShouldQueue
             $this->transcriptionId
         );
 
-        if ($transcription->status !== 'completed') {
+        if ($transcription->status !== 'processing') {
             return;
         }
 

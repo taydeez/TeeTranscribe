@@ -32,7 +32,7 @@ test('round trips guest ownership through the domain and writable attributes', f
 test('maps persisted Eloquent records into independent domain entities', function () {
     $this->freezeTime();
     $model = Transcription::factory()->create([
-        'status' => 'completed', 'provider_request_id' => 'request-42', 'transcript' => 'Sample transcript.', 'duration' => 123.456,
+        'status' => 'complete', 'provider_request_id' => 'request-42', 'transcript' => 'Sample transcript.', 'duration' => 123.456,
     ]);
     $mapper = app(TranscriptionMapperInterface::class);
 
@@ -46,7 +46,7 @@ test('maps persisted Eloquent records into independent domain entities', functio
         'guest_session_id' => null,
         'audio_path' => $model->audio_path, 'file_name' => $model->file_name, 'name' => $model->name, 'folder_name' => $model->folder_name,
         'duration' => 123.456,
-        'status' => 'completed',
+        'status' => 'complete',
         'provider_request_id' => 'request-42',
         'transcript' => 'Sample transcript.',
         'created_at' => $model->created_at->format('Y-m-d\\TH:i:s.uP'),

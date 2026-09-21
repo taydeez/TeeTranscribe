@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['user_id', 'guest_session_id', 'audio_path', 'file_name', 'name', 'folder_name', 'duration', 'provider_request_id', 'status', 'transcript'])]
@@ -50,5 +51,13 @@ class Transcription extends Model
     public function exports(): HasMany
     {
         return $this->hasMany(TranscriptionExport::class);
+    }
+
+    /** @return BelongsToMany<Folder, $this> */
+    public function folders(): BelongsToMany
+    {
+        return $this->belongsToMany(Folder::class)
+            ->using(FolderTranscription::class)
+            ->withPivot('id');
     }
 }

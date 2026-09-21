@@ -1,4 +1,5 @@
 <?php
+
 /*
  * © 2026 Demilade Oyewusi
  * Licensed under the MIT License.
@@ -11,17 +12,14 @@ use App\Infrastructure\Upload\R2\R2Client;
 
 class R2Gateway
 {
+    public function __construct(private readonly R2Client $r2Client) {}
 
-    public function __construct(private readonly R2Client $r2Client){
-    }
-
-    public function Presign(array $data){
+    public function Presign(array $data)
+    {
 
         $response = $this->r2Client->Presignupload($data);
 
         return $response;
 
-
     }
-
 }

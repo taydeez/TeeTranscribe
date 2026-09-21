@@ -28,14 +28,14 @@ class CreateTranscriptionRequest extends FormRequest
     {
         return [
             'user_id' => ['bail', 'nullable', 'integer', Rule::exists(User::class, 'id')],
-            'guest_session_id' => ['bail', 'nullable', 'uuid'],
+            'guest_session_id' => ['bail', 'nullable', 'uuid', Rule::exists(GuestSession::class, 'id')],
             'audio_path' => ['required', 'string', 'max:255'],
             'file_name' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'folder_name' => ['nullable', 'string', 'max:255'],
             'duration' => ['nullable', 'numeric', 'min:0', 'max:999999999.999'],
             'provider_request_id' => ['bail', 'nullable', 'string', 'max:255', Rule::unique(Transcription::class, 'provider_request_id')],
-            'status' => ['sometimes', 'required', 'string', 'max:255'],
+            'status' => ['sometimes', 'required', Rule::in(['pending', 'processing', 'failed', 'complete'])],
             'transcript' => ['nullable', 'string'],
             'id' => ['prohibited'],
             'created_at' => ['prohibited'],

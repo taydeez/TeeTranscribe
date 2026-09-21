@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Upload;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Transcription\PresignAudioUploadRequest;
-use Illuminate\Http\JsonResponse;
 use App\Infrastructure\Upload\GateWays\R2Gateway;
+use Illuminate\Http\JsonResponse;
 
 class PresignAudioUploadController extends Controller
 {
