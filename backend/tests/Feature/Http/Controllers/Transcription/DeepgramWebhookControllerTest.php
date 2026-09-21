@@ -17,14 +17,14 @@ function deepgramCompletionPayload(string $requestId, string $transcript = 'Hell
     ];
 }
 
-test('completes the matching transcription and records its completion event', function () {
-    $record = Transcription::factory()->create(['provider_request_id' => 'provider-123', 'status' => 'processing']);
-    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id]);
+test('moves the matching transcription to processing and records its completion event', function () {
+    $record = Transcription::factory()->create(['provider_request_id' => 'provider-123', 'status' => 'pending']);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
 
     $this->postJson($url, deepgramCompletionPayload('provider-123'))->assertNoContent();
 
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $record->id, 'status' => 'completed', 'transcript' => 'Hello world.', 'duration' => 12.345,
+        'id' => $record->id, 'status' => 'processing', 'transcript' => 'Hello world.', 'duration' => 12.345,
     ]);
     $event = OutboxEvent::query()->sole();
     expect(Str::isUlid($event->id))->toBeTrue();
@@ -39,7 +39,7 @@ test('completes the matching transcription and records its completion event', fu
 test('acknowledges duplicate callbacks without overwriting the transcript or emitting another event', function () {
     $this->freezeTime();
     $record = Transcription::factory()->create(['provider_request_id' => 'provider-123']);
-    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id]);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
     $this->postJson($url, deepgramCompletionPayload('provider-123'))->assertNoContent();
     $updatedAt = $record->refresh()->updated_at;
     $event = OutboxEvent::query()->sole();
@@ -57,7 +57,7 @@ test('acknowledges duplicate callbacks without overwriting the transcript or emi
 test('rejects a provider request ID belonging to a different transcription', function () {
     $record = Transcription::factory()->create(['provider_request_id' => 'provider-123']);
     $other = Transcription::factory()->create(['provider_request_id' => 'provider-other']);
-    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id]);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
 
     $this->postJson($url, deepgramCompletionPayload('provider-other'))->assertNotFound();
 
@@ -68,7 +68,7 @@ test('rejects a provider request ID belonging to a different transcription', fun
 
 test('rejects callbacks for an unknown provider request ID', function () {
     $record = Transcription::factory()->create(['provider_request_id' => null]);
-    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id]);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
 
     $this->postJson($url, deepgramCompletionPayload('unknown'))->assertNotFound();
 
@@ -76,9 +76,9 @@ test('rejects callbacks for an unknown provider request ID', function () {
     $this->assertDatabaseCount('outbox_events', 0);
 });
 
-test('rolls back the transcription and inserted event if recording the outbox event fails', function () {
+test('marks the transcription failed and rolls back the event if recording the outbox event fails', function () {
     $record = Transcription::factory()->create(['provider_request_id' => 'provider-123', 'duration' => 5]);
-    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id]);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
     $this->mock(OutboxService::class, function ($mock) {
         $mock->shouldReceive('record')->once()->andReturnUsing(function (...$arguments) {
             (new OutboxService)->record(...$arguments);
@@ -89,21 +89,21 @@ test('rolls back the transcription and inserted event if recording the outbox ev
     $this->postJson($url, deepgramCompletionPayload('provider-123'))->assertInternalServerError();
 
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $record->id, 'status' => 'pending', 'transcript' => null, 'duration' => 5,
+        'id' => $record->id, 'status' => 'failed', 'transcript' => null, 'duration' => 5,
     ]);
     $this->assertDatabaseCount('outbox_events', 0);
 });
 
 test('accepts a completed recording with no speech and preserves duration when omitted', function () {
     $record = Transcription::factory()->create(['provider_request_id' => 'provider-123', 'duration' => 5]);
-    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id]);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
     $payload = deepgramCompletionPayload('provider-123', '');
     unset($payload['metadata']['duration']);
 
     $this->postJson($url, $payload)->assertNoContent();
 
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $record->id, 'status' => 'completed', 'transcript' => '', 'duration' => 5,
+        'id' => $record->id, 'status' => 'processing', 'transcript' => '', 'duration' => 5,
     ]);
     $this->assertDatabaseCount('outbox_events', 1);
 });

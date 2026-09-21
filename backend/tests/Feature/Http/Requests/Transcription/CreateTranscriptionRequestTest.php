@@ -43,7 +43,7 @@ test('accepts an existing user and populated transcription fields', function () 
     $user = User::factory()->create();
     $data = [
         'user_id' => $user->id, 'audio_path' => 'audio/sample.mp3', 'file_name' => 'sample.mp3', 'name' => 'sample', 'folder_name' => null,
-        'status' => 'completed', 'provider_request_id' => 'request-123', 'transcript' => 'Hello world.',
+        'status' => 'complete', 'provider_request_id' => 'request-123', 'transcript' => 'Hello world.',
     ];
 
     $this->postJson('/_test/transcriptions', $data)->assertOk()->assertExactJson($data);

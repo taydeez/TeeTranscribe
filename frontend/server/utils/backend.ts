@@ -3,12 +3,13 @@ import type { H3Event } from 'h3'
 export async function forwardToBackend(event: H3Event, path: string) {
   const config = useRuntimeConfig(event)
   const body = await readBody(event)
+  const authorization = getHeader(event, 'authorization')
 
   try {
     return await $fetch(`${config.apiBase.replace(/\/$/, '')}/${path}`, {
       method: 'POST',
       body,
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...(authorization ? { Authorization: authorization } : {}) },
       timeout: 130_000,
       retry: 0,
     })

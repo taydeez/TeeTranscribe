@@ -24,7 +24,7 @@ test('round trips transcription data without losing text or timestamp precision'
         'guest_session_id' => null,
         'audio_path' => 'audio/sample.mp3', 'file_name' => 'sample.mp3', 'name' => 'sample', 'folder_name' => null,
         'duration' => 123.456,
-        'status' => 'completed',
+        'status' => 'complete',
         'provider_request_id' => 'provider-42',
         'transcript' => "Hello — Ẹ káàárọ̀.\nSecond line.",
         'created_at' => '2026-09-17T12:30:00.123456+01:00',

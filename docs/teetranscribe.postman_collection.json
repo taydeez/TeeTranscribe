@@ -7,6 +7,8 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "http://127.0.0.1:8000/api/v1" },
+    { "key": "userId", "value": "" },
+    { "key": "folderId", "value": "" },
     { "key": "guestSessionId", "value": "" },
     { "key": "transcriptionId", "value": "" },
     { "key": "callbackSignature", "value": "" },
@@ -14,6 +16,34 @@
     { "key": "sanctumToken", "value": "" }
   ],
   "item": [
+    {
+      "name": "Register",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"your name or Organization name.\",\n  \"email\": \"new-user@example.com\",\n  \"password\": \"password1\",\n  \"password_confirmation\": \"password1\"\n}" }, "url": "{{baseUrl}}/auth/register" }
+    },
+    {
+      "name": "Login",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password\"\n}" }, "url": "{{baseUrl}}/auth/login" }
+    },
+    {
+      "name": "Verify admin email code",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"code\": \"123456\"\n}" }, "url": "{{baseUrl}}/auth/admin/verify" }
+    },
+    {
+      "name": "Google OAuth redirect",
+      "request": { "method": "GET", "url": "{{baseUrl}}/auth/google/redirect" }
+    },
+    {
+      "name": "Google OAuth callback",
+      "request": { "method": "GET", "url": "{{baseUrl}}/auth/google/callback?code=google-authorization-code" }
+    },
+    {
+      "name": "Logout",
+      "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }], "url": "{{baseUrl}}/auth/logout" }
+    },
+    {
+      "name": "Get authenticated admin",
+      "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }], "url": "{{baseUrl}}/admin/user" }
+    },
     {
       "name": "Get authenticated user",
       "request": {
@@ -55,8 +85,9 @@
       }
     },
     {
-      "name": "Start transcription",
+      "name": "Start guest transcription",
       "request": {
+        "description": "Creates a pending transcription. When file_name is omitted, it is derived from the final URL path segment without the extension.",
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
         "body": {
@@ -67,8 +98,81 @@
       }
     },
     {
+      "name": "Start authenticated transcription",
+      "request": {
+        "description": "Creates a pending transcription and assigns it to the selected folder or today's automatic folder.",
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"user_id\": {{userId}},\n  \"folder_id\": null,\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
+        },
+        "url": "{{baseUrl}}/transcribe"
+      }
+    },
+    {
+      "name": "List folders",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "url": "{{baseUrl}}/folders?search=&sort=created_at&direction=desc&page=1&per_page=10"
+      }
+    },
+    {
+      "name": "Create folder",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Interviews\"\n}" },
+        "url": "{{baseUrl}}/folders"
+      }
+    },
+    {
+      "name": "Get folder",
+      "request": {
+        "description": "Returns the folder's transcriptions and temporary download links for completed TXT and PDF exports.",
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "url": "{{baseUrl}}/folders/{{folderId}}"
+      }
+    },
+    {
+      "name": "Update folder",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Client interviews\"\n}" },
+        "url": "{{baseUrl}}/folders/{{folderId}}"
+      }
+    },
+    {
+      "name": "Delete folder",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "url": "{{baseUrl}}/folders/{{folderId}}"
+      }
+    },
+    {
+      "name": "Add transcription to folder",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "url": "{{baseUrl}}/folders/{{folderId}}/transcriptions/{{transcriptionId}}"
+      }
+    },
+    {
+      "name": "Remove transcription from folder",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "url": "{{baseUrl}}/folders/{{folderId}}/transcriptions/{{transcriptionId}}"
+      }
+    },
+    {
       "name": "Deepgram completion callback",
       "request": {
+        "description": "Validates metadata.request_id, stores the transcript, and moves the transcription to processing while PDF and TXT exports are generated.",
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
         "body": {
