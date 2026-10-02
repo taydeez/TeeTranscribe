@@ -5,7 +5,7 @@ const menuOpen = ref(false)
 type Folder = { id: string; name: string; transcriptionIds: string[]; createdAt: string | null }
 type FolderPage = { data: Folder[]; meta: { currentPage: number; lastPage: number; perPage: number; total: number } }
 type TranscriptionExport = { id: string; format: 'pdf' | 'txt'; status: 'pending' | 'failed' | 'completed'; downloadUrl: string | null }
-type FolderTranscription = { id: string; name: string; fileName: string; status: string; duration: number | null; createdAt: string | null; exports: TranscriptionExport[] }
+type FolderTranscription = { id: string; name: string; fileName: string; status: string; transcript: string | null; duration: number | null; createdAt: string | null; exports: TranscriptionExport[] }
 type FolderDetails = Folder & { transcriptions: FolderTranscription[] }
 const folders = ref<Folder[]>([])
 const folderPage = ref({ currentPage: 1, lastPage: 1, perPage: 10, total: 0 })
@@ -19,6 +19,10 @@ const folderName = ref('')
 const creatingFolder = ref(false)
 const selectedFolder = ref<FolderDetails | null>(null)
 const selectedTranscription = ref<FolderTranscription | null>(null)
+const transcriptDraft = ref('')
+const transcriptSaving = ref(false)
+const transcriptError = ref('')
+const transcriptSaved = ref(false)
 const folderDetailsLoading = ref(false)
 
 const menu = [
@@ -39,20 +43,13 @@ function choose(label: string) {
   }
 }
 
-function authorizationHeaders(): Record<string, string> {
-  const token = localStorage.getItem('auth_token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
 async function loadFolders(page = 1) {
   foldersLoading.value = true
   foldersError.value = ''
   try {
     const [sort, direction] = folderSort.value.split(':')
-    const response = await $fetch<FolderPage>('/api/folders', {
-      headers: authorizationHeaders(),
+    const response = await useAuthenticatedFetch<FolderPage>('/api/folders', {
       query: { page, per_page: folderPage.value.perPage, search: folderSearch.value || undefined, sort, direction },
-      retry: 0,
     })
     folders.value = response.data
     folderPage.value = response.meta
@@ -70,11 +67,9 @@ async function createFolder() {
   creatingFolder.value = true
   foldersError.value = ''
   try {
-    await $fetch<Folder>('/api/folders', {
+    await useAuthenticatedFetch<Folder>('/api/folders', {
       method: 'POST',
-      headers: authorizationHeaders(),
       body: { name },
-      retry: 0,
     })
     folderName.value = ''
     createFolderOpen.value = false
@@ -92,10 +87,7 @@ async function openFolder(folder: Folder) {
   foldersError.value = ''
   selectedTranscription.value = null
   try {
-    selectedFolder.value = await $fetch<FolderDetails>(`/api/folders/${folder.id}`, {
-      headers: authorizationHeaders(),
-      retry: 0,
-    })
+    selectedFolder.value = await useAuthenticatedFetch<FolderDetails>(`/api/folders/${folder.id}`)
   } catch (failure: any) {
     foldersError.value = failure.data?.message ?? 'Could not load this folder.'
   } finally {
@@ -106,6 +98,45 @@ async function openFolder(folder: Folder) {
 function closeFolder() {
   selectedFolder.value = null
   selectedTranscription.value = null
+}
+
+function openTranscription(transcription: FolderTranscription) {
+  selectedTranscription.value = transcription
+  transcriptDraft.value = transcription.transcript ?? ''
+  transcriptError.value = ''
+  transcriptSaved.value = false
+}
+
+function closeTranscription() {
+  selectedTranscription.value = null
+  transcriptDraft.value = ''
+  transcriptError.value = ''
+  transcriptSaved.value = false
+}
+
+async function saveTranscript() {
+  const transcription = selectedTranscription.value
+  const transcript = transcriptDraft.value.trim()
+  if (!transcription || !transcript || transcriptSaving.value || transcript === transcription.transcript) return
+
+  transcriptSaving.value = true
+  transcriptError.value = ''
+  transcriptSaved.value = false
+  try {
+    const updated = await useAuthenticatedFetch<{ id: string; transcript: string; status: string }>(`/api/transcriptions/${transcription.id}`, {
+      method: 'PATCH',
+      body: { transcript },
+    })
+    transcription.transcript = updated.transcript
+    transcription.status = updated.status
+    transcription.exports = transcription.exports.map(item => ({ ...item, status: 'pending', downloadUrl: null }))
+    transcriptDraft.value = updated.transcript
+    transcriptSaved.value = true
+  } catch (failure: any) {
+    transcriptError.value = failure.data?.message ?? 'Could not save this transcript.'
+  } finally {
+    transcriptSaving.value = false
+  }
 }
 
 function formatDuration(value: number | null): string {
@@ -235,7 +266,7 @@ async function startTranscription() {
 
           <template v-else-if="selectedFolder">
             <div v-if="selectedFolder.transcriptions.length" class="divide-y divide-slate-100 sm:hidden">
-              <button v-for="transcription in selectedFolder.transcriptions" :key="transcription.id" class="flex w-full items-start gap-3 p-5 text-left transition hover:bg-indigo-50/40" type="button" @click="selectedTranscription = transcription">
+              <button v-for="transcription in selectedFolder.transcriptions" :key="transcription.id" class="flex w-full items-start gap-3 p-5 text-left transition hover:bg-indigo-50/40" type="button" @click="openTranscription(transcription)">
                 <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-violet-50 text-lg text-violet-600">≡</span>
                 <span class="min-w-0 flex-1"><strong class="block truncate text-sm text-slate-900">{{ transcription.name }}</strong><small class="mt-1 block truncate text-xs text-slate-500">{{ transcription.fileName }} · {{ formatDuration(transcription.duration) }}</small></span>
                 <span class="text-xs capitalize text-slate-400">{{ transcription.status }}</span>
@@ -246,7 +277,7 @@ async function startTranscription() {
               <table class="w-full min-w-[720px] border-collapse text-left">
                 <thead><tr class="border-b border-slate-200 bg-slate-50/80 text-[10px] font-extrabold tracking-[.14em] text-slate-500"><th class="px-8 py-4">TRANSCRIPTION</th><th class="px-6 py-4">STATUS</th><th class="px-6 py-4">LENGTH</th><th class="px-8 py-4 text-right">CREATED</th></tr></thead>
                 <tbody>
-                  <tr v-for="transcription in selectedFolder.transcriptions" :key="transcription.id" class="group cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-indigo-50/40" tabindex="0" @click="selectedTranscription = transcription" @keydown.enter="selectedTranscription = transcription">
+                  <tr v-for="transcription in selectedFolder.transcriptions" :key="transcription.id" class="group cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-indigo-50/40" tabindex="0" @click="openTranscription(transcription)" @keydown.enter="openTranscription(transcription)">
                     <td class="px-8 py-5"><div class="flex items-center gap-3"><span class="grid size-10 place-items-center rounded-xl bg-violet-50 text-violet-600">≡</span><div class="min-w-0"><p class="truncate text-sm font-bold text-slate-800">{{ transcription.name }}</p><p class="mt-1 truncate text-xs text-slate-500">{{ transcription.fileName }}</p></div></div></td>
                     <td class="px-6 py-5"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{{ transcription.status.replaceAll('_', ' ') }}</span></td>
                     <td class="px-6 py-5 text-sm text-slate-600">{{ formatDuration(transcription.duration) }}</td>
@@ -331,16 +362,27 @@ async function startTranscription() {
         </div>
       </Transition>
       <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" leave-active-class="transition duration-150 ease-in" leave-to-class="opacity-0">
-        <div v-if="selectedTranscription" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" @mousedown.self="selectedTranscription = null">
-          <section class="w-full max-w-lg rounded-3xl border border-white/70 bg-white p-7 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="transcription-download-title">
-            <div class="flex items-start justify-between gap-5"><div class="min-w-0"><p class="text-[10px] font-extrabold tracking-[.2em] text-indigo-600">TRANSCRIPTION EXPORTS</p><h2 id="transcription-download-title" class="mt-2 truncate text-3xl font-extrabold tracking-[-.04em] text-slate-900">{{ selectedTranscription.name }}</h2><p class="mt-2 truncate text-sm text-slate-500">{{ selectedTranscription.fileName }}</p></div><button class="grid size-10 shrink-0 place-items-center rounded-full border border-slate-200 text-lg text-slate-500 hover:bg-slate-50" type="button" aria-label="Close" @click="selectedTranscription = null">×</button></div>
-            <div v-if="selectedTranscription.exports.length" class="mt-7 grid gap-3 sm:grid-cols-2">
+        <div v-if="selectedTranscription" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" @mousedown.self="closeTranscription">
+          <section class="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/70 bg-white p-7 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="transcription-download-title">
+            <div class="flex items-start justify-between gap-5"><div class="min-w-0"><p class="text-[10px] font-extrabold tracking-[.2em] text-indigo-600">TRANSCRIPT</p><h2 id="transcription-download-title" class="mt-2 truncate text-3xl font-extrabold tracking-[-.04em] text-slate-900">{{ selectedTranscription.name }}</h2><p class="mt-2 truncate text-sm text-slate-500">{{ selectedTranscription.fileName }}</p></div><button class="grid size-10 shrink-0 place-items-center rounded-full border border-slate-200 text-lg text-slate-500 hover:bg-slate-50" type="button" aria-label="Close" @click="closeTranscription">×</button></div>
+            <form class="mt-7" @submit.prevent="saveTranscript">
+              <div class="flex items-end justify-between gap-4"><label class="text-xs font-bold text-slate-700" for="transcript-editor">Transcript text</label><span class="text-[11px] text-slate-400">{{ transcriptDraft.length.toLocaleString() }} characters</span></div>
+              <textarea id="transcript-editor" v-model="transcriptDraft" class="mt-2 min-h-72 w-full resize-y rounded-2xl border border-slate-300 bg-slate-50/60 px-4 py-4 text-sm leading-7 text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10" required spellcheck="true" />
+              <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p v-if="transcriptError" class="text-sm text-rose-600" role="alert">{{ transcriptError }}</p>
+                <p v-else-if="transcriptSaved" class="text-sm font-semibold text-emerald-600" role="status">Saved. New exports are being generated.</p>
+                <p v-else class="text-xs leading-5 text-slate-400">Saving regenerates the TXT and PDF downloads.</p>
+                <button class="min-h-11 shrink-0 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" type="submit" :disabled="transcriptSaving || !transcriptDraft.trim() || transcriptDraft.trim() === selectedTranscription.transcript">{{ transcriptSaving ? 'Saving…' : 'Save changes' }}</button>
+              </div>
+            </form>
+            <div class="mt-8 border-t border-slate-200 pt-6"><p class="text-[10px] font-extrabold tracking-[.2em] text-slate-500">EXPORTS</p></div>
+            <div v-if="selectedTranscription.exports.length" class="mt-4 grid gap-3 sm:grid-cols-2">
               <template v-for="item in selectedTranscription.exports" :key="item.id">
                 <a v-if="item.downloadUrl" class="flex min-h-24 items-center justify-between rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50" :href="item.downloadUrl" target="_blank" rel="noopener noreferrer"><span><strong class="block text-sm uppercase text-slate-900">{{ item.format }}</strong><small class="mt-1 block text-xs text-slate-500">Ready to download</small></span><span class="grid size-9 place-items-center rounded-xl bg-white text-indigo-600 shadow-sm">↓</span></a>
                 <div v-else class="flex min-h-24 items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4"><span><strong class="block text-sm uppercase text-slate-700">{{ item.format }}</strong><small class="mt-1 block text-xs capitalize text-slate-500">{{ item.status }}</small></span><span class="text-slate-400">…</span></div>
               </template>
             </div>
-            <div v-else class="mt-7 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center"><p class="text-sm font-bold text-slate-700">Exports are not available yet</p><p class="mt-2 text-xs text-slate-500">PDF and TXT links will appear after export generation completes.</p></div>
+            <div v-else class="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center"><p class="text-sm font-bold text-slate-700">Exports are not available yet</p><p class="mt-2 text-xs text-slate-500">PDF and TXT links will appear after export generation completes.</p></div>
             <p class="mt-5 text-[11px] leading-5 text-slate-400">Download links are temporary. Reopen this transcription to generate fresh links.</p>
           </section>
         </div>

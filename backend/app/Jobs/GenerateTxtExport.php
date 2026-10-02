@@ -57,8 +57,8 @@ class GenerateTxtExport implements ShouldQueue
                 $transcription->update(['status' => 'processing']);
             }
 
-            if (! is_string($transcription->transcript) || trim($transcription->transcript) === '') {
-                throw new RuntimeException('Transcription has no text to export.');
+            if (! is_string($transcription->transcript)) {
+                throw new RuntimeException('Transcription text is unavailable.');
             }
 
             $export = TranscriptionExport::firstOrCreate(
@@ -80,22 +80,14 @@ class GenerateTxtExport implements ShouldQueue
             ]);
             $disk = Storage::disk('r2');
 
-            // The previous attempt may have uploaded the file
-            // but crashed before updating the database.
-            if (! $disk->exists($path)) {
-                $uploaded = $disk->put(
-                    $path,
-                    $transcription->transcript,
-                    [
-                        'ContentType' => 'text/plain; charset=utf-8',
-                    ]
-                );
+            $uploaded = $disk->put(
+                $path,
+                $transcription->transcript,
+                ['ContentType' => 'text/plain; charset=utf-8'],
+            );
 
-                if (! $uploaded) {
-                    throw new RuntimeException(
-                        'Failed to upload TXT export to R2.'
-                    );
-                }
+            if (! $uploaded) {
+                throw new RuntimeException('Failed to upload TXT export to R2.');
             }
 
             if (! $disk->exists($path)) {

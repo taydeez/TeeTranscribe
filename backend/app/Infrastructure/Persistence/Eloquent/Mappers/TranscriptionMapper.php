@@ -27,6 +27,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             'name' => $model->name,
             'folder_name' => $model->folder_name,
             'duration' => $model->duration,
+            'provider' => $model->provider,
             'status' => $model->status,
             'provider_request_id' => $model->provider_request_id,
             'transcript' => $model->transcript,

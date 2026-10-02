@@ -13,6 +13,7 @@ use App\Domain\Transcriber\Entities\Transcription;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription as TranscriptionModel;
+use Illuminate\Support\Facades\DB;
 
 class EloquentTranscriptionRepository implements TranscriptionRepositoryInterface
 {
@@ -36,7 +37,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
     }
 
     /**
-     * @param  array{audio_path: string, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
+     * @param  array{audio_path: string, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, provider?: string, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
      */
     public function create(array $data): Transcription
     {
@@ -61,6 +62,29 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
         }
 
         return $this->mapper->toDomain($transcription->refresh());
+    }
+
+    public function updateTranscriptForUser(string $id, int $userId, string $transcript): Transcription
+    {
+        return DB::transaction(function () use ($id, $userId, $transcript): Transcription {
+            $transcription = TranscriptionModel::query()
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->find($id)
+                ?? throw new TranscriptionNotFoundException($id);
+
+            $transcription->update([
+                'transcript' => $transcript,
+                'status' => 'processing',
+            ]);
+            $transcription->exports()->update([
+                'status' => 'pending',
+                'failure_reason' => null,
+                'processing_started_at' => null,
+            ]);
+
+            return $this->mapper->toDomain($transcription->refresh());
+        });
     }
 
     public function delete(string $id): bool

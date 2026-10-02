@@ -65,6 +65,7 @@ test('opening a folder lists its transcriptions with completed export download l
         'file_name' => 'odega.mp3',
         'duration' => 95,
         'status' => 'complete',
+        'transcript' => 'Interview transcript.',
     ]);
     $folder->transcriptions()->attach($transcription->id);
     TranscriptionExport::factory()->create([
@@ -90,6 +91,7 @@ test('opening a folder lists its transcriptions with completed export download l
         ->assertJsonPath('name', 'Interviews')
         ->assertJsonPath('transcriptions.0.name', 'Odega Interview')
         ->assertJsonPath('transcriptions.0.duration', 95)
+        ->assertJsonPath('transcriptions.0.transcript', 'Interview transcript.')
         ->assertJsonFragment(['format' => 'txt', 'downloadUrl' => 'https://downloads.example.com/Odega Interview.txt'])
         ->assertJsonFragment(['format' => 'pdf', 'downloadUrl' => 'https://downloads.example.com/Odega Interview.pdf']);
 });

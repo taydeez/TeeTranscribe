@@ -6,6 +6,7 @@ use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GuestSessionController;
 use App\Http\Controllers\Transcription\CreateTranscriptionController;
 use App\Http\Controllers\Transcription\DeepgramWebhookController;
+use App\Http\Controllers\Transcription\UpdateTranscriptionController;
 use App\Http\Controllers\Upload\PresignAudioUploadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('folders', FolderController::class);
         Route::put('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'attachTranscription']);
         Route::delete('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'detachTranscription']);
+        Route::patch('/transcriptions/{transcription}', UpdateTranscriptionController::class);
     });
 
     Route::post('/transcribe', CreateTranscriptionController::class);

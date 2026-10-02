@@ -170,6 +170,16 @@
       }
     },
     {
+      "name": "Update transcription text",
+      "request": {
+        "description": "Updates an owned transcript and queues replacement TXT and PDF exports.",
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"transcript\": \"Corrected transcription text.\"\n}" },
+        "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}"
+      }
+    },
+    {
       "name": "Deepgram completion callback",
       "request": {
         "description": "Validates metadata.request_id, stores the transcript, and moves the transcription to processing while PDF and TXT exports are generated.",

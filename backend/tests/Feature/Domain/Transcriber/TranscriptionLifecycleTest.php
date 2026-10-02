@@ -66,3 +66,23 @@ test('uses the transcription name for both exports and completes after both uplo
     Storage::disk('r2')->assertExists("exports/{$transcription->id}/Odega Interview.txt");
     Storage::disk('r2')->assertExists("exports/{$transcription->id}/Odega Interview.pdf");
 });
+
+test('regenerated exports replace files containing the previous transcript', function () {
+    Storage::fake('r2');
+    $transcription = Transcription::factory()->create([
+        'name' => 'Edited Interview',
+        'status' => 'processing',
+        'transcript' => 'The corrected transcript.',
+    ]);
+    $txtPath = "exports/{$transcription->id}/Edited Interview.txt";
+    $pdfPath = "exports/{$transcription->id}/Edited Interview.pdf";
+    Storage::disk('r2')->put($txtPath, 'The old transcript.');
+    Storage::disk('r2')->put($pdfPath, 'old pdf');
+
+    (new GenerateTxtExport($transcription->id))->handle();
+    (new GeneratePdfExport($transcription->id))->handle();
+
+    expect(Storage::disk('r2')->get($txtPath))->toBe('The corrected transcript.')
+        ->and(Storage::disk('r2')->get($pdfPath))->not->toBe('old pdf')
+        ->and($transcription->refresh()->status)->toBe('complete');
+});

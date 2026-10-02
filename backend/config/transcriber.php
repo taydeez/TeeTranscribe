@@ -1,4 +1,5 @@
 <?php
+
 /*
  * © 2026 Demilade Oyewusi
  * Licensed under the MIT License.
@@ -22,9 +23,13 @@ return [
 
     'deepgram' => [
         'key' => env('DEEPGRAM_API_KEY'),
-        'endpoint' => env('DEEPGRAM_API_ENPOINT','https://api.deepgram.com/v1/')
-    ]
+        'endpoint' => env('DEEPGRAM_API_ENDPOINT', env('DEEPGRAM_API_ENPOINT', 'https://api.deepgram.com/v1/')),
+    ],
 
+    'intron' => [
+        'key' => env('INTRON_API_KEY'),
+        'endpoint' => env('INTRON_API_ENDPOINT', 'https://infer.voice.intron.io'),
+        'diarization' => env('INTRON_DIARIZATION', true),
+    ],
 
-
-    ];
+];

@@ -12,7 +12,7 @@ interface TranscriptionRepositoryInterface
 
     public function find(string $id): ?Transcription;
 
-    /** @param array{audio_path: string, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, status?: string, provider_request_id?: string|null, transcript?: string|null} $data */
+    /** @param array{audio_path: string, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, provider?: string, status?: string, provider_request_id?: string|null, transcript?: string|null} $data */
     public function create(array $data): Transcription;
 
     /**
@@ -21,6 +21,9 @@ interface TranscriptionRepositoryInterface
      * @throws TranscriptionNotFoundException
      */
     public function update(string $id, array $data): Transcription;
+
+    /** @throws TranscriptionNotFoundException */
+    public function updateTranscriptForUser(string $id, int $userId, string $transcript): Transcription;
 
     /** @throws TranscriptionNotFoundException */
     public function delete(string $id): bool;

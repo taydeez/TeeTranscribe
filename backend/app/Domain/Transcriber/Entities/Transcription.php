@@ -20,5 +20,6 @@ final readonly class Transcription
         public ?string $guestSessionId = null,
         public ?float $duration = null,
         public ?string $folderName = null,
+        public string $provider = 'deepgram',
     ) {}
 }

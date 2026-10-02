@@ -30,7 +30,7 @@ class TranscribeService
             throw new InvalidArgumentException('An audio path or URL is required.');
         }
 
-        $language = $transcriptionData['language_code'] ?? null;
+        $language = (string) ($transcriptionData['language_code'] ?? 'en');
 
         $urlFileName = rawurldecode(basename(parse_url($audioPath, PHP_URL_PATH) ?: $audioPath));
         $derivedName = pathinfo($urlFileName, PATHINFO_FILENAME);
@@ -38,6 +38,7 @@ class TranscribeService
         $fileName = $transcriptionData['file_name'] ?? $derivedName;
         $name = $transcriptionData['name'] ?? pathinfo($fileName, PATHINFO_FILENAME);
 
+        $gateway = $this->transcriberGatewayResolver->resolve($language);
         unset($transcriptionData['audio_url'], $transcriptionData['language_code']);
 
         $newTranscription = $this->transcriptionRepository->create([
@@ -45,10 +46,11 @@ class TranscribeService
             'audio_path' => $audioPath,
             'file_name' => $fileName,
             'name' => $name,
+            'provider' => $gateway->provider(),
         ]);
 
         try {
-            $providerRequestId = $this->transcribe($audioPath, $language, $newTranscription->id);
+            $providerRequestId = $gateway->transcribe($audioPath, $language, $newTranscription->id);
             $newTranscription = $this->transcriptionRepository->update($newTranscription->id, [
                 'provider_request_id' => $providerRequestId,
             ]);
@@ -59,10 +61,5 @@ class TranscribeService
         }
 
         return $newTranscription;
-    }
-
-    private function transcribe(string $audioUrl, string $languageCode, string $transcriptionId): string
-    {
-        return $this->transcriberGatewayResolver->resolve()->transcribe($audioUrl, $languageCode, $transcriptionId);
     }
 }
