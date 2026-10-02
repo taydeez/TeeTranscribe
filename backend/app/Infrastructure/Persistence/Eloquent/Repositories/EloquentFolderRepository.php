@@ -63,6 +63,7 @@ final class EloquentFolderRepository implements FolderRepositoryInterface
                 name: $transcription->name,
                 fileName: $transcription->file_name,
                 status: $transcription->status,
+                transcript: $transcription->transcript,
                 duration: $transcription->duration,
                 exports: $transcription->exports->map(
                     fn ($export): DomainTranscriptionExport => new DomainTranscriptionExport(

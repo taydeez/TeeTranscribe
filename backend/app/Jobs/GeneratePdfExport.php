@@ -50,8 +50,8 @@ class GeneratePdfExport implements ShouldQueue
                 $transcription->update(['status' => 'processing']);
             }
 
-            if (! is_string($transcription->transcript) || trim($transcription->transcript) === '') {
-                throw new RuntimeException('Transcription has no text to export.');
+            if (! is_string($transcription->transcript)) {
+                throw new RuntimeException('Transcription text is unavailable.');
             }
 
             $export = TranscriptionExport::firstOrCreate(
@@ -71,7 +71,7 @@ class GeneratePdfExport implements ShouldQueue
                 'transcript' => $transcription->transcript ?? '',
             ])->output();
 
-            if (! $disk->exists($path) && ! $disk->put($path, $pdf, ['ContentType' => 'application/pdf'])) {
+            if (! $disk->put($path, $pdf, ['ContentType' => 'application/pdf'])) {
                 throw new RuntimeException('Failed to upload PDF export to R2.');
             }
             if (! $disk->exists($path)) {

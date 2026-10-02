@@ -13,6 +13,7 @@ final readonly class FolderTranscription
         public string $name,
         public string $fileName,
         public string $status,
+        public ?string $transcript = null,
         public ?float $duration = null,
         public array $exports = [],
         public ?DateTimeImmutable $createdAt = null,

@@ -25,6 +25,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             updatedAt: $this->date($data['updated_at'] ?? null),
             guestSessionId: $data['guest_session_id'] ?? null,
             duration: isset($data['duration']) ? (float) $data['duration'] : null,
+            provider: $data['provider'] ?? 'deepgram',
         );
     }
 
@@ -39,6 +40,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             'name' => $transcription->name,
             'folder_name' => $transcription->folderName,
             'duration' => $transcription->duration,
+            'provider' => $transcription->provider,
             'status' => $transcription->status,
             'provider_request_id' => $transcription->providerRequestId,
             'transcript' => $transcription->transcript,

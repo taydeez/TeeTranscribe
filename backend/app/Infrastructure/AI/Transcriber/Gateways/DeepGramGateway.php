@@ -8,9 +8,10 @@
 
 namespace App\Infrastructure\AI\Transcriber\Gateways;
 
+use App\Domain\Transcriber\Contracts\TranscriberGatewayInterface;
 use App\Infrastructure\AI\Transcriber\DeepGram\DeepGramClient;
 
-class DeepGramGateway
+class DeepGramGateway implements TranscriberGatewayInterface
 {
     public function __construct(private readonly DeepGramClient $deepGramClient) {}
 
@@ -23,5 +24,10 @@ class DeepGramGateway
         }
 
         return $request_id;
+    }
+
+    public function provider(): string
+    {
+        return 'deepgram';
     }
 }

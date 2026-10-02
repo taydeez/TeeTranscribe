@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import type { AuthUser } from '~/stores/auth'
+
 type UploadTicket = { upload_url: string; audio_url: string; headers: Record<string, string> }
 type Stage = 'idle' | 'preparing' | 'uploading' | 'submitting' | 'done'
 type AudioSource = 'file' | 'url'
-type AuthUser = { id: number; name: string; email: string }
 type AuthResponse = { token?: string; requires_two_factor?: boolean; email?: string; user?: AuthUser }
 type FolderOption = { id: string; name: string }
 type FolderOptionPage = { data: FolderOption[]; meta: { currentPage: number; lastPage: number } }
@@ -28,8 +30,8 @@ const authEmail = ref('')
 const authPassword = ref('')
 const authPasswordConfirmation = ref('')
 const authCode = ref('')
-const authToken = ref('')
-const authUser = ref<AuthResponse['user']>()
+const auth = useAuthStore()
+const { token: authToken, user: authUser, initialized: authInitialized, isAuthenticated } = storeToRefs(auth)
 const authError = ref('')
 const authBusy = ref(false)
 const authModalOpen = ref(false)
@@ -47,6 +49,11 @@ const formats: Record<string, string> = {
   ogg: 'audio/ogg', oga: 'audio/ogg', flac: 'audio/flac', webm: 'audio/webm', aac: 'audio/aac',
 }
 const languages = [
+  { name: 'Nigerian English', codes: ['en-NG'] },
+  { name: 'Nigerian Pidgin', codes: ['pcm'] },
+  { name: 'Yorùbá', codes: ['yo'] },
+  { name: 'Igbo', codes: ['ig'] },
+  { name: 'Hausa', codes: ['ha'] },
   { name: 'Afrikaans', codes: ['af', 'af-ZA'] },
   { name: 'Arabic', codes: ['ar', 'ar-AE', 'ar-SA', 'ar-QA', 'ar-KW', 'ar-SY', 'ar-LB', 'ar-PS', 'ar-JO', 'ar-EG', 'ar-SD', 'ar-TD', 'ar-MA', 'ar-DZ', 'ar-TN', 'ar-IQ', 'ar-IR'] },
   { name: 'Armenian', codes: ['hy'] },
@@ -147,9 +154,7 @@ async function submitAuth() {
     const response = await $fetch<AuthResponse>(endpoint, { method: 'POST', body })
     if (response.requires_two_factor) { authMode.value = 'verify'; authEmail.value = response.email ?? authEmail.value; return }
     if (response.token) {
-      authToken.value = response.token
-      localStorage.setItem('auth_token', response.token)
-      authUser.value = response.user ?? await loadAuthUser(response.token)
+      await auth.establishSession(response.token)
       await loadUploadFolders()
       authModalOpen.value = false
       await navigateTo('/dashboard')
@@ -158,28 +163,17 @@ async function submitAuth() {
   finally { authBusy.value = false }
 }
 
-async function loadAuthUser(token: string): Promise<AuthUser> {
-  return await $fetch<AuthUser>('/api/auth/user', {
-    headers: { Authorization: `Bearer ${token}` },
-    retry: 0,
-  })
-}
-
 async function loadUploadFolders() {
-  if (!authToken.value || uploadFoldersLoading.value) return
+  if (!isAuthenticated.value || uploadFoldersLoading.value) return
   uploadFoldersLoading.value = true
   try {
-    const firstPage = await $fetch<FolderOptionPage>('/api/folders', {
-      headers: { Authorization: `Bearer ${authToken.value}` },
+    const firstPage = await useAuthenticatedFetch<FolderOptionPage>('/api/folders', {
       query: { page: 1, per_page: 50, sort: 'name', direction: 'asc' },
-      retry: 0,
     })
     const pages = [firstPage]
     for (let page = 2; page <= firstPage.meta.lastPage; page += 1) {
-      pages.push(await $fetch<FolderOptionPage>('/api/folders', {
-        headers: { Authorization: `Bearer ${authToken.value}` },
+      pages.push(await useAuthenticatedFetch<FolderOptionPage>('/api/folders', {
         query: { page, per_page: 50, sort: 'name', direction: 'asc' },
-        retry: 0,
       }))
     }
     uploadFolders.value = pages.flatMap(result => result.data)
@@ -201,15 +195,9 @@ function closeAuth() {
 }
 
 async function signOut() {
-  const token = authToken.value
-  if (token) {
-    try { await $fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }) } catch { /* Clear local access even if the API is unavailable. */ }
-  }
-  authToken.value = ''
-  authUser.value = undefined
+  try { await auth.logout() } catch { /* Local session is cleared even if the API is unavailable. */ }
   uploadFolders.value = []
   selectedFolderId.value = ''
-  localStorage.removeItem('auth_token')
 }
 
 async function dashboardLogout() {
@@ -374,8 +362,7 @@ async function submit() {
   uploadedAudioUrl.value = ''
   try {
     let identity: { user_id: number } | { guest_session_id: string }
-    if (authToken.value) {
-      authUser.value ??= await loadAuthUser(authToken.value)
+    if (isAuthenticated.value && authUser.value) {
       identity = { user_id: authUser.value.id }
     } else {
       identity = { guest_session_id: await ensureGuestSession() }
@@ -394,17 +381,19 @@ async function submit() {
       uploadedAudioUrl.value = remoteAudioUrl!
     }
     stage.value = 'submitting'
-    const response = await $fetch<string | { request_id?: string; id?: string }>('/api/transcribe', {
+    const transcriptionRequest = {
       method: 'POST', timeout: 135_000, retry: 0,
-      headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : undefined,
       body: {
         audio_url: uploadedAudioUrl.value,
         language_code: language.value,
-        ...(authToken.value && selectedFolderId.value ? { folder_id: selectedFolderId.value } : {}),
+        ...(isAuthenticated.value && selectedFolderId.value ? { folder_id: selectedFolderId.value } : {}),
         ...(audioSource.value === 'file' && audio && duration !== null ? { file_name: audio.name, duration: Number(duration.toFixed(3)) } : {}),
         ...identity,
       },
-    })
+    }
+    const response = isAuthenticated.value
+      ? await useAuthenticatedFetch<string | { request_id?: string; id?: string }>('/api/transcribe', transcriptionRequest)
+      : await $fetch<string | { request_id?: string; id?: string }>('/api/transcribe', transcriptionRequest)
     const id = typeof response === 'string' ? response : response?.request_id ?? response?.id
     if (!id) throw new Error('The server did not return a transcription request ID.')
     requestId.value = id
@@ -426,12 +415,26 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   window.addEventListener('keydown', handleEscape)
   const hashToken = new URLSearchParams(window.location.hash.slice(1)).get('token')
-  if (hashToken) { localStorage.setItem('auth_token', hashToken); authToken.value = hashToken; history.replaceState(null, '', window.location.pathname); await navigateTo('/dashboard') }
-  authToken.value = localStorage.getItem('auth_token') ?? ''
-  if (route.path === '/dashboard' && !authToken.value) await navigateTo('/')
+  if (hashToken) {
+    history.replaceState(null, '', window.location.pathname)
+    try {
+      await auth.establishSession(hashToken)
+      await navigateTo('/dashboard')
+    } catch {
+      authError.value = 'Google authentication could not be verified.'
+      authModalOpen.value = true
+    }
+  } else {
+    await auth.initialize()
+  }
+
+  if (route.path === '/dashboard' && !isAuthenticated.value) {
+    await navigateTo('/')
+    return
+  }
+
   try {
-    if (authToken.value) {
-      authUser.value = await loadAuthUser(authToken.value)
+    if (isAuthenticated.value) {
       await loadUploadFolders()
     } else {
       const response = await $fetch<{ id: string }>('/api/guest-session', { method: 'POST', retry: 0 })
@@ -445,7 +448,8 @@ onMounted(async () => {
 
 <template>
   <NuxtRouteAnnouncer />
-  <DashboardView v-if="$route.path === '/dashboard'" @logout="dashboardLogout" @new-transcription="startNewTranscription" @folder-created="loadUploadFolders">
+  <div v-if="$route.path === '/dashboard' && !authInitialized" class="grid min-h-dvh place-items-center bg-slate-50 text-sm font-semibold text-slate-500" role="status">Checking your session…</div>
+  <DashboardView v-else-if="$route.path === '/dashboard' && isAuthenticated" @logout="dashboardLogout" @new-transcription="startNewTranscription" @folder-created="loadUploadFolders">
     <template #transcription-form>
       <section class="upload-card dashboard-upload-card" aria-labelledby="dashboard-form-title">
         <div class="card-heading"><h2 id="dashboard-form-title">Start a new transcription.</h2><span>UPLOAD AUDIO</span></div>
@@ -512,7 +516,7 @@ onMounted(async () => {
     <header class="masthead">
       <a class="brand" href="/" aria-label="TeeTranscribe home"><span class="brand-mark" aria-hidden="true">t.</span>TeeTranscribe</a>
       <div class="flex items-center gap-2 sm:gap-3">
-        <template v-if="authToken">
+        <template v-if="isAuthenticated">
           <span class="hidden text-xs text-slate-500 sm:inline">{{ authUser?.name || 'Signed in' }}</span>
           <a class="rounded-lg px-4 py-2.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-50" href="/dashboard">Dashboard</a>
           <button class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700" type="button" @click="signOut">Sign out</button>

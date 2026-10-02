@@ -127,7 +127,7 @@ final class FolderController extends Controller
         ];
     }
 
-    /** @return array{id: string, name: string, fileName: string, status: string, duration: float|null, createdAt: string|null, exports: list<array{id: string, format: string, status: string, downloadUrl: string|null}>} */
+    /** @return array{id: string, name: string, fileName: string, status: string, transcript: string|null, duration: float|null, createdAt: string|null, exports: list<array{id: string, format: string, status: string, downloadUrl: string|null}>} */
     private function toTranscriptionResponse(FolderTranscription $transcription): array
     {
         return [
@@ -135,6 +135,7 @@ final class FolderController extends Controller
             'name' => $transcription->name,
             'fileName' => $transcription->fileName,
             'status' => $transcription->status,
+            'transcript' => $transcription->transcript,
             'duration' => $transcription->duration,
             'createdAt' => $transcription->createdAt?->format(DATE_ATOM),
             'exports' => array_map(fn (TranscriptionExport $export): array => [

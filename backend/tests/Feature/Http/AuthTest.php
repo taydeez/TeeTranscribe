@@ -29,6 +29,25 @@ test('logs in a regular user and rejects an incorrect password', function () {
         ->assertOk()->assertJsonStructure(['token', 'user']);
 });
 
+test('a login token authenticates the user and protected folder requests', function () {
+    Role::findOrCreate('user', 'web');
+    $user = User::factory()->create(['email' => 'member@example.com', 'password' => 'password1']);
+    $user->assignRole('user');
+
+    $token = $this->postJson('/api/v1/auth/login', [
+        'email' => 'member@example.com',
+        'password' => 'password1',
+    ])->assertOk()->json('token');
+
+    $this->withToken($token)->getJson('/api/v1/user')
+        ->assertOk()
+        ->assertJsonPath('id', $user->id)
+        ->assertJsonPath('email', 'member@example.com');
+    $this->withToken($token)->getJson('/api/v1/folders')
+        ->assertOk()
+        ->assertJsonPath('data', []);
+});
+
 test('requires an email code before issuing an administrator token', function () {
     Mail::fake();
     Role::findOrCreate('admin', 'web');
