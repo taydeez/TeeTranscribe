@@ -15,8 +15,14 @@ class DeepGramGateway implements TranscriberGatewayInterface
 {
     public function __construct(private readonly DeepGramClient $deepGramClient) {}
 
-    public function transcribe(string $audioUrl, string $languageCode, string $transcriptionId): string
-    {
+    public function transcribe(
+        string $audioUrl,
+        string $languageCode,
+        string $transcriptionId,
+        ?float $duration = null,
+        ?string $audioStoragePath = null,
+        ?string $fileName = null,
+    ): string {
         try {
             $request_id = $this->deepGramClient->transcribe($audioUrl, $languageCode, $transcriptionId);
         } catch (\RuntimeException $e) {

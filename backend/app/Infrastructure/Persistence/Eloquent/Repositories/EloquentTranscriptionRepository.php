@@ -14,6 +14,7 @@ use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription as TranscriptionModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class EloquentTranscriptionRepository implements TranscriptionRepositoryInterface
 {
@@ -37,7 +38,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
     }
 
     /**
-     * @param  array{audio_path: string, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, provider?: string, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
+     * @param  array{audio_path: string, audio_storage_path?: string|null, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, provider?: string, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
      */
     public function create(array $data): Transcription
     {
@@ -51,7 +52,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
     }
 
     /**
-     * @param  array{user_id?: int|null, guest_session_id?: string|null, audio_path?: string, file_name?: string, name?: string, folder_name?: string|null, duration?: float|int|null, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
+     * @param  array{user_id?: int|null, guest_session_id?: string|null, audio_path?: string, audio_storage_path?: string|null, file_name?: string, name?: string, folder_name?: string|null, duration?: float|int|null, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
      */
     public function update(string $id, array $data): Transcription
     {
@@ -64,17 +65,33 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
         return $this->mapper->toDomain($transcription->refresh());
     }
 
-    public function updateTranscriptForUser(string $id, int $userId, string $transcript): Transcription
+    public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): Transcription
     {
-        return DB::transaction(function () use ($id, $userId, $transcript): Transcription {
+        return DB::transaction(function () use ($id, $userId, $transcript, $segments): Transcription {
             $transcription = TranscriptionModel::query()
                 ->where('user_id', $userId)
                 ->lockForUpdate()
                 ->find($id)
                 ?? throw new TranscriptionNotFoundException($id);
 
+            $storedSegments = $transcription->segments ?? [];
+            if ($segments !== null) {
+                if ($transcription->provider !== 'deepgram' || count($segments) !== count($storedSegments) || $storedSegments === []) {
+                    throw ValidationException::withMessages(['segments' => 'Timed segments must match the existing Deepgram transcript.']);
+                }
+                foreach ($storedSegments as $index => &$segment) {
+                    $segment['text'] = trim($segments[$index]['text']);
+                    $segment['speaker'] = $segments[$index]['speaker'] ?? null;
+                }
+                unset($segment);
+                $transcript = implode("\n", array_column($storedSegments, 'text'));
+            } else {
+                $storedSegments = [];
+            }
+
             $transcription->update([
                 'transcript' => $transcript,
+                'segments' => $storedSegments,
                 'status' => 'processing',
             ]);
             $transcription->exports()->update([

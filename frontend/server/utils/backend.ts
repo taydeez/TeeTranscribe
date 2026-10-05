@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { $fetch as ofetch } from 'ofetch'
 
 export async function forwardToBackend(event: H3Event, path: string) {
   const config = useRuntimeConfig(event)
@@ -6,7 +7,7 @@ export async function forwardToBackend(event: H3Event, path: string) {
   const authorization = getHeader(event, 'authorization')
 
   try {
-    return await $fetch(`${config.apiBase.replace(/\/$/, '')}/${path}`, {
+    return await ofetch(`${config.apiBase.replace(/\/$/, '')}/${path}`, {
       method: 'POST',
       body,
       headers: { Accept: 'application/json', ...(authorization ? { Authorization: authorization } : {}) },

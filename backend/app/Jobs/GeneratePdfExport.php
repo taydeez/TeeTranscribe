@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Transcriber\Services\FinalizeTranscriptionExports;
 use App\Domain\Transcriber\Services\TranscriptionExportFileName;
+use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -27,6 +28,11 @@ class GeneratePdfExport implements ShouldQueue
     public function __construct(public string $transcriptionId)
     {
         $this->onQueue('exports');
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        app(TranscriptionOutcomePublisher::class)->failed($this->transcriptionId);
     }
 
     /**

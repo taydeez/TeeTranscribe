@@ -11,6 +11,25 @@ use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
+test('timed edits preserve provider timestamps and regenerate the combined text', function () {
+    Queue::fake();
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+    $record = Transcription::factory()->create([
+        'user_id' => $user->id, 'provider' => 'deepgram', 'status' => 'complete',
+        'segments' => [['start' => 1, 'end' => 4, 'speaker' => 'Speaker 1', 'text' => 'Original.', 'confidence' => 0.9]],
+    ]);
+    $this->patchJson("/api/v1/transcriptions/{$record->id}", [
+        'transcript' => 'Ignored combined text',
+        'segments' => [['text' => 'Corrected.', 'speaker' => 'Ada', 'start' => 999]],
+    ])->assertOk()->assertJsonPath('transcript', 'Corrected.');
+    expect($record->refresh()->segments[0])->toMatchArray([
+        'start' => 1, 'end' => 4, 'speaker' => 'Ada', 'text' => 'Corrected.', 'confidence' => 0.9,
+    ]);
+    Queue::assertPushed(GenerateTxtExport::class);
+    Queue::assertPushed(GeneratePdfExport::class);
+});
+
 test('an owner can edit a transcript and regenerate its exports', function () {
     Queue::fake();
     $user = User::factory()->create();

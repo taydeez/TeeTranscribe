@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Transcriber\Services\FinalizeTranscriptionExports;
 use App\Domain\Transcriber\Services\TranscriptionExportFileName;
+use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -114,5 +115,10 @@ class GenerateTxtExport implements ShouldQueue
     public function backoff(): array
     {
         return [10, 30, 60];
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        app(TranscriptionOutcomePublisher::class)->failed($this->transcriptionId);
     }
 }

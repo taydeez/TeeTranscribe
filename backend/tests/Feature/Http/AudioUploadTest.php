@@ -29,6 +29,7 @@ test('signs upload and read URLs for the same audio object without uploading byt
     expect((int) $query['X-Amz-Expires'])->toBeGreaterThan(0)->toBeLessThanOrEqual(1200);
     expect($query['X-Amz-Signature'])->not->toBeEmpty();
     expect($response->json('headers.Content-Type'))->toBe('audio/mpeg');
+    expect($response->json('audio_storage_path'))->toMatch('/^audio\/[0-9A-Z]{26}\.mp3$/');
     expect($response->json('headers'))->not->toHaveKeys(['Host', 'Content-Length']);
     expect($response->getContent())->not->toContain('test-secret-key');
 });
@@ -62,9 +63,13 @@ test('passes the uploaded audio metadata to the transcription service', function
             ));
     });
 
-    $response = $this->postJson('/api/v1/transcribe', ['audio_url' => $url, 'language_code' => 'en'])->assertOk();
+    $response = $this->postJson('/api/v1/transcribe', ['audio_url' => $url, 'language_code' => 'en'])->assertAccepted();
 
-    expect($response->json())->toBe('file has been sent for transcription');
+    expect($response->json())->toBe([
+        'id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        'status' => 'pending',
+        'message' => 'File queued for transcription.',
+    ]);
 });
 
 test('rejects malformed transcription input before calling the provider', function () {

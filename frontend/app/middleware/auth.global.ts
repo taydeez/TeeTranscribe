@@ -1,5 +1,5 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (import.meta.server || to.path !== '/dashboard') {
+  if (import.meta.server || !to.path.startsWith('/dashboard')) {
     return
   }
 

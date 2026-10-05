@@ -8,17 +8,19 @@
 
 namespace App\Domain\Transcriber\Services;
 
+use App\Domain\Transcriber\Contracts\TranscriberGatewayResolverInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
+use App\Domain\Transcriber\Contracts\TranscriptionSubmissionDispatcherInterface;
 use App\Domain\Transcriber\Entities\Transcription;
-use App\Infrastructure\AI\TranscriberGatewayResolver;
 use InvalidArgumentException;
 use Throwable;
 
 class TranscribeService
 {
     public function __construct(
-        private readonly TranscriberGatewayResolver $transcriberGatewayResolver,
+        private readonly TranscriberGatewayResolverInterface $transcriberGatewayResolver,
         private readonly TranscriptionRepositoryInterface $transcriptionRepository,
+        private readonly TranscriptionSubmissionDispatcherInterface $submissionDispatcher,
     ) {}
 
     /** @param array<string, mixed> $transcriptionData */
@@ -50,10 +52,7 @@ class TranscribeService
         ]);
 
         try {
-            $providerRequestId = $gateway->transcribe($audioPath, $language, $newTranscription->id);
-            $newTranscription = $this->transcriptionRepository->update($newTranscription->id, [
-                'provider_request_id' => $providerRequestId,
-            ]);
+            $this->submissionDispatcher->dispatch($newTranscription, $language);
         } catch (Throwable $exception) {
             $this->transcriptionRepository->update($newTranscription->id, ['status' => 'failed']);
 

@@ -30,7 +30,7 @@ final class R2Client
 
         $headers = [];
         foreach ($upload['headers'] as $name => $values) {
-            if (! in_array(strtolower($name), ['host', 'content-length'], true)) {
+            if (! in_array(strtolower($name), ['host', 'content-length', 'content-type'], true)) {
                 $headers[$name] = is_array($values) ? implode(', ', $values) : $values;
             }
         }
@@ -39,6 +39,7 @@ final class R2Client
         return [
             'upload_url' => $upload['url'],
             'audio_url' => $disk->temporaryUrl($path, now()->addHours(6)),
+            'audio_storage_path' => $path,
             'headers' => $headers,
         ];
 

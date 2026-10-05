@@ -87,12 +87,12 @@
     {
       "name": "Start guest transcription",
       "request": {
-        "description": "Creates a pending transcription. When file_name is omitted, it is derived from the final URL path segment without the extension.",
+        "description": "Creates a pending transcription, queues provider submission, and returns HTTP 202. When file_name is omitted, it is derived from the final URL path segment without the extension. Include audio_storage_path for files uploaded through the presign endpoint so the worker can read R2 without relying on an expiring URL.",
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"guest_session_id\": \"{{guestSessionId}}\",\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
+          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"audio_storage_path\": \"audio/01M40K8ZE4TGFDWD49FCJ6PRH0.mp3\",\n  \"guest_session_id\": \"{{guestSessionId}}\",\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
         },
         "url": "{{baseUrl}}/transcribe"
       }
@@ -100,12 +100,12 @@
     {
       "name": "Start authenticated transcription",
       "request": {
-        "description": "Creates a pending transcription and assigns it to the selected folder or today's automatic folder.",
+        "description": "Creates a pending transcription, assigns it to the selected folder or today's automatic folder, queues provider submission, and returns HTTP 202.",
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"user_id\": {{userId}},\n  \"folder_id\": null,\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
+          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"audio_storage_path\": \"audio/01M40K8ZE4TGFDWD49FCJ6PRH0.mp3\",\n  \"user_id\": {{userId}},\n  \"folder_id\": null,\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
         },
         "url": "{{baseUrl}}/transcribe"
       }
@@ -130,7 +130,7 @@
     {
       "name": "Get folder",
       "request": {
-        "description": "Returns the folder's transcriptions and temporary download links for completed TXT and PDF exports.",
+        "description": "Returns the folder's transcriptions and temporary download links for completed TXT and PDF exports. Deepgram transcripts also include provider, timed segments (start/end seconds, speaker, text, confidence), and audioUrl for playback. R2 playback URLs expire after one hour; reopen the folder to refresh them.",
         "method": "GET",
         "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
         "url": "{{baseUrl}}/folders/{{folderId}}"
@@ -172,7 +172,7 @@
     {
       "name": "Update transcription text",
       "request": {
-        "description": "Updates an owned transcript and queues replacement TXT and PDF exports.",
+        "description": "Updates an owned transcript and queues replacement TXT and PDF exports. For timed Deepgram editing, include segments in their original order, each containing text and nullable speaker. Segment count must match the stored transcript; timing and confidence remain unchanged. The server derives transcript from segment text. Plain-text edits clear timed segments to prevent stale alignment.",
         "method": "PATCH",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"transcript\": \"Corrected transcription text.\"\n}" },
@@ -182,7 +182,7 @@
     {
       "name": "Deepgram completion callback",
       "request": {
-        "description": "Validates metadata.request_id, stores the transcript, and moves the transcription to processing while PDF and TXT exports are generated.",
+        "description": "Validates metadata.request_id against a Deepgram transcription, atomically stores transcript and results.utterances as timed segments, and moves the transcription to processing while PDF and TXT exports are generated. Utterances include start, end, transcript, optional speaker number and confidence. Duplicate callbacks do not overwrite saved edits.",
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
         "body": {

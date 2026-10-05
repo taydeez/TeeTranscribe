@@ -48,7 +48,7 @@ test('uses the authenticated user and removes the guest session from a transcrip
         'language_code' => 'en',
         'user_id' => $otherUser->id,
         'guest_session_id' => $guestSession->id,
-    ])->assertOk();
+    ])->assertAccepted();
 });
 
 test('attaches an authenticated transcription to the selected folder', function () {
@@ -81,5 +81,5 @@ test('attaches an authenticated transcription to the selected folder', function 
         'audio_url' => $url,
         'language_code' => 'en',
         'folder_id' => $folder->id,
-    ])->assertOk();
+    ])->assertAccepted();
 });

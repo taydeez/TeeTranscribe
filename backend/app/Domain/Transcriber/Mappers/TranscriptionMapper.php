@@ -26,6 +26,8 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             guestSessionId: $data['guest_session_id'] ?? null,
             duration: isset($data['duration']) ? (float) $data['duration'] : null,
             provider: $data['provider'] ?? 'deepgram',
+            audioStoragePath: $data['audio_storage_path'] ?? null,
+            segments: $data['segments'] ?? [],
         );
     }
 
@@ -36,6 +38,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             'user_id' => $transcription->userId,
             'guest_session_id' => $transcription->guestSessionId,
             'audio_path' => $transcription->audioPath,
+            'audio_storage_path' => $transcription->audioStoragePath,
             'file_name' => $transcription->fileName,
             'name' => $transcription->name,
             'folder_name' => $transcription->folderName,
@@ -44,6 +47,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             'status' => $transcription->status,
             'provider_request_id' => $transcription->providerRequestId,
             'transcript' => $transcription->transcript,
+            'segments' => $transcription->segments,
             'created_at' => $transcription->createdAt?->format('Y-m-d\\TH:i:s.uP'),
             'updated_at' => $transcription->updatedAt?->format('Y-m-d\\TH:i:s.uP'),
         ];

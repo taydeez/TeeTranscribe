@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'guest_session_id', 'audio_path', 'file_name', 'name', 'folder_name', 'duration', 'provider', 'provider_request_id', 'status', 'transcript'])]
+#[Fillable(['user_id', 'guest_session_id', 'audio_path', 'audio_storage_path', 'file_name', 'name', 'folder_name', 'duration', 'provider', 'provider_request_id', 'status', 'transcript', 'segments'])]
 #[UseFactory(TranscriptionFactory::class)]
 class Transcription extends Model
 {
@@ -30,6 +30,9 @@ class Transcription extends Model
         return [
             'user_id' => 'integer',
             'duration' => 'float',
+            'segments' => 'array',
+            'completion_notified_at' => 'immutable_datetime',
+            'failure_notified_at' => 'immutable_datetime',
         ];
     }
 

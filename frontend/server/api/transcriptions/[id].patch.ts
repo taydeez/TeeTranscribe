@@ -1,3 +1,5 @@
+import { $fetch as ofetch } from 'ofetch'
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const authorization = getHeader(event, 'authorization')
@@ -5,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   try {
-    return await $fetch(`${config.apiBase.replace(/\/$/, '')}/transcriptions/${encodeURIComponent(id ?? '')}`, {
+    return await ofetch(`${config.apiBase.replace(/\/$/, '')}/transcriptions/${encodeURIComponent(id ?? '')}`, {
       method: 'PATCH',
       body,
       headers: {

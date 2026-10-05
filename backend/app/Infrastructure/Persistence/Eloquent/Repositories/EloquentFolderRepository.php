@@ -11,6 +11,7 @@ use App\Domain\Folder\Exceptions\TranscriptionCannotBeAddedToFolderException;
 use App\Domain\Transcriber\Entities\TranscriptionExport as DomainTranscriptionExport;
 use App\Infrastructure\Persistence\Eloquent\Models\Folder as FolderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
+use Illuminate\Support\Facades\Storage;
 
 final class EloquentFolderRepository implements FolderRepositoryInterface
 {
@@ -65,6 +66,13 @@ final class EloquentFolderRepository implements FolderRepositoryInterface
                 status: $transcription->status,
                 transcript: $transcription->transcript,
                 duration: $transcription->duration,
+                provider: $transcription->provider,
+                segments: $transcription->segments ?? [],
+                audioUrl: $transcription->provider === 'deepgram'
+                    ? ($transcription->audio_storage_path !== null
+                        ? Storage::disk('r2')->temporaryUrl($transcription->audio_storage_path, now()->addHour())
+                        : $transcription->audio_path)
+                    : null,
                 exports: $transcription->exports->map(
                     fn ($export): DomainTranscriptionExport => new DomainTranscriptionExport(
                         id: $export->id,

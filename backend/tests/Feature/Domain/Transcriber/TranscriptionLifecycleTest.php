@@ -1,18 +1,24 @@
 <?php
 
+use App\Domain\Transcriber\Contracts\TranscriberGatewayResolverInterface;
+use App\Domain\Transcriber\Contracts\TranscriptionPollingDispatcherInterface;
+use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Services\TranscribeService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
 use App\Jobs\GeneratePdfExport;
 use App\Jobs\GenerateTxtExport;
+use App\Jobs\PollIntronTranscription;
+use App\Jobs\SubmitTranscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
 test('derives a filename without its extension from a submitted audio url', function () {
-    Http::fake(['*' => Http::response(['request_id' => 'provider-123'])]);
+    Queue::fake();
 
     $transcription = app(TranscribeService::class)->startNewTranscription([
         'audio_url' => 'https://fghjk.example/vghjkl/hjjhjhbgj.mp3?signature=private',
@@ -22,18 +28,50 @@ test('derives a filename without its extension from a submitted audio url', func
     expect($transcription->fileName)->toBe('hjjhjhbgj')
         ->and($transcription->name)->toBe('hjjhjhbgj')
         ->and($transcription->status)->toBe('pending')
-        ->and($transcription->providerRequestId)->toBe('provider-123');
+        ->and($transcription->providerRequestId)->toBeNull();
+    Queue::assertPushed(SubmitTranscription::class, fn (SubmitTranscription $job): bool => $job->transcriptionId === $transcription->id);
 });
 
-test('marks a transcription as failed when the provider submission fails', function () {
-    Http::fake(['*' => Http::response(['message' => 'Provider unavailable'], 500)]);
+test('marks a pending transcription as failed when provider submission exhausts its retries', function () {
+    $transcription = Transcription::factory()->create(['status' => 'pending']);
 
-    expect(fn () => app(TranscribeService::class)->startNewTranscription([
-        'audio_url' => 'https://audio.example.com/interview.mp3',
-        'language_code' => 'en',
-    ]))->toThrow(RuntimeException::class);
+    (new SubmitTranscription($transcription->id, 'en'))->failed(new RuntimeException('Provider unavailable'));
 
-    expect(Transcription::query()->sole()->status)->toBe('failed');
+    expect($transcription->refresh()->status)->toBe('failed');
+});
+
+test('persists the Intron file id before dispatching its polling job', function () {
+    config()->set('transcriber.intron.languages', ['en-NG', 'pcm', 'yo', 'ig', 'ha']);
+    config()->set('transcriber.intron.key', 'test-api-key');
+    config()->set('transcriber.intron.endpoint', 'https://intron.example');
+    Queue::fake();
+    Http::fake([
+        'audio.example.com/*' => Http::response('audio-bytes', 200, ['Content-Type' => 'audio/wav']),
+        'intron.example/*' => Http::response(['data' => ['file_id' => 'intron-file-123']]),
+    ]);
+
+    $transcription = app(TranscribeService::class)->startNewTranscription([
+        'audio_url' => 'https://audio.example.com/interview.wav',
+        'language_code' => 'en-NG',
+    ]);
+
+    expect($transcription->provider)->toBe('intron')
+        ->and($transcription->providerRequestId)->toBeNull();
+    Queue::assertPushed(SubmitTranscription::class);
+
+    app(SubmitTranscription::class, [
+        'transcriptionId' => $transcription->id,
+        'languageCode' => 'en-NG',
+    ])->handle(
+        app(TranscriberGatewayResolverInterface::class),
+        app(TranscriptionRepositoryInterface::class),
+        app(TranscriptionPollingDispatcherInterface::class),
+    );
+
+    Queue::assertPushed(PollIntronTranscription::class, function (PollIntronTranscription $job) use ($transcription): bool {
+        return $job->transcriptionId === $transcription->id
+            && Transcription::query()->findOrFail($transcription->id)->provider_request_id === 'intron-file-123';
+    });
 });
 
 test('uses the transcription name for both exports and completes after both uploads', function () {

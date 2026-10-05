@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
@@ -78,5 +79,10 @@ class GenerateTranscriptionExports implements ShouldBeUnique, ShouldQueue
         if ($eventId !== null) {
             $outbox->markPublished($eventId);
         }
+    }
+
+    public function failed(?\Throwable $exception): void
+    {
+        app(TranscriptionOutcomePublisher::class)->failed($this->transcriptionId);
     }
 }
