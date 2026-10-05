@@ -47,10 +47,10 @@ onMounted(() => {
         <span class="feature-icon"><UiAppIcon name="upload" :size="24" /></span>
         <template v-if="form.file.value"><strong>{{ form.file.value.name }}</strong><span>{{ form.sizeLabel.value }} · Click to replace</span></template>
         <template v-else><strong>Drag audio or video here</strong><span>or <u>browse files</u></span></template>
-        <small>MP3, WAV, MP4 and more · Up to 100 MB</small>
+        <small>MP3, WAV, MP4 and more · Up to {{ form.uploadLimit.value }}</small>
       </button>
 
-      <AudioRecorder v-else-if="form.source.value === 'record'" @recorded="form.selectFile" @cleared="form.clearFile" />
+      <fieldset v-else-if="form.source.value === 'record'" :disabled="form.busy.value"><AudioRecorder @recorded="form.selectFile" @cleared="form.clearFile" /></fieldset>
 
       <div v-else class="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
         <label class="block text-xs font-bold text-slate-700" for="audio-url">Public audio URL</label>
@@ -76,12 +76,28 @@ onMounted(() => {
       </div>
 
       <p v-if="form.error.value" class="error" role="alert">{{ form.error.value }}</p>
+      <div v-if="auth.isAuthenticated && form.source.value !== 'url' && form.stage.value !== 'done'" class="mb-4 space-y-3">
+        <div v-if="form.resumable.active.value || form.resumable.paused.value || form.progress.value > 0" class="rounded-xl border border-slate-200 p-4">
+          <div class="mb-2 flex items-center justify-between text-sm"><span>{{ form.resumable.finishing.value ? 'Verifying upload' : form.resumable.paused.value ? 'Upload paused' : 'Upload progress' }}</span><strong>{{ form.progress.value }}%</strong></div>
+          <progress class="h-2 w-full accent-indigo-600" :value="form.progress.value" max="100" aria-label="Upload progress" />
+          <p class="mt-2 text-xs text-slate-500" role="status">{{ form.resumable.notice.value }}</p>
+          <div class="mt-3 flex gap-3">
+            <button v-if="form.resumable.active.value" class="button-secondary" type="button" :disabled="form.resumable.finishing.value" @click="form.resumable.pause()">Pause</button>
+            <button v-else-if="form.resumable.paused.value && form.file.value" class="button-primary" type="button" :disabled="form.busy.value" @click="submit">Resume upload</button>
+            <button v-if="!form.resumable.active.value" class="button-secondary" type="button" :disabled="form.busy.value" @click="form.cancelUpload()">Cancel upload</button>
+          </div>
+        </div>
+        <div v-if="form.resumable.unfinished.value.length && !form.resumable.active.value" class="rounded-xl bg-slate-50 p-4 text-sm">
+          <strong>Saved uploads</strong><p class="mt-1 text-xs text-slate-500">Select the same file to resume. Incomplete uploads expire after seven days.</p>
+          <ul class="mt-3 space-y-2"><li v-for="saved in form.resumable.unfinished.value" :key="saved.key" class="flex items-center justify-between gap-3"><span class="min-w-0 truncate">{{ saved.filename }}</span><button class="text-xs font-semibold text-rose-600" type="button" :disabled="form.busy.value" @click="form.discardUpload(saved)">Cancel</button></li></ul>
+        </div>
+      </div>
       <div v-if="form.stage.value === 'done'" class="success" role="status">
         <strong>Uploaded. Over to transcription.</strong><p>Your recording was submitted successfully.</p><NuxtLink class="mt-2 inline-flex items-center gap-2 font-semibold text-emerald-700" to="/dashboard/transcriptions">Open transcriptions <UiAppIcon name="arrow" :size="16" /></NuxtLink>
       </div>
       <p v-if="form.source.value !== 'url' && form.duration.value && form.stage.value !== 'done'" class="cost-notice">Your audio is {{ form.durationLabel.value }} long. It would cost you <strong>50 credits</strong>.</p>
       <button class="submit" type="submit" :disabled="form.busy.value || (form.stage.value !== 'done' && !form.canSubmit.value)"><span>{{ form.submitLabel.value }}</span><span aria-hidden="true">↗</span></button>
-      <p class="footnote">{{ form.source.value === 'url' ? 'The URL is sent directly for transcription.' : 'Your audio uploads directly from your browser.' }}</p>
+      <p class="footnote">{{ form.source.value === 'url' ? 'The URL is sent directly for transcription.' : auth.isAuthenticated ? 'Uploads go directly to storage. After a refresh, select the same file to resume.' : 'Your audio uploads directly from your browser. Sign in for resumable uploads up to 5 GB.' }}</p>
     </form>
   </section>
 </template>

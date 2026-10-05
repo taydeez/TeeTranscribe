@@ -124,6 +124,7 @@ onBeforeUnmount(() => {
       <strong class="block truncate text-sm text-slate-900">{{ recordedFile.name }}</strong>
       <audio class="mt-4 w-full" :src="previewUrl" controls preload="metadata" />
       <div class="mt-4 flex justify-center gap-3">
+        <a class="min-h-10 rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-600" :href="previewUrl" :download="recordedFile.name">Save recording</a>
         <button class="min-h-10 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white" type="button" @click="start">Record again</button>
         <button class="min-h-10 rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-600" type="button" @click="clear">Discard</button>
       </div>

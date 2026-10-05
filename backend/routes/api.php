@@ -7,6 +7,7 @@ use App\Http\Controllers\GuestSessionController;
 use App\Http\Controllers\Transcription\CreateTranscriptionController;
 use App\Http\Controllers\Transcription\DeepgramWebhookController;
 use App\Http\Controllers\Transcription\UpdateTranscriptionController;
+use App\Http\Controllers\Upload\MultipartUploadController;
 use App\Http\Controllers\Upload\PresignAudioUploadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,12 @@ Route::prefix('v1')->group(function (): void {
     })->middleware('auth:sanctum');
 
     Route::middleware('auth:sanctum')->group(function (): void {
+        Route::prefix('uploads/multipart')->middleware('throttle:uploads')->group(function (): void {
+            Route::post('/', [MultipartUploadController::class, 'start']);
+            foreach (['status', 'part', 'complete', 'abort'] as $action) {
+                Route::post('/{upload}/'.$action, [MultipartUploadController::class, $action]);
+            }
+        });
         Route::apiResource('folders', FolderController::class);
         Route::put('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'attachTranscription']);
         Route::delete('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'detachTranscription']);

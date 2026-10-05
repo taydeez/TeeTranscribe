@@ -8,6 +8,7 @@ const formats: Record<string, string> = {
 
 export function useTranscriptionForm() {
   const auth = useAuthStore()
+  const resumable = useResumableUpload()
   const source = ref<TranscriptionSource>('file')
   const file = ref<File | null>(null)
   const pastedUrl = ref('')
@@ -24,8 +25,8 @@ export function useTranscriptionForm() {
   const uploadedUrl = ref('')
   const guestSessionId = ref('')
 
-  const maxBytes = 100 * 1024 * 1024
-  const busy = computed(() => readingDuration.value || ['preparing', 'uploading', 'submitting'].includes(stage.value))
+  const uploadLimit = computed(() => auth.isAuthenticated ? '5 GB' : '100 MB')
+  const busy = computed(() => readingDuration.value || resumable.cancelling.value || ['preparing', 'uploading', 'submitting'].includes(stage.value))
   const canSubmit = computed(() => source.value === 'url' ? pastedUrl.value.trim() !== '' : Boolean(file.value && duration.value))
   const sizeLabel = computed(() => !file.value ? '' : file.value.size < 1024 * 1024
     ? `${Math.max(1, Math.round(file.value.size / 1024))} KB`
@@ -47,6 +48,7 @@ export function useTranscriptionForm() {
   })[stage.value])
 
   let activeUpload: XMLHttpRequest | null = null
+  watch(resumable.progress, value => { if (stage.value === 'uploading') progress.value = value })
 
   function resetResult() {
     error.value = ''
@@ -99,8 +101,9 @@ export function useTranscriptionForm() {
       error.value = 'Choose an MP3, WAV, M4A, MP4, OGG, FLAC, WebM, or AAC audio file.'
       return
     }
+    const maxBytes = (auth.isAuthenticated ? 5 * 1024 : 100) * 1024 * 1024
     if (!candidate.size || candidate.size > maxBytes) {
-      error.value = 'Choose a non-empty audio file smaller than 100 MB.'
+      error.value = `Choose a non-empty audio file up to ${uploadLimit.value}.`
       return
     }
     file.value = candidate
@@ -115,6 +118,7 @@ export function useTranscriptionForm() {
   }
 
   function clearFile() {
+    if (busy.value) return
     file.value = null
     duration.value = null
     resetResult()
@@ -179,20 +183,28 @@ export function useTranscriptionForm() {
     if (source.value === 'url' && !remoteUrl) { error.value = 'Enter a valid HTTP or HTTPS audio URL.'; return null }
     if (source.value !== 'url' && (!file.value || !duration.value)) { error.value = 'Choose or record audio before submitting.'; return null }
     error.value = ''; progress.value = 0; uploadedUrl.value = ''
+    stage.value = 'preparing'
     let audioStoragePath: string | undefined
     try {
       const identity = auth.isAuthenticated && auth.user ? { user_id: auth.user.id } : { guest_session_id: await ensureGuestSession() }
       if (source.value !== 'url' && file.value) {
         stage.value = 'preparing'
         const extension = file.value.name.split('.').pop()!.toLowerCase()
-        const ticket = await $fetch<UploadTicket>('/api/uploads/presign', {
-          method: 'POST', retry: 0,
-          body: { filename: file.value.name, content_type: formats[extension], size: file.value.size },
-        })
-        stage.value = 'uploading'
-        await upload(ticket, file.value)
-        uploadedUrl.value = ticket.audio_url
-        audioStoragePath = ticket.audio_storage_path
+        if (auth.isAuthenticated) {
+          stage.value = 'uploading'
+          const result = await resumable.upload(file.value, formats[extension]!)
+          uploadedUrl.value = result.audio_url
+          audioStoragePath = result.audio_storage_path
+        } else {
+          const ticket = await $fetch<UploadTicket>('/api/uploads/presign', {
+            method: 'POST', retry: 0,
+            body: { filename: file.value.name, content_type: formats[extension], size: file.value.size },
+          })
+          stage.value = 'uploading'
+          await upload(ticket, file.value)
+          uploadedUrl.value = ticket.audio_url
+          audioStoragePath = ticket.audio_storage_path
+        }
       } else uploadedUrl.value = remoteUrl!
 
       stage.value = 'submitting'
@@ -212,6 +224,10 @@ export function useTranscriptionForm() {
       if (!response.id) throw new Error('The server did not return a transcription request ID.')
       requestId.value = response.id
       stage.value = 'done'
+      if (source.value !== 'url' && auth.isAuthenticated) {
+        try { await resumable.acknowledge() }
+        catch { resumable.notice.value = 'Submitted successfully. Could not clear this browser’s saved upload.' }
+      }
       return response.id
     } catch (failure: unknown) {
       const issue = failure as { data?: { message?: string }; message?: string }
@@ -223,5 +239,15 @@ export function useTranscriptionForm() {
 
   onBeforeUnmount(() => activeUpload?.abort())
 
-  return { source, file, pastedUrl, language, folderId, folders, foldersLoading, stage, progress, duration, busy, canSubmit, sizeLabel, durationLabel, submitLabel, error, requestId, uploadedUrl, chooseSource, selectFile, clearFile, loadFolders, submit }
+  async function cancelUpload() {
+    try { await resumable.cancel(); resetResult() }
+    catch (failure: unknown) { error.value = failure instanceof Error ? failure.message : 'Could not cancel the upload.' }
+  }
+
+  async function discardUpload(record: import('~/types/upload').SavedUpload) {
+    try { await resumable.discard(record) }
+    catch (failure: unknown) { error.value = failure instanceof Error ? failure.message : 'Could not cancel the saved upload.' }
+  }
+
+  return { source, file, pastedUrl, language, folderId, folders, foldersLoading, stage, progress, duration, busy, canSubmit, sizeLabel, durationLabel, submitLabel, error, requestId, uploadedUrl, uploadLimit, resumable, cancelUpload, discardUpload, chooseSource, selectFile, clearFile, loadFolders, submit }
 }
