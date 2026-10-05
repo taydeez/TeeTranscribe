@@ -18,6 +18,8 @@ use App\Domain\Transcriber\Contracts\TranscriptionSubmissionDispatcherInterface;
 use App\Domain\Transcriber\Events\TranscriptionCompleted;
 use App\Domain\Transcriber\Events\TranscriptionFailed;
 use App\Domain\Transcriber\Mappers\TranscriptionMapper as DomainTranscriptionMapper;
+use App\Domain\Upload\Contracts\MultipartStorageInterface;
+use App\Domain\Upload\Contracts\UploadSessionRepositoryInterface;
 use App\Infrastructure\AI\TranscriberGatewayResolver;
 use App\Infrastructure\Auth\GoogleSocialAuthGateway;
 use App\Infrastructure\Notifications\SendTranscriptionOutcomeEmail;
@@ -29,10 +31,12 @@ use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAuthRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentFolderRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionExportRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentUploadSessionRepository;
 use App\Infrastructure\Queue\LaravelTranscriptionExportDispatcher;
 use App\Infrastructure\Queue\LaravelTranscriptionPollingDispatcher;
 use App\Infrastructure\Queue\LaravelTranscriptionSubmissionDispatcher;
 use App\Infrastructure\Storage\R2TranscriptionExportUrlGenerator;
+use App\Infrastructure\Upload\R2\R2MultipartStorage;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
@@ -45,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(UploadSessionRepositoryInterface::class, EloquentUploadSessionRepository::class);
+        $this->app->bind(MultipartStorageInterface::class, R2MultipartStorage::class);
         $this->app->bind(TranscriptionOutcomePublisherInterface::class, TranscriptionOutcomePublisher::class);
         $this->app->bind(TranscriptionExportRepositoryInterface::class, EloquentTranscriptionExportRepository::class);
         $this->app->bind(TranscriptionExportDispatcherInterface::class, LaravelTranscriptionExportDispatcher::class);
@@ -71,5 +77,6 @@ class AppServiceProvider extends ServiceProvider
             SendTranscriptionOutcomeEmail::class,
         );
         RateLimiter::for('auth', fn ($request) => Limit::perMinute(5)->by(mb_strtolower((string) $request->input('email')).'|'.$request->ip()));
+        RateLimiter::for('uploads', fn ($request) => Limit::perMinute(120)->by((string) $request->user()?->getAuthIdentifier()));
     }
 }

@@ -6,69 +6,196 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://127.0.0.1:8000/api/v1" },
-    { "key": "userId", "value": "" },
-    { "key": "folderId", "value": "" },
-    { "key": "guestSessionId", "value": "" },
-    { "key": "transcriptionId", "value": "" },
-    { "key": "callbackSignature", "value": "" },
-    { "key": "callbackExpires", "value": "" },
-    { "key": "sanctumToken", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "folderId",
+      "value": ""
+    },
+    {
+      "key": "guestSessionId",
+      "value": ""
+    },
+    {
+      "key": "transcriptionId",
+      "value": ""
+    },
+    {
+      "key": "callbackSignature",
+      "value": ""
+    },
+    {
+      "key": "callbackExpires",
+      "value": ""
+    },
+    {
+      "key": "sanctumToken",
+      "value": ""
+    },
+    {
+      "key": "uploadSessionId",
+      "value": ""
+    },
+    {
+      "key": "uploadClientKey",
+      "value": ""
+    },
+    {
+      "key": "uploadFingerprint",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "key": "signedPartUrl",
+      "value": ""
+    }
   ],
   "item": [
     {
       "name": "Register",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"your name or Organization name.\",\n  \"email\": \"new-user@example.com\",\n  \"password\": \"password1\",\n  \"password_confirmation\": \"password1\"\n}" }, "url": "{{baseUrl}}/auth/register" }
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"your name or Organization name.\",\n  \"email\": \"new-user@example.com\",\n  \"password\": \"password1\",\n  \"password_confirmation\": \"password1\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      }
     },
     {
       "name": "Login",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password\"\n}" }, "url": "{{baseUrl}}/auth/login" }
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
     },
     {
       "name": "Verify admin email code",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"code\": \"123456\"\n}" }, "url": "{{baseUrl}}/auth/admin/verify" }
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"code\": \"123456\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/admin/verify"
+      }
     },
     {
       "name": "Google OAuth redirect",
-      "request": { "method": "GET", "url": "{{baseUrl}}/auth/google/redirect" }
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/google/redirect"
+      }
     },
     {
       "name": "Google OAuth callback",
-      "request": { "method": "GET", "url": "{{baseUrl}}/auth/google/callback?code=google-authorization-code" }
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/google/callback?code=google-authorization-code"
+      }
     },
     {
       "name": "Logout",
-      "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }], "url": "{{baseUrl}}/auth/logout" }
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/logout"
+      }
     },
     {
       "name": "Get authenticated admin",
-      "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }], "url": "{{baseUrl}}/admin/user" }
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/admin/user"
+      }
     },
     {
       "name": "Get authenticated user",
       "request": {
         "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "url": "{{baseUrl}}/user"
       }
     },
     {
       "name": "Create guest session",
-      "event": [{
-        "listen": "test",
-        "script": {
-          "type": "text/javascript",
-          "exec": [
-            "pm.test('returns a guest session id', function () {",
-            "  pm.response.to.have.status(200);",
-            "  pm.collectionVariables.set('guestSessionId', pm.response.json().id);",
-            "});"
-          ]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('returns a guest session id', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.collectionVariables.set('guestSessionId', pm.response.json().id);",
+              "});"
+            ]
+          }
         }
-      }],
+      ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Accept", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
         "url": "{{baseUrl}}/guest-sessions"
       }
     },
@@ -76,7 +203,16 @@
       "name": "Create upload signature",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"filename\": \"interview.mp3\",\n  \"content_type\": \"audio/mpeg\",\n  \"size\": 1048576\n}"
@@ -89,7 +225,16 @@
       "request": {
         "description": "Creates a pending transcription, queues provider submission, and returns HTTP 202. When file_name is omitted, it is derived from the final URL path segment without the extension. Include audio_storage_path for files uploaded through the presign endpoint so the worker can read R2 without relying on an expiring URL.",
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"audio_storage_path\": \"audio/01M40K8ZE4TGFDWD49FCJ6PRH0.mp3\",\n  \"guest_session_id\": \"{{guestSessionId}}\",\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
@@ -102,7 +247,20 @@
       "request": {
         "description": "Creates a pending transcription, assigns it to the selected folder or today's automatic folder, queues provider submission, and returns HTTP 202.",
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"audio_storage_path\": \"audio/01M40K8ZE4TGFDWD49FCJ6PRH0.mp3\",\n  \"user_id\": {{userId}},\n  \"folder_id\": null,\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
@@ -114,7 +272,16 @@
       "name": "List folders",
       "request": {
         "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "url": "{{baseUrl}}/folders?search=&sort=created_at&direction=desc&page=1&per_page=10"
       }
     },
@@ -122,8 +289,24 @@
       "name": "Create folder",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
-        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Interviews\"\n}" },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Interviews\"\n}"
+        },
         "url": "{{baseUrl}}/folders"
       }
     },
@@ -132,7 +315,16 @@
       "request": {
         "description": "Returns the folder's transcriptions and temporary download links for completed TXT and PDF exports. Deepgram transcripts also include provider, timed segments (start/end seconds, speaker, text, confidence), and audioUrl for playback. R2 playback URLs expire after one hour; reopen the folder to refresh them.",
         "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "url": "{{baseUrl}}/folders/{{folderId}}"
       }
     },
@@ -140,8 +332,24 @@
       "name": "Update folder",
       "request": {
         "method": "PUT",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
-        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Client interviews\"\n}" },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Client interviews\"\n}"
+        },
         "url": "{{baseUrl}}/folders/{{folderId}}"
       }
     },
@@ -149,7 +357,16 @@
       "name": "Delete folder",
       "request": {
         "method": "DELETE",
-        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "url": "{{baseUrl}}/folders/{{folderId}}"
       }
     },
@@ -157,7 +374,16 @@
       "name": "Add transcription to folder",
       "request": {
         "method": "PUT",
-        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "url": "{{baseUrl}}/folders/{{folderId}}/transcriptions/{{transcriptionId}}"
       }
     },
@@ -165,7 +391,16 @@
       "name": "Remove transcription from folder",
       "request": {
         "method": "DELETE",
-        "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
         "url": "{{baseUrl}}/folders/{{folderId}}/transcriptions/{{transcriptionId}}"
       }
     },
@@ -174,8 +409,24 @@
       "request": {
         "description": "Updates an owned transcript and queues replacement TXT and PDF exports. For timed Deepgram editing, include segments in their original order, each containing text and nullable speaker. Segment count must match the stored transcript; timing and confidence remain unchanged. The server derives transcript from segment text. Plain-text edits clear timed segments to prevent stale alignment.",
         "method": "PATCH",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{sanctumToken}}" }],
-        "body": { "mode": "raw", "raw": "{\n  \"transcript\": \"Corrected transcription text.\"\n}" },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transcript\": \"Corrected transcription text.\"\n}"
+        },
         "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}"
       }
     },
@@ -184,13 +435,191 @@
       "request": {
         "description": "Validates metadata.request_id against a Deepgram transcription, atomically stores transcript and results.utterances as timed segments, and moves the transcription to processing while PDF and TXT exports are generated. Utterances include start, end, transcript, optional speaker number and confidence. Duplicate callbacks do not overwrite saved edits.",
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"metadata\": { \"request_id\": \"provider-request-id\", \"duration\": 123.456 },\n  \"results\": { \"channels\": [{ \"alternatives\": [{ \"transcript\": \"Example transcription text.\" }] }] }\n}"
         },
         "url": "{{baseUrl}}/webhooks/deepgram/{{transcriptionId}}?expires={{callbackExpires}}&signature={{callbackSignature}}"
       }
+    },
+    {
+      "name": "Resumable R2 uploads",
+      "description": "Start → status (authoritative uploaded parts) → sign each missing part → PUT bytes directly to R2 → complete. Pause means stop sending parts. After interruption select the original file and reuse client_key. Cancel aborts unfinished parts. Never send transcript requests until completion succeeds.",
+      "item": [
+        {
+          "name": "Start or recover multipart upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sanctumToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_key\": \"{{uploadClientKey}}\",\n  \"filename\": \"sample.mp3\",\n  \"content_type\": \"audio/mpeg\",\n  \"size\": 2048,\n  \"fingerprint\": \"{{uploadFingerprint}}\"\n}"
+            },
+            "url": "{{baseUrl}}/uploads/multipart",
+            "description": "Signed-in uploads only. Reuse the same client_key and metadata to recover an interrupted start. Up to 5 GiB, 16 MiB parts. This example is one 2048-byte final part; use the exact source-file bytes."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('uploadClientKey')) pm.collectionVariables.set('uploadClientKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set('uploadSessionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inspect uploaded parts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sanctumToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/uploads/multipart/{{uploadSessionId}}/status"
+          }
+        },
+        {
+          "name": "Sign an upload part",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sanctumToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"part_number\": 1\n}"
+            },
+            "url": "{{baseUrl}}/uploads/multipart/{{uploadSessionId}}/part"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set('signedPartUrl', pm.response.json().upload_url);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload part bytes directly to R2",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{signedPartUrl}}",
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": ""
+              }
+            },
+            "description": "Select the corresponding file chunk, not the entire source file unless it fits in one part. Do not send the API bearer token to R2. After a failed PUT obtain a fresh signed URL for the same part number."
+          }
+        },
+        {
+          "name": "Complete and verify upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sanctumToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/uploads/multipart/{{uploadSessionId}}/complete"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('audioUrl', pm.response.json().audio_url); pm.collectionVariables.set('audioStoragePath', pm.response.json().audio_storage_path); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abort unfinished upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sanctumToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/uploads/multipart/{{uploadSessionId}}/abort"
+          }
+        }
+      ]
     }
   ]
 }

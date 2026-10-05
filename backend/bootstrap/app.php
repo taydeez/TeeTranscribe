@@ -3,6 +3,9 @@
 use App\Domain\Folder\Exceptions\FolderNotFoundException;
 use App\Domain\Folder\Exceptions\TranscriptionCannotBeAddedToFolderException;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
+use App\Domain\Upload\Exceptions\UploadException;
+use Aws\S3\Exception\S3Exception;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,6 +29,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(fn (UploadException $exception) => response()->json([
+            'message' => $exception->getMessage(),
+        ], $exception->httpStatus));
+        $exceptions->render(function (S3Exception $exception, Request $request) {
+            if ($request->is('api/v1/uploads/multipart*')) {
+                return response()->json(['message' => 'Storage is unavailable. Your upload progress is saved; please retry.'], 503);
+            }
+        });
+        $exceptions->render(function (LockTimeoutException $exception, Request $request) {
+            if ($request->is('api/v1/uploads/multipart*')) {
+                return response()->json(['message' => 'Another upload operation is in progress. Please retry.'], 409);
+            }
+        });
         $exceptions->render(fn (FolderNotFoundException $exception) => response()->json([
             'message' => $exception->getMessage(),
         ], 404));
