@@ -13,13 +13,13 @@ final readonly class EditTranscriptionService
         private TranscriptionExportDispatcherInterface $exports,
     ) {}
 
-    public function edit(string $transcriptionId, int $userId, string $transcript): Transcription
+    public function edit(string $transcriptionId, int $userId, string $transcript, ?array $segments = null): Transcription
     {
-        $transcription = $this->transcriptions->updateTranscriptForUser(
+        $transcription = $segments === null ? $this->transcriptions->updateTranscriptForUser(
             $transcriptionId,
             $userId,
             $transcript,
-        );
+        ) : $this->transcriptions->updateTranscriptForUser($transcriptionId, $userId, $transcript, $segments);
 
         $this->exports->dispatch($transcriptionId);
 

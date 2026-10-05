@@ -21,5 +21,7 @@ final readonly class Transcription
         public ?float $duration = null,
         public ?string $folderName = null,
         public string $provider = 'deepgram',
+        public ?string $audioStoragePath = null,
+        public array $segments = [],
     ) {}
 }

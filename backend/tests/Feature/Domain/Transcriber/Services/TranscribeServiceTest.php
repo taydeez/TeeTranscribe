@@ -4,36 +4,41 @@ use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Services\TranscribeService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 
 uses(LazilyRefreshDatabase::class);
 
+beforeEach(fn () => Queue::fake());
+
 test('stores the submitted audio metadata through the transcription endpoint', function () {
-    Http::preventStrayRequests();
+    Http::fake(['*' => Http::response(['request_id' => 'provider-123'])]);
     $url = 'https://audio.example.com/interview.mp3';
 
-    $response = $this->postJson('/api/v1/transcribe', [
+    $this->postJson('/api/v1/transcribe', [
         'audio_url' => $url, 'language_code' => 'en', 'duration' => 123.456,
         'file_name' => 'interview.mp3', 'name' => 'Customer interview', 'folder_name' => 'Research',
-    ])->assertOk()->assertJsonPath('fileName', 'interview.mp3')
-        ->assertJsonPath('name', 'Customer interview')->assertJsonPath('folderName', 'Research');
+    ])->assertAccepted()->assertJsonPath('status', 'pending');
 
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $response->json('id'), 'audio_path' => $url, 'duration' => 123.456,
+        'audio_path' => $url, 'duration' => 123.456,
         'file_name' => 'interview.mp3', 'name' => 'Customer interview', 'folder_name' => 'Research',
+        'provider' => 'deepgram', 'provider_request_id' => null,
     ]);
 });
 
 test('derives names for clients that only send an audio URL', function () {
-    $transcription = app(TranscribeService::class)->storeTranscription([
+    Http::fake(['*' => Http::response(['request_id' => 'provider-123'])]);
+
+    $transcription = app(TranscribeService::class)->startNewTranscription([
         'audio_url' => 'https://audio.example.com/audio/Team%20meeting.mp3?signature=example',
         'language_code' => 'en',
     ]);
 
-    expect($transcription->fileName)->toBe('Team meeting.mp3');
+    expect($transcription->fileName)->toBe('Team meeting');
     expect($transcription->name)->toBe('Team meeting');
     expect($transcription->folderName)->toBeNull();
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $transcription->id, 'file_name' => 'Team meeting.mp3', 'name' => 'Team meeting',
+        'id' => $transcription->id, 'file_name' => 'Team meeting', 'name' => 'Team meeting',
     ]);
 });
 

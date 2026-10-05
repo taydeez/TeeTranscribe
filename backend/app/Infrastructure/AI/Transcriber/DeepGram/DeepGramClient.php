@@ -57,6 +57,8 @@ final class DeepGramClient
                     'language' => $languageCode,
                     'punctuate' => $this->punctuate,
                     'smart_format' => 'true',
+                    'utterances' => 'true',
+                    'diarize_model' => 'latest',
                     'callback' => $callbackUrl,
                 ])
                 ->timeout(120)

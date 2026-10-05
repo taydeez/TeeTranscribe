@@ -47,7 +47,11 @@ class CreateTranscriptionController
             $this->folderService->attachTranscription($folder->id, $userId, $transcription->id);
         }
 
-        return response()->json('file has been sent for transcription');
+        return response()->json([
+            'id' => $transcription->id,
+            'status' => $transcription->status,
+            'message' => 'File queued for transcription.',
+        ], 202);
 
     }
 }

@@ -27,6 +27,7 @@ class TranscribeAudioRequest extends FormRequest
     {
         return [
             'audio_url' => ['required', 'url:http,https', 'max:8192'],
+            'audio_storage_path' => ['nullable', 'string', 'max:1024', 'regex:/\Aaudio\/[0-9A-HJKMNP-TV-Z]{26}\.(mp3|wav|m4a|mp4|ogg|oga|flac|webm|aac)\z/i'],
             'user_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'guest_session_id' => ['nullable', 'uuid', Rule::exists(GuestSession::class, 'id')],
             'folder_id' => ['nullable', 'ulid'],

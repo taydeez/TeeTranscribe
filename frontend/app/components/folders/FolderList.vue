@@ -1,0 +1,15 @@
+<script setup lang="ts">
+import type { Folder, FolderPage } from '~/types/folder'
+defineProps<{ folders: Folder[]; meta: FolderPage['meta']; loading: boolean }>()
+const emit = defineEmits<{ page: [value: number] }>()
+function date(value: string | null) { return value ? new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : '—' }
+</script>
+<template>
+  <div v-if="loading" class="grid min-h-64 place-items-center text-sm text-slate-500">Loading folders…</div>
+  <template v-else-if="folders.length">
+    <div class="divide-y divide-slate-100 sm:hidden"><NuxtLink v-for="folder in folders" :key="folder.id" :to="`/dashboard/transcriptions/${folder.id}`" class="block p-5"><div class="flex gap-3"><span class="grid size-11 place-items-center rounded-xl bg-indigo-50 text-indigo-600"><UiAppIcon name="folder" /></span><div class="min-w-0 flex-1"><h3 class="truncate text-sm font-bold">{{ folder.name }}</h3><p class="mt-1 text-xs text-slate-500">{{ folder.transcriptionIds.length }} transcriptions</p></div><span class="text-xs text-slate-400">{{ date(folder.createdAt) }}</span></div></NuxtLink></div>
+    <div class="hidden overflow-x-auto sm:block"><table class="w-full min-w-[620px] text-left"><thead><tr class="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold tracking-[.14em] text-slate-500"><th class="px-8 py-4">FOLDER</th><th class="px-6 py-4">TRANSCRIPTIONS</th><th class="px-8 py-4 text-right">CREATED</th></tr></thead><tbody><tr v-for="folder in folders" :key="folder.id" class="border-b border-slate-100 hover:bg-indigo-50/40"><td class="px-8 py-5"><NuxtLink class="flex items-center gap-3 text-sm font-bold text-slate-800" :to="`/dashboard/transcriptions/${folder.id}`"><span class="grid size-10 place-items-center rounded-xl bg-indigo-50 text-indigo-600"><UiAppIcon name="folder" /></span>{{ folder.name }}</NuxtLink></td><td class="px-6 py-5 text-sm text-slate-600">{{ folder.transcriptionIds.length }}</td><td class="px-8 py-5 text-right text-sm text-slate-500">{{ date(folder.createdAt) }}</td></tr></tbody></table></div>
+  </template>
+  <div v-else class="grid min-h-72 place-items-center p-12 text-center"><div><span class="mx-auto grid size-14 place-items-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600"><UiAppIcon name="folder" /></span><h3 class="mt-5 text-2xl font-semibold">No folders found</h3><p class="mt-2 text-sm text-slate-500">Create a folder or change your search.</p></div></div>
+  <div v-if="meta.lastPage > 1" class="flex items-center justify-between border-t border-slate-200 px-8 py-4"><p class="text-xs text-slate-500">Page {{ meta.currentPage }} of {{ meta.lastPage }}</p><div class="flex gap-2"><button class="rounded-lg border px-4 py-2 text-xs font-bold disabled:opacity-40" :disabled="meta.currentPage <= 1 || loading" @click="emit('page', meta.currentPage - 1)">Previous</button><button class="rounded-lg border px-4 py-2 text-xs font-bold disabled:opacity-40" :disabled="meta.currentPage >= meta.lastPage || loading" @click="emit('page', meta.currentPage + 1)">Next</button></div></div>
+</template>

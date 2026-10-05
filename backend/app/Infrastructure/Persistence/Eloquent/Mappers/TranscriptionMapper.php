@@ -23,6 +23,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             'user_id' => $model->user_id,
             'guest_session_id' => $model->guest_session_id,
             'audio_path' => $model->audio_path,
+            'audio_storage_path' => $model->audio_storage_path,
             'file_name' => $model->file_name,
             'name' => $model->name,
             'folder_name' => $model->folder_name,
@@ -31,6 +32,7 @@ class TranscriptionMapper implements TranscriptionMapperInterface
             'status' => $model->status,
             'provider_request_id' => $model->provider_request_id,
             'transcript' => $model->transcript,
+            'segments' => $model->segments ?? [],
             'created_at' => $model->created_at,
             'updated_at' => $model->updated_at,
         ]);

@@ -3,27 +3,42 @@
 namespace App\Jobs;
 
 use App\Infrastructure\AI\Transcriber\Intron\IntronClient;
+use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 class PollIntronTranscription implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 30;
-
     public int $timeout = 120;
 
-    public function __construct(public string $transcriptionId)
+    public int $maxExceptions = 5;
+
+    public CarbonImmutable $pollingDeadline;
+
+    public function __construct(public string $transcriptionId, ?DateTimeInterface $pollingDeadline = null)
     {
+        $this->pollingDeadline = $pollingDeadline === null
+            ? CarbonImmutable::now()->addMinutes((int) config('transcriber.intron.poll_timeout_minutes', 60))
+            : CarbonImmutable::instance($pollingDeadline);
         $this->onConnection('redis')->onQueue('transcriptions');
+    }
+
+    public function retryUntil(): DateTimeInterface
+    {
+        return $this->pollingDeadline;
     }
 
     public function backoff(): array
@@ -34,39 +49,60 @@ class PollIntronTranscription implements ShouldQueue
     public function handle(IntronClient $client, OutboxService $outbox): void
     {
         $transcription = Transcription::query()->findOrFail($this->transcriptionId);
-        if ($transcription->provider !== 'intron' || $transcription->status === 'complete') {
+        if ($transcription->provider !== 'intron' || $transcription->status !== 'pending') {
             return;
         }
 
-        $response = $client->status((string) $transcription->provider_request_id);
+        if (blank($transcription->provider_request_id)) {
+            throw new RuntimeException('The Intron file ID has not been persisted.');
+        }
+
+        try {
+            $response = $client->status((string) $transcription->provider_request_id);
+        } catch (RequestException $exception) {
+            if ($exception->response->tooManyRequests()) {
+                $this->release($this->retryAfter($exception));
+
+                return;
+            }
+
+            throw $exception;
+        }
+
         $status = strtoupper((string) (data_get($response, 'data.processing_status') ?? data_get($response, 'processing_status')));
 
         if (in_array($status, ['FILE_QUEUED', 'FILE_PENDING', 'FILE_PROCESSING'], true)) {
-            $this->release(15);
+            $this->release((int) config('transcriber.intron.poll_interval', 15));
 
             return;
         }
 
         if ($status === 'FILE_PROCESSING_FAILED') {
-            $transcription->update(['status' => 'failed']);
-            throw new RuntimeException('Intron transcription processing failed.');
+            app(TranscriptionOutcomePublisher::class)->failed($transcription->id, pendingOnly: true);
+
+            return;
         }
 
         if ($status !== 'FILE_TRANSCRIBED') {
             throw new RuntimeException('Unknown Intron processing status: '.$status);
         }
 
-        DB::transaction(function () use ($transcription, $response, $outbox): void {
+        $transcript = data_get($response, 'data.audio_transcript');
+        if (! is_string($transcript) || trim($transcript) === '') {
+            throw new RuntimeException('Intron completed without returning a usable transcript.');
+        }
+
+        DB::transaction(function () use ($transcription, $response, $transcript, $outbox): void {
             $record = Transcription::query()->lockForUpdate()->findOrFail($transcription->id);
             if ($record->status !== 'pending') {
                 return;
             }
 
-            $transcript = data_get($response, 'data.audio_transcript');
+            $duration = data_get($response, 'data.processed_audio_duration_in_seconds');
             $record->update([
                 'status' => 'processing',
-                'transcript' => is_string($transcript) ? $transcript : json_encode($transcript, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-                'duration' => data_get($response, 'data.processed_audio_duration_in_seconds', $record->duration),
+                'transcript' => trim($transcript),
+                'duration' => is_numeric($duration) ? (float) $duration : $record->duration,
             ]);
 
             $outbox->record(
@@ -76,5 +112,19 @@ class PollIntronTranscription implements ShouldQueue
                 ['transcription_id' => $record->id],
             );
         });
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        app(TranscriptionOutcomePublisher::class)->failed($this->transcriptionId, pendingOnly: true);
+    }
+
+    private function retryAfter(RequestException $exception): int
+    {
+        $retryAfter = $exception->response->header('Retry-After');
+
+        return is_numeric($retryAfter)
+            ? max(1, min(300, (int) $retryAfter))
+            : (int) config('transcriber.intron.poll_interval', 15);
     }
 }

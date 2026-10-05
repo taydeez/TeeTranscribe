@@ -9,6 +9,23 @@ use Illuminate\Support\Str;
 
 uses(LazilyRefreshDatabase::class);
 
+test('stores timed speaker segments atomically and ignores duplicate replacements', function () {
+    $record = Transcription::factory()->create(['provider' => 'deepgram', 'provider_request_id' => 'timed-request']);
+    $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
+    $payload = deepgramCompletionPayload('timed-request');
+    $payload['results']['utterances'] = [
+        ['start' => 0.5, 'end' => 3.2, 'speaker' => 0, 'transcript' => 'Hello world.', 'confidence' => 0.98],
+    ];
+    $this->postJson($url, $payload)->assertNoContent();
+    expect($record->refresh()->segments)->toBe([
+        ['start' => 0.5, 'end' => 3.2, 'speaker' => 'Speaker 1', 'text' => 'Hello world.', 'confidence' => 0.98],
+    ]);
+    $payload['results']['utterances'][0]['transcript'] = 'Duplicate';
+    $this->postJson($url, $payload)->assertNoContent();
+    expect($record->refresh()->segments[0]['text'])->toBe('Hello world.');
+    $this->assertDatabaseCount('outbox_events', 1);
+});
+
 function deepgramCompletionPayload(string $requestId, string $transcript = 'Hello world.'): array
 {
     return [

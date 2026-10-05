@@ -136,6 +136,9 @@ final class FolderController extends Controller
             'fileName' => $transcription->fileName,
             'status' => $transcription->status,
             'transcript' => $transcription->transcript,
+            'provider' => $transcription->provider,
+            'segments' => $transcription->segments,
+            'audioUrl' => $transcription->audioUrl,
             'duration' => $transcription->duration,
             'createdAt' => $transcription->createdAt?->format(DATE_ATOM),
             'exports' => array_map(fn (TranscriptionExport $export): array => [

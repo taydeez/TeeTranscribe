@@ -17,5 +17,8 @@ final readonly class FolderTranscription
         public ?float $duration = null,
         public array $exports = [],
         public ?DateTimeImmutable $createdAt = null,
+        public string $provider = 'deepgram',
+        public array $segments = [],
+        public ?string $audioUrl = null,
     ) {}
 }

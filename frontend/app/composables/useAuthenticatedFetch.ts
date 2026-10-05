@@ -1,6 +1,7 @@
 import type { FetchOptions } from 'ofetch'
+import { $fetch as ofetch } from 'ofetch'
 
-export async function useAuthenticatedFetch<T>(request: string, options: FetchOptions = {}): Promise<T> {
+export async function useAuthenticatedFetch<T>(request: string, options: FetchOptions<'json'> = {}): Promise<T> {
   const auth = useAuthStore()
   const headers = new Headers(options.headers as HeadersInit | undefined)
 
@@ -14,7 +15,7 @@ export async function useAuthenticatedFetch<T>(request: string, options: FetchOp
   headers.set('Accept', 'application/json')
 
   try {
-    return await $fetch<T>(request, { ...options, headers, retry: 0 })
+    return await ofetch<T>(request, { ...options, headers, retry: 0 })
   } catch (error: unknown) {
     const failure = error as { statusCode?: number; status?: number; response?: { status?: number } }
     const status = failure.statusCode ?? failure.status ?? failure.response?.status

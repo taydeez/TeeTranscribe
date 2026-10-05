@@ -8,6 +8,7 @@
 
 namespace App\Http\Controllers\Transcription;
 
+use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -31,6 +32,12 @@ class DeepgramWebhookController
             'metadata.request_id' => ['required', 'string', 'max:255'],
             'metadata.duration' => ['nullable', 'numeric', 'min:0', 'max:999999999.999'],
             'results.channels.0.alternatives.0.transcript' => ['present', 'nullable', 'string'],
+            'results.utterances' => ['sometimes', 'array'],
+            'results.utterances.*.start' => ['required', 'numeric', 'min:0'],
+            'results.utterances.*.end' => ['required', 'numeric', 'gte:results.utterances.*.start'],
+            'results.utterances.*.transcript' => ['required', 'string'],
+            'results.utterances.*.speaker' => ['nullable', 'integer', 'min:0'],
+            'results.utterances.*.confidence' => ['nullable', 'numeric', 'between:0,1'],
         ]);
 
         try {
@@ -38,6 +45,7 @@ class DeepgramWebhookController
                 $record = Transcription::query()
                     ->whereKey($transcription)
                     ->where('provider_request_id', $data['metadata']['request_id'])
+                    ->where('provider', 'deepgram')
                     ->lockForUpdate()
                     ->firstOrFail();
 
@@ -47,6 +55,13 @@ class DeepgramWebhookController
 
                 $record->status = 'processing';
                 $record->transcript = $data['results']['channels'][0]['alternatives'][0]['transcript'] ?? '';
+                $record->segments = array_map(fn (array $utterance): array => [
+                    'start' => (float) $utterance['start'],
+                    'end' => (float) $utterance['end'],
+                    'speaker' => isset($utterance['speaker']) ? 'Speaker '.($utterance['speaker'] + 1) : null,
+                    'text' => $utterance['transcript'],
+                    'confidence' => isset($utterance['confidence']) ? (float) $utterance['confidence'] : null,
+                ], $data['results']['utterances'] ?? []);
 
                 if (isset($data['metadata']['duration'])) {
                     $record->duration = (float) $data['metadata']['duration'];
@@ -66,10 +81,7 @@ class DeepgramWebhookController
         } catch (ModelNotFoundException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
-            Transcription::query()
-                ->whereKey($transcription)
-                ->where('provider_request_id', $data['metadata']['request_id'])
-                ->update(['status' => 'failed']);
+            app(TranscriptionOutcomePublisher::class)->failed($transcription);
 
             throw $exception;
         }
