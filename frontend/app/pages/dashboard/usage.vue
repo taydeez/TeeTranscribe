@@ -1,2 +1,6 @@
-<script setup lang="ts">definePageMeta({ layout: 'dashboard', title: 'Usage' })</script>
-<template><section class="page-intro"><p class="eyebrow">Account</p><h1>Usage, at a glance.</h1><p>Your transcription minutes and processing activity will be tracked here.</p></section><div class="grid gap-4 sm:grid-cols-3"><section v-for="label in ['Minutes transcribed', 'Media processed', 'Credits used']" :key="label" class="surface p-6"><p class="text-sm text-slate-500">{{ label }}</p><p class="mt-4 text-3xl">—</p><p class="mt-2 text-xs text-slate-500">Usage tracking coming soon</p></section></div><NuxtLink class="button-secondary mt-6" to="/dashboard/transcriptions">View your transcriptions <UiAppIcon name="arrow" :size="16" /></NuxtLink></template>
+<script setup lang="ts">
+definePageMeta({ layout: 'dashboard', title: 'Usage' })
+</script>
+<template>
+  <div class="max-w-6xl space-y-6"><section class="page-intro"><p class="eyebrow">Account</p><h1>Your usage</h1><p>Track processing, credit reservations, and completed transcription charges.</p></section><BillingCreditHistory type="usage" /><NuxtLink class="button-secondary" to="/dashboard/billing">View balance and add credits <UiAppIcon name="arrow" :size="16" /></NuxtLink></div>
+</template>

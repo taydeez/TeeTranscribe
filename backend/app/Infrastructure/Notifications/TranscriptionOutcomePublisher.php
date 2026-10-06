@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Notifications;
 
+use App\Domain\Billing\Services\CreditService;
 use App\Domain\Transcriber\Contracts\TranscriptionOutcomePublisherInterface;
 use App\Domain\Transcriber\Events\TranscriptionCompleted;
 use App\Domain\Transcriber\Events\TranscriptionFailed;
@@ -20,10 +21,16 @@ final class TranscriptionOutcomePublisher implements TranscriptionOutcomePublish
     {
         DB::transaction(function () use ($id, $pendingOnly): void {
             $record = Transcription::query()->lockForUpdate()->find($id);
-            if ($record === null || $record->status === 'complete' || ($pendingOnly && $record->status !== 'pending')) {
+            if ($record === null) {
+                app(CreditService::class)->release($id);
+
+                return;
+            }
+            if ($record->status === 'complete' || ($pendingOnly && $record->status !== 'pending')) {
                 return;
             }
             $record->update(['status' => 'failed']);
+            app(CreditService::class)->release($id);
             DB::afterCommit(fn () => Event::dispatch(new TranscriptionFailed($id)));
         });
     }

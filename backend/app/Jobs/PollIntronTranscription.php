@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Domain\Billing\Services\CreditService;
 use App\Infrastructure\AI\Transcriber\Intron\IntronClient;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
@@ -104,6 +105,9 @@ class PollIntronTranscription implements ShouldQueue
                 'transcript' => trim($transcript),
                 'duration' => is_numeric($duration) ? (float) $duration : $record->duration,
             ]);
+            app(CreditService::class)->consume(
+                $record->id, $record->duration === null ? null : (int) ceil($record->duration * 1000),
+            );
 
             $outbox->record(
                 'transcription:'.$record->id.':completed',

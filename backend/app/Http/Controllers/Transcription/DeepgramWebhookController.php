@@ -8,6 +8,7 @@
 
 namespace App\Http\Controllers\Transcription;
 
+use App\Domain\Billing\Services\CreditService;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
@@ -70,6 +71,15 @@ class DeepgramWebhookController
                 if (! $record->save()) {
                     throw new RuntimeException('The transcription could not be moved to processing.');
                 }
+
+                if (trim($record->transcript) === '') {
+                    app(TranscriptionOutcomePublisher::class)->failed($record->id);
+
+                    return;
+                }
+                app(CreditService::class)->consume(
+                    $record->id, $record->duration === null ? null : (int) ceil($record->duration * 1000),
+                );
 
                 $this->outbox->record(
                     eventKey: "transcription:{$record->id}:completed",

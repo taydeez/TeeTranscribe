@@ -10,6 +10,7 @@ namespace App\Infrastructure\AI\Transcriber\Gateways;
 
 use App\Domain\Transcriber\Contracts\TranscriberGatewayInterface;
 use App\Infrastructure\AI\Transcriber\DeepGram\DeepGramClient;
+use Illuminate\Support\Facades\Storage;
 
 class DeepGramGateway implements TranscriberGatewayInterface
 {
@@ -23,6 +24,9 @@ class DeepGramGateway implements TranscriberGatewayInterface
         ?string $audioStoragePath = null,
         ?string $fileName = null,
     ): string {
+        if ($audioStoragePath !== null) {
+            $audioUrl = Storage::disk('r2')->temporaryUrl($audioStoragePath, now()->addHours(6));
+        }
         try {
             $request_id = $this->deepGramClient->transcribe($audioUrl, $languageCode, $transcriptionId);
         } catch (\RuntimeException $e) {

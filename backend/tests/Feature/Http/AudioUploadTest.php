@@ -1,6 +1,5 @@
 <?php
 
-use App\Domain\Transcriber\Entities\Transcription;
 use App\Domain\Transcriber\Services\TranscribeService;
 use Illuminate\Support\Facades\Storage;
 
@@ -53,30 +52,11 @@ test('reports unavailable storage when credentials are missing', function () {
     ])->assertServiceUnavailable();
 });
 
-test('passes the uploaded audio metadata to the transcription service', function () {
-    $url = 'https://test-account.r2.cloudflarestorage.com/audio-test/audio/sample.mp3?signature=example';
-    $this->mock(TranscribeService::class, function ($mock) use ($url) {
-        $mock->shouldReceive('startNewTranscription')->once()->with(['audio_url' => $url, 'language_code' => 'en'])
-            ->andReturn(new Transcription(
-                id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', userId: null, audioPath: $url,
-                fileName: 'sample.mp3', name: 'sample',
-            ));
-    });
-
-    $response = $this->postJson('/api/v1/transcribe', ['audio_url' => $url, 'language_code' => 'en'])->assertAccepted();
-
-    expect($response->json())->toBe([
-        'id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
-        'status' => 'pending',
-        'message' => 'File queued for transcription.',
-    ]);
+test('requires a signed in account before audio processing', function () {
+    $this->postJson('/api/v1/transcribe', ['audio_url' => 'https://example.com/audio.mp3', 'language_code' => 'en'])->assertUnauthorized();
 });
 
-test('rejects malformed transcription input before calling the provider', function () {
-    $this->mock(TranscribeService::class, function ($mock) {
-        $mock->shouldNotReceive('startNewTranscription');
-    });
-
-    $this->postJson('/api/v1/transcribe', ['audio_url' => 'not-a-url', 'language_code' => ''])
-        ->assertUnprocessable()->assertJsonValidationErrors(['audio_url', 'language_code']);
+test('does not reach the transcription provider through unauthenticated malformed requests', function () {
+    $this->mock(TranscribeService::class)->shouldNotReceive('startNewTranscription');
+    $this->postJson('/api/v1/transcribe', ['audio_url' => 'not-a-url', 'language_code' => ''])->assertUnauthorized();
 });

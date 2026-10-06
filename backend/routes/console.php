@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('outbox:publish')->everyMinute()->withoutOverlapping();
 Schedule::command('uploads:cleanup')->hourly()->withoutOverlapping();
+Schedule::command('billing:reconcile')->everyTenMinutes()->withoutOverlapping();

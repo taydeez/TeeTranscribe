@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Folder\Exceptions\FolderNotFoundException;
 use App\Domain\Folder\Exceptions\TranscriptionCannotBeAddedToFolderException;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(fn (BillingException $exception) => response()->json(['message' => $exception->getMessage()], $exception->httpStatus));
         $exceptions->render(fn (UploadException $exception) => response()->json([
             'message' => $exception->getMessage(),
         ], $exception->httpStatus));

@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Billing\BillingController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GuestSessionController;
+use App\Http\Controllers\Payment\PaymentWebhookController;
 use App\Http\Controllers\Transcription\CreateTranscriptionController;
 use App\Http\Controllers\Transcription\DeepgramWebhookController;
 use App\Http\Controllers\Transcription\UpdateTranscriptionController;
@@ -25,6 +27,20 @@ Route::prefix('v1')->group(function (): void {
     })->middleware('auth:sanctum');
 
     Route::middleware('auth:sanctum')->group(function (): void {
+        Route::post('/transcribe', CreateTranscriptionController::class)->middleware('throttle:billing');
+        Route::prefix('billing')->middleware('throttle:billing')->group(function (): void {
+            $controller = BillingController::class;
+            Route::get('/balance', [$controller, 'balance']);
+            Route::get('/packages', [$controller, 'packages']);
+            Route::get('/payment-methods', [$controller, 'paymentMethods']);
+            Route::get('/history/{type}', [$controller, 'history']);
+            Route::post('/quotes', [$controller, 'createQuote'])->middleware('throttle:billing-quotes');
+            Route::get('/quotes/{quote}', [$controller, 'quote']);
+            Route::post('/purchases', [$controller, 'purchase']);
+            Route::post('/purchases/{payment}/checkout', [$controller, 'checkout']);
+            Route::post('/payments/verify', [$controller, 'verify']);
+            Route::get('/payments/{payment}/invoice', [$controller, 'invoice']);
+        });
         Route::prefix('uploads/multipart')->middleware('throttle:uploads')->group(function (): void {
             Route::post('/', [MultipartUploadController::class, 'start']);
             foreach (['status', 'part', 'complete', 'abort'] as $action) {
@@ -37,7 +53,7 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/transcriptions/{transcription}', UpdateTranscriptionController::class);
     });
 
-    Route::post('/transcribe', CreateTranscriptionController::class);
+    Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['paystack', 'flutterwave']);
     Route::post('/guest-sessions', GuestSessionController::class);
     Route::post('/uploads/presign', PresignAudioUploadController::class);
 

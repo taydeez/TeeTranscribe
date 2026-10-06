@@ -24,7 +24,7 @@ class TranscribeService
     ) {}
 
     /** @param array<string, mixed> $transcriptionData */
-    public function startNewTranscription(array $transcriptionData): Transcription
+    public function startNewTranscription(array $transcriptionData, bool $dispatch = true): Transcription
     {
         $audioPath = $transcriptionData['audio_path'] ?? $transcriptionData['audio_url'] ?? null;
 
@@ -50,6 +50,10 @@ class TranscribeService
             'name' => $name,
             'provider' => $gateway->provider(),
         ]);
+
+        if (! $dispatch) {
+            return $newTranscription;
+        }
 
         try {
             $this->submissionDispatcher->dispatch($newTranscription, $language);

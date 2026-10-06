@@ -5,4 +5,4 @@ export type TranscriptSegment = { start: number; end: number; speaker: string | 
 export type TranscriptUpdate = { id: string; transcript: string; status: string; segments: TranscriptSegment[] }
 export type FolderTranscription = { id: string; name: string; fileName: string; status: string; transcript: string | null; duration: number | null; createdAt: string | null; exports: TranscriptionExport[]; provider?: string; segments?: TranscriptSegment[]; audioUrl?: string | null }
 export type TranscriptionSource = 'file' | 'record' | 'url'
-export type TranscriptionStage = 'idle' | 'preparing' | 'uploading' | 'submitting' | 'done'
+export type TranscriptionStage = 'idle' | 'preparing' | 'uploading' | 'pricing' | 'quoted' | 'submitting' | 'done'

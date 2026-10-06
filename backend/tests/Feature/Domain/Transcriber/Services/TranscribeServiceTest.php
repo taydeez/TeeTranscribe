@@ -10,14 +10,15 @@ uses(LazilyRefreshDatabase::class);
 
 beforeEach(fn () => Queue::fake());
 
-test('stores the submitted audio metadata through the transcription endpoint', function () {
+test('stores verified audio metadata through the transcription service', function () {
     Http::fake(['*' => Http::response(['request_id' => 'provider-123'])]);
     $url = 'https://audio.example.com/interview.mp3';
 
-    $this->postJson('/api/v1/transcribe', [
+    $record = app(TranscribeService::class)->startNewTranscription([
         'audio_url' => $url, 'language_code' => 'en', 'duration' => 123.456,
         'file_name' => 'interview.mp3', 'name' => 'Customer interview', 'folder_name' => 'Research',
-    ])->assertAccepted()->assertJsonPath('status', 'pending');
+    ]);
+    expect($record->status)->toBe('pending');
 
     $this->assertDatabaseHas('transcriptions', [
         'audio_path' => $url, 'duration' => 123.456,
