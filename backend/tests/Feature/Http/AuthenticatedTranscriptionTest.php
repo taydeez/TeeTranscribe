@@ -1,85 +1,49 @@
 <?php
 
-use App\Domain\Folder\Contracts\FolderRepositoryInterface;
-use App\Domain\Folder\Entities\Folder;
-use App\Domain\Transcriber\Entities\Transcription;
-use App\Domain\Transcriber\Services\TranscribeService;
-use App\Infrastructure\Persistence\Eloquent\Models\GuestSession;
+use App\Domain\Billing\Contracts\MediaDurationInspectorInterface;
+use App\Domain\Billing\Services\CreditService;
+use App\Domain\Billing\Services\UsageQuoteService;
+use App\Infrastructure\Persistence\Eloquent\Models\Folder;
+use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
-test('uses the authenticated user and removes the guest session from a transcription request', function () {
-    $user = User::factory()->create();
-    $otherUser = User::factory()->create();
-    $guestSession = GuestSession::query()->create([
-        'token_hash' => hash('sha256', 'guest-token'),
-        'expires_at' => now()->addHour(),
+beforeEach(function () {
+    Bus::fake();
+    config(['billing.rates.transcription.deepgram.nova-2.credits' => '10', 'billing.free_credits' => '0', 'transcriber.deepgram.model' => 'nova-2', 'transcriber.fallback' => 'deepgram']);
+    $this->user = User::factory()->create();
+    Sanctum::actingAs($this->user);
+    app(CreditService::class)->purchase($this->user->id, 10000, 'test-credit');
+    $this->mock(MediaDurationInspectorInterface::class)->shouldReceive('measure')->andReturn([
+        'duration_ms' => 60000, 'audio_url' => 'https://storage.example.com/interview.mp3',
+        'audio_storage_path' => 'billing-media/verified', 'file_name' => 'interview.mp3',
     ]);
-    $url = 'https://audio.example.com/audio/interview.mp3';
-
-    Sanctum::actingAs($user);
-    $folder = new Folder('01ARZ3NDEKTSV4RRFFQ69G5FAW', $user->id, now()->format('F j, Y'));
-
-    $this->mock(TranscribeService::class, function ($mock) use ($user, $url) {
-        $mock->shouldReceive('startNewTranscription')->once()->with([
-            'audio_url' => $url,
-            'user_id' => $user->id,
-            'language_code' => 'en',
-        ])->andReturn(new Transcription(
-            id: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
-            userId: $user->id,
-            audioPath: $url,
-            fileName: 'interview.mp3',
-            name: 'interview',
-        ));
-    });
-    $folderRepository = Mockery::mock(FolderRepositoryInterface::class);
-    $folderRepository->shouldReceive('findOrCreateByName')->once()
-        ->with($user->id, now()->format('F j, Y'))->andReturn($folder);
-    $folderRepository->shouldReceive('attachTranscription')->once()
-        ->with($folder->id, $user->id, '01ARZ3NDEKTSV4RRFFQ69G5FAV')->andReturn($folder);
-    $this->instance(FolderRepositoryInterface::class, $folderRepository);
-
-    $this->postJson('/api/v1/transcribe', [
-        'audio_url' => $url,
-        'language_code' => 'en',
-        'user_id' => $otherUser->id,
-        'guest_session_id' => $guestSession->id,
-    ])->assertAccepted();
+    $this->quote = app(UsageQuoteService::class)->create($this->user->id, ['audio_url' => 'https://example.com/interview.mp3', 'language_code' => 'en'], (string) Str::uuid());
+    app(UsageQuoteService::class)->measure($this->quote['id']);
 });
 
-test('attaches an authenticated transcription to the selected folder', function () {
-    $user = User::factory()->create();
-    $folder = new Folder('01ARZ3NDEKTSV4RRFFQ69G5FAW', $user->id, 'Interviews');
-    $url = 'https://audio.example.com/audio/interview.mp3';
+test('owns the transcription from the quote regardless of submitted identity', function () {
+    $other = User::factory()->create();
+    $id = $this->postJson('/api/v1/transcribe', ['quote_id' => $this->quote['id'], 'user_id' => $other->id, 'guest_session_id' => (string) Str::uuid()])->assertAccepted()->json('id');
+    $record = Transcription::findOrFail($id);
+    expect($record->user_id)->toBe($this->user->id)->and($record->guest_session_id)->toBeNull();
+    expect($record->folders()->sole()->name)->toBe(now()->format('F j, Y'));
+});
 
-    Sanctum::actingAs($user);
+test('attaches a paid transcription to the selected owned folder', function () {
+    $folder = Folder::create(['user_id' => $this->user->id, 'name' => 'Interviews']);
+    $id = $this->postJson('/api/v1/transcribe', ['quote_id' => $this->quote['id'], 'folder_id' => $folder->id])->assertAccepted()->json('id');
+    expect($folder->transcriptions()->sole()->id)->toBe($id);
+});
 
-    $this->mock(TranscribeService::class, function ($mock) use ($user, $url) {
-        $mock->shouldReceive('startNewTranscription')->once()->with([
-            'audio_url' => $url,
-            'user_id' => $user->id,
-            'language_code' => 'en',
-        ])->andReturn(new Transcription(
-            id: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
-            userId: $user->id,
-            audioPath: $url,
-            fileName: 'interview.mp3',
-            name: 'interview',
-        ));
-    });
-    $folderRepository = Mockery::mock(FolderRepositoryInterface::class);
-    $folderRepository->shouldReceive('findForUser')->once()->with($folder->id, $user->id)->andReturn($folder);
-    $folderRepository->shouldReceive('attachTranscription')->once()
-        ->with($folder->id, $user->id, '01ARZ3NDEKTSV4RRFFQ69G5FAV')->andReturn($folder);
-    $this->instance(FolderRepositoryInterface::class, $folderRepository);
-
-    $this->postJson('/api/v1/transcribe', [
-        'audio_url' => $url,
-        'language_code' => 'en',
-        'folder_id' => $folder->id,
-    ])->assertAccepted();
+test('rejects another users folder without reserving credits', function () {
+    $folder = Folder::create(['user_id' => User::factory()->create()->id, 'name' => 'Private']);
+    $this->postJson('/api/v1/transcribe', ['quote_id' => $this->quote['id'], 'folder_id' => $folder->id])->assertNotFound();
+    $this->assertDatabaseCount('transcriptions', 0);
+    $this->getJson('/api/v1/billing/balance')->assertJsonPath('reserved_units', 0);
 });

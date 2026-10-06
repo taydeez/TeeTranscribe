@@ -5,7 +5,16 @@ namespace App\Providers;
 use App\Domain\Admin\TwoFactor\Contracts\AdminCodeRepositoryInterface;
 use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Domain\Auth\Contracts\SocialAuthGatewayInterface;
+use App\Domain\Billing\Contracts\BillingRepositoryInterface;
+use App\Domain\Billing\Contracts\BillingSettingsInterface;
+use App\Domain\Billing\Contracts\MediaDurationInspectorInterface;
 use App\Domain\Folder\Contracts\FolderRepositoryInterface;
+use App\Domain\Payment\Contracts\PaymentGatewayResolverInterface;
+use App\Domain\Payment\Contracts\PaymentInvoiceMailerInterface;
+use App\Domain\Payment\Contracts\PaymentInvoiceStorageInterface;
+use App\Domain\Payment\Contracts\PaymentMethodRepositoryInterface;
+use App\Domain\Payment\Contracts\PaymentRepositoryInterface;
+use App\Domain\Payment\Contracts\PaymentSettingsInterface;
 use App\Domain\Transcriber\Contracts\TranscriberGatewayResolverInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionExportDispatcherInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionExportRepositoryInterface;
@@ -22,13 +31,22 @@ use App\Domain\Upload\Contracts\MultipartStorageInterface;
 use App\Domain\Upload\Contracts\UploadSessionRepositoryInterface;
 use App\Infrastructure\AI\TranscriberGatewayResolver;
 use App\Infrastructure\Auth\GoogleSocialAuthGateway;
+use App\Infrastructure\Billing\ConfigBillingSettings;
+use App\Infrastructure\Billing\FfprobeMediaDurationInspector;
 use App\Infrastructure\Notifications\SendTranscriptionOutcomeEmail;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Payment\ConfigPaymentSettings;
+use App\Infrastructure\Payment\Invoices\PaymentInvoiceMailer;
+use App\Infrastructure\Payment\Invoices\R2PaymentInvoiceStorage;
+use App\Infrastructure\Payment\PaymentGatewayResolver;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface as EloquentTranscriptionMapperInterface;
 use App\Infrastructure\Persistence\Eloquent\Mappers\TranscriptionMapper as EloquentTranscriptionMapper;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminCodeRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAuthRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentBillingRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentFolderRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentMethodRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionExportRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentUploadSessionRepository;
@@ -49,6 +67,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(BillingRepositoryInterface::class, EloquentBillingRepository::class);
+        $this->app->bind(PaymentRepositoryInterface::class, EloquentPaymentRepository::class);
+        $this->app->bind(PaymentMethodRepositoryInterface::class, EloquentPaymentMethodRepository::class);
+        $this->app->bind(PaymentSettingsInterface::class, ConfigPaymentSettings::class);
+        $this->app->bind(BillingSettingsInterface::class, ConfigBillingSettings::class);
+        $this->app->bind(PaymentGatewayResolverInterface::class, PaymentGatewayResolver::class);
+        $this->app->bind(PaymentInvoiceStorageInterface::class, R2PaymentInvoiceStorage::class);
+        $this->app->bind(PaymentInvoiceMailerInterface::class, PaymentInvoiceMailer::class);
+        $this->app->bind(MediaDurationInspectorInterface::class, FfprobeMediaDurationInspector::class);
         $this->app->bind(UploadSessionRepositoryInterface::class, EloquentUploadSessionRepository::class);
         $this->app->bind(MultipartStorageInterface::class, R2MultipartStorage::class);
         $this->app->bind(TranscriptionOutcomePublisherInterface::class, TranscriptionOutcomePublisher::class);
@@ -78,5 +105,7 @@ class AppServiceProvider extends ServiceProvider
         );
         RateLimiter::for('auth', fn ($request) => Limit::perMinute(5)->by(mb_strtolower((string) $request->input('email')).'|'.$request->ip()));
         RateLimiter::for('uploads', fn ($request) => Limit::perMinute(120)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('billing', fn ($request) => Limit::perMinute(60)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('billing-quotes', fn ($request) => Limit::perMinute(5)->by((string) $request->user()?->getAuthIdentifier()));
     }
 }

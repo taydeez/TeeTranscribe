@@ -21,6 +21,7 @@ return [
     'fallback' => env('TRANSCRIBER_FALLBACK', 'deepgram'),
 
     'deepgram' => [
+        'model' => env('DEEPGRAM_MODEL', 'nova-2'),
         'key' => env('DEEPGRAM_API_KEY'),
         'endpoint' => env('DEEPGRAM_API_ENDPOINT', env('DEEPGRAM_API_ENPOINT', 'https://api.deepgram.com/v1/')),
     ],

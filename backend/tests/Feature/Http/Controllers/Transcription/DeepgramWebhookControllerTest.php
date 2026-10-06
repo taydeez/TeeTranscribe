@@ -111,7 +111,7 @@ test('marks the transcription failed and rolls back the event if recording the o
     $this->assertDatabaseCount('outbox_events', 0);
 });
 
-test('accepts a completed recording with no speech and preserves duration when omitted', function () {
+test('fails an empty transcript and preserves duration when omitted', function () {
     $record = Transcription::factory()->create(['provider_request_id' => 'provider-123', 'duration' => 5]);
     $url = URL::signedRoute('deepgram.callback', ['transcription' => $record->id], absolute: false);
     $payload = deepgramCompletionPayload('provider-123', '');
@@ -120,9 +120,9 @@ test('accepts a completed recording with no speech and preserves duration when o
     $this->postJson($url, $payload)->assertNoContent();
 
     $this->assertDatabaseHas('transcriptions', [
-        'id' => $record->id, 'status' => 'processing', 'transcript' => '', 'duration' => 5,
+        'id' => $record->id, 'status' => 'failed', 'transcript' => '', 'duration' => 5,
     ]);
-    $this->assertDatabaseCount('outbox_events', 1);
+    $this->assertDatabaseCount('outbox_events', 0);
 });
 
 test('rejects unsigned callbacks without changing persistence', function () {

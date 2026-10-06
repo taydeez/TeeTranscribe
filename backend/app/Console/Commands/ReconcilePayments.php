@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Domain\Payment\Contracts\PaymentRepositoryInterface;
+use App\Domain\Payment\Services\PaymentService;
+use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
+use App\Infrastructure\Persistence\Eloquent\Models\UsageCharge;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+
+class ReconcilePayments extends Command
+{
+    protected $signature = 'billing:reconcile';
+
+    protected $description = 'Verify pending payments missed by the webhook';
+
+    public function handle(PaymentRepositoryInterface $repository, PaymentService $payments): int
+    {
+        $repository->expireUnconfirmedPayments();
+
+        foreach ($repository->pendingPayments() as $payment) {
+            try {
+                $payments->verify($payment['reference']);
+            } catch (Throwable $exception) {
+                Log::warning('Payment reconciliation deferred.', [
+                    'payment_id' => $payment['id'],
+                    'gateway' => $payment['gateway'],
+                    'exception_type' => $exception::class,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        UsageCharge::where('status', 'reserved')
+            ->where('created_at', '<=', now()->subHours(config('billing.processing_timeout_hours', 26)))
+            ->chunkById(100, function ($charges): void {
+                foreach ($charges as $charge) {
+                    $record = Transcription::find($charge->transcription_id);
+                    if ($record === null || $record->status === 'pending') {
+                        app(TranscriptionOutcomePublisher::class)->failed($charge->transcription_id, pendingOnly: true);
+                    }
+                }
+            });
+
+        return self::SUCCESS;
+    }
+}

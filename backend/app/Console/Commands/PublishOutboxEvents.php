@@ -2,9 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\OutboxEvent;
+use App\Infrastructure\Persistence\Eloquent\Models\Payment;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
+use App\Jobs\GeneratePaymentInvoice;
 use App\Jobs\GenerateTranscriptionExports;
+use App\Jobs\MeasureBillingQuote;
+use App\Jobs\SubmitTranscription;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -19,6 +24,54 @@ class PublishOutboxEvents extends Command
 
     public function handle(): int
     {
+        Payment::query()->where('status', 'paid')->whereNull('invoice_notified_at')
+            ->whereNotExists(function ($events): void {
+                $events->selectRaw('1')->from('outbox_events')
+                    ->whereColumn('outbox_events.aggregate_id', 'payments.id')
+                    ->where('outbox_events.event_type', 'PaymentConfirmed');
+            })
+            ->orderBy('id')->limit(100)->pluck('id')->each(function (string $paymentId): void {
+                app(OutboxService::class)->record('payment:'.$paymentId.':confirmed', 'PaymentConfirmed', $paymentId, ['payment_id' => $paymentId]);
+            });
+
+        OutboxEvent::query()->where('event_type', 'PaymentConfirmed')->whereNull('published_at')
+            ->where(fn ($query) => $query->where('attempts', 0)->orWhere('updated_at', '<=', now()->subMinutes(5)))
+            ->chunkById(100, function ($events): void {
+                foreach ($events as $event) {
+                    DB::transaction(function () use ($event): void {
+                        $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+                        if ($locked->published_at !== null) {
+                            return;
+                        }
+                        $locked->increment('attempts');
+                        GeneratePaymentInvoice::dispatch($locked->aggregate_id, $locked->id)->afterCommit();
+                    });
+                }
+            });
+
+        OutboxEvent::query()->whereIn('event_type', ['BillingQuoteRequested', 'TranscriptionSubmitted'])
+            ->whereNull('published_at')
+            ->where(fn ($query) => $query->where('attempts', 0)->orWhere('updated_at', '<=', now()->subMinutes(5)))
+            ->chunkById(100, function ($events): void {
+                foreach ($events as $event) {
+                    DB::transaction(function () use ($event): void {
+                        $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+                        if ($locked->published_at !== null) {
+                            return;
+                        }
+                        $locked->increment('attempts');
+                        if ($locked->event_type === 'BillingQuoteRequested') {
+                            MeasureBillingQuote::dispatch($locked->aggregate_id, $locked->id)->afterCommit();
+                        } else {
+                            SubmitTranscription::dispatch(
+                                $locked->aggregate_id, $locked->payload['language_code'], $locked->id,
+                                $locked->payload['model'] ?? null,
+                            )->afterCommit();
+                        }
+                    });
+                }
+            });
+
         OutboxEvent::query()
             ->where('event_type', 'TranscriptionCompleted')
             ->where(function ($query): void {

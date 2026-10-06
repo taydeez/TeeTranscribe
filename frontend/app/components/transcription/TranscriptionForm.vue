@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AudioRecorder from './AudioRecorder.vue'
 import { transcriptionLanguages } from '~/config/languages'
+import { formatCredits } from '~/utils/credits'
 
 withDefaults(defineProps<{ heading?: string; eyebrow?: string; dashboard?: boolean }>(), {
   heading: 'Upload media', eyebrow: 'TRANSCRIBE', dashboard: false,
@@ -95,9 +96,14 @@ onMounted(() => {
       <div v-if="form.stage.value === 'done'" class="success" role="status">
         <strong>Uploaded. Over to transcription.</strong><p>Your recording was submitted successfully.</p><NuxtLink class="mt-2 inline-flex items-center gap-2 font-semibold text-emerald-700" to="/dashboard/transcriptions">Open transcriptions <UiAppIcon name="arrow" :size="16" /></NuxtLink>
       </div>
-      <p v-if="form.source.value !== 'url' && form.duration.value && form.stage.value !== 'done'" class="cost-notice">Your audio is {{ form.durationLabel.value }} long. It would cost you <strong>50 credits</strong>.</p>
+      <div v-if="form.stage.value === 'quoted' && form.quote.value" class="cost-notice" role="status">
+        <p>Your audio is {{ form.durationLabel.value }} long. It will cost <strong>{{ formatCredits(form.quote.value.credit_units ?? 0) }} credits</strong> using {{ form.quote.value.provider }}.</p>
+        <p class="mt-2 text-xs">Available: {{ formatCredits(form.quote.value.available_units) }} credits. Credits are reserved when you confirm.</p>
+        <div v-if="!form.quote.value.enough_credits" class="mt-3 flex flex-wrap gap-3"><NuxtLink class="button-primary" to="/dashboard/billing" target="_blank">Add credits</NuxtLink><button class="button-secondary" type="button" @click="form.refreshPrice()">Refresh balance</button></div>
+      </div>
+      <p v-else-if="form.duration.value && form.stage.value !== 'done'" class="cost-notice">Audio length: {{ form.durationLabel.value }}. We’ll verify the length and show the price before processing.</p>
       <button class="submit" type="submit" :disabled="form.busy.value || (form.stage.value !== 'done' && !form.canSubmit.value)"><span>{{ form.submitLabel.value }}</span><span aria-hidden="true">↗</span></button>
-      <p class="footnote">{{ form.source.value === 'url' ? 'The URL is sent directly for transcription.' : auth.isAuthenticated ? 'Uploads go directly to storage. After a refresh, select the same file to resume.' : 'Your audio uploads directly from your browser. Sign in for resumable uploads up to 5 GB.' }}</p>
+      <p class="footnote">{{ !auth.isAuthenticated ? 'Sign in to upload and transcribe.' : form.source.value === 'url' ? 'We verify and save a copy of this audio before quoting.' : 'Uploads go directly to storage. Select the same file after a refresh to resume.' }}</p>
     </form>
   </section>
 </template>

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "8a874a7c-a8cc-4fb6-b5d5-f3adfb5da6e6",
     "name": "TeeTranscribe API",
-    "description": "Local API requests for TeeTranscribe. Keep this collection in sync whenever an API endpoint is added or changed. Create a guest session first, then use its id for transcription requests.",
+    "description": "TeeTranscribe API. Sign in, upload or supply a public audio URL, create a billing quote, poll until ready, then confirm POST /transcribe with quote_id. One credit equals NGN 1. NGN and USD purchases fund the same credit wallet. Use a fresh client_key per distinct request; reuse it only when retrying the same operation.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -52,6 +52,38 @@
     },
     {
       "key": "signedPartUrl",
+      "value": ""
+    },
+    {
+      "key": "billingQuoteId",
+      "value": ""
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    },
+    {
+      "key": "paymentReference",
+      "value": ""
+    },
+    {
+      "key": "paystackSignature",
+      "value": ""
+    },
+    {
+      "key": "audioUrl",
+      "value": ""
+    },
+    {
+      "key": "audioStoragePath",
+      "value": ""
+    },
+    {
+      "key": "paymentMethod",
+      "value": "paystack"
+    },
+    {
+      "key": "flutterwaveWebhookSecretHash",
       "value": ""
     }
   ],
@@ -221,9 +253,9 @@
       }
     },
     {
-      "name": "Start guest transcription",
+      "name": "Confirm transcription in today’s folder",
       "request": {
-        "description": "Creates a pending transcription, queues provider submission, and returns HTTP 202. When file_name is omitted, it is derived from the final URL path segment without the extension. Include audio_storage_path for files uploaded through the presign endpoint so the worker can read R2 without relying on an expiring URL.",
+        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder.",
         "method": "POST",
         "header": [
           {
@@ -237,15 +269,30 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"audio_storage_path\": \"audio/01M40K8ZE4TGFDWD49FCJ6PRH0.mp3\",\n  \"guest_session_id\": \"{{guestSessionId}}\",\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
+          "raw": "{\n  \"quote_id\": \"{{billingQuoteId}}\",\n  \"folder_id\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
-        "url": "{{baseUrl}}/transcribe"
+        "url": "{{baseUrl}}/transcribe",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{sanctumToken}}",
+              "type": "string"
+            }
+          ]
+        }
       }
     },
     {
-      "name": "Start authenticated transcription",
+      "name": "Confirm transcription in selected folder",
       "request": {
-        "description": "Creates a pending transcription, assigns it to the selected folder or today's automatic folder, queues provider submission, and returns HTTP 202.",
+        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder.",
         "method": "POST",
         "header": [
           {
@@ -263,9 +310,24 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"audio_url\": \"https://example.r2.cloudflarestorage.com/audio/interview.mp3\",\n  \"audio_storage_path\": \"audio/01M40K8ZE4TGFDWD49FCJ6PRH0.mp3\",\n  \"user_id\": {{userId}},\n  \"folder_id\": null,\n  \"file_name\": \"interview.mp3\",\n  \"name\": \"Customer interview\",\n  \"folder_name\": \"Research\",\n  \"duration\": 123.456,\n  \"language_code\": \"en\"\n}"
+          "raw": "{\n  \"quote_id\": \"{{billingQuoteId}}\",\n  \"folder_id\": \"{{folderId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
-        "url": "{{baseUrl}}/transcribe"
+        "url": "{{baseUrl}}/transcribe",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{sanctumToken}}",
+              "type": "string"
+            }
+          ]
+        }
       }
     },
     {
@@ -617,6 +679,531 @@
               "raw": "{}"
             },
             "url": "{{baseUrl}}/uploads/multipart/{{uploadSessionId}}/abort"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Credits and billing",
+      "item": [
+        {
+          "name": "List available payment methods",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/payment-methods?currency=NGN",
+            "description": "Returns active, configured payment methods supporting the requested currency. Package responses also contain payment_methods."
+          }
+        },
+        {
+          "name": "Credit balance",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/balance"
+          }
+        },
+        {
+          "name": "Credit packages (NGN)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/packages?currency=NGN"
+          }
+        },
+        {
+          "name": "Credit packages (USD)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/packages?currency=USD"
+          }
+        },
+        {
+          "name": "Create transcription quote",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/quotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_key\": \"{{$guid}}\",\n  \"audio_url\": \"{{audioUrl}}\",\n  \"language_code\": \"en\",\n  \"audio_storage_path\": \"{{audioStoragePath}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Returns a measuring quote and immediately queues media inspection after the transaction commits. Completed uploads owned by this user are probed through a fresh signed R2 URL; remote probing falls back to local inspection when necessary. Pasted URLs keep the verified-download flow. Poll the quote until ready before confirming transcription. The outbox recovers dispatch failures."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { const result = pm.response.json(); pm.collectionVariables.set(\"billingQuoteId\", result.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create quote from public audio URL",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/quotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_key\": \"{{$guid}}\",\n  \"audio_url\": \"https://example.com/interview.mp3\",\n  \"language_code\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Returns a measuring quote and immediately queues media inspection after the transaction commits. Completed uploads owned by this user are probed through a fresh signed R2 URL; remote probing falls back to local inspection when necessary. Pasted URLs keep the verified-download flow. Poll the quote until ready before confirming transcription. The outbox recovers dispatch failures."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { const result = pm.response.json(); pm.collectionVariables.set(\"billingQuoteId\", result.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check transcription quote",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/quotes/{{billingQuoteId}}"
+          }
+        },
+        {
+          "name": "Create purchase quote",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/purchases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_key\": \"{{$guid}}\",\n  \"package_id\": \"starter\",\n  \"currency\": \"NGN\",\n  \"payment_method\": \"{{paymentMethod}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Choose a payment_method code from the active payment methods endpoint (paystack or flutterwave). Both gateways may be enabled simultaneously. The chosen method is stored on this purchase and cannot change on an idempotent retry. Amounts are minor currency units."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { const result = pm.response.json(); pm.collectionVariables.set(\"paymentId\", result.id); }",
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"paymentReference\", pm.response.json().reference);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Initialize secure checkout",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/purchases/{{paymentId}}/checkout",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Returns the selected gateway’s verified hosted checkout URL. Paystack uses PAYSTACK_CALLBACK_URL from the backend environment for its callback_url; Flutterwave uses FLUTTERWAVE_CALLBACK_URL for redirect_url. Paystack returns reference and Flutterwave returns tx_ref. The frontend /payment/callback route forwards that reference to /dashboard/billing, which verifies the payment with the backend; query-string status is not proof of payment. Verify the payment through the authenticated verification endpoint before treating it as paid. Flutterwave test-mode purchases also accept its checkout-v2.dev-flutterwave.com checkout host; live purchases only accept checkout.flutterwave.com."
+          }
+        },
+        {
+          "name": "Verify payment",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/payments/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{paymentReference}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Send the stored payment reference, or the callback reference / tx_ref. Verification uses the gateway saved on the payment and credits the wallet once."
+          }
+        },
+        {
+          "name": "Payment history",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/history/payments?page=1&per_page=20"
+          }
+        },
+        {
+          "name": "Usage history",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/history/usage?page=1&per_page=20"
+          }
+        },
+        {
+          "name": "Credit ledger",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/history/ledger?page=1&per_page=20"
+          }
+        },
+        {
+          "name": "Paystack webhook",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-paystack-signature",
+                "value": "{{paystackSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/webhooks/paystack",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Paystack sends this server-to-server. Signature is HMAC SHA512 of the exact raw request body with PAYSTACK_SECRET_KEY. Do not put live secret keys into shared collections. The backend independently verifies amount, currency, reference, customer, and environment."
+          }
+        },
+        {
+          "name": "Flutterwave webhook",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "verif-hash",
+                "value": "{{flutterwaveWebhookSecretHash}}"
+              }
+            ],
+            "url": "{{baseUrl}}/webhooks/flutterwave",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.completed\",\n  \"data\": {\n    \"tx_ref\": \"{{paymentReference}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Flutterwave v3 sends this server-to-server. Configure FLUTTERWAVE_WEBHOOK_SECRET_HASH and the same secret hash in Flutterwave. The backend independently verifies the stored purchase with Flutterwave before crediting the wallet; duplicate events are idempotent."
+          }
+        },
+        {
+          "name": "Download payment invoice",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/payments/{{paymentId}}/invoice",
+            "description": "Payment owner only. Returns url and expires_at for a five-minute R2 PDF download. Returns 409 while invoice generation is pending. Payment history includes invoice_ready and invoice_number. Confirmed payments enqueue a PDF invoice and email with attachment; run the scheduler/outbox publisher and default Redis queue worker."
           }
         }
       ]
