@@ -10,7 +10,9 @@ namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Entities\Transcription;
+use App\Domain\Transcriber\Entities\TranscriptionEditResult;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
+use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription as TranscriptionModel;
 use Illuminate\Support\Facades\DB;
@@ -65,9 +67,9 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
         return $this->mapper->toDomain($transcription->refresh());
     }
 
-    public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): Transcription
+    public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): TranscriptionEditResult
     {
-        return DB::transaction(function () use ($id, $userId, $transcript, $segments): Transcription {
+        return DB::transaction(function () use ($id, $userId, $transcript, $segments): TranscriptionEditResult {
             $transcription = TranscriptionModel::query()
                 ->where('user_id', $userId)
                 ->lockForUpdate()
@@ -89,24 +91,58 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
                 $storedSegments = [];
             }
 
+            if ($transcription->transcript === $transcript && ($transcription->segments ?? []) === $storedSegments) {
+                return new TranscriptionEditResult($this->mapper->toDomain($transcription), false);
+            }
+            $revision = $transcription->export_revision + 1;
             $transcription->update([
                 'transcript' => $transcript,
                 'segments' => $storedSegments,
                 'status' => 'processing',
+                'export_revision' => $revision,
             ]);
             $transcription->exports()->update([
                 'status' => 'pending',
                 'failure_reason' => null,
                 'processing_started_at' => null,
+                'export_revision' => $revision,
+                'storage_path' => null,
             ]);
+            if (! TranscriptionExportOptions::hasSpeakers($storedSegments)) {
+                $transcription->exports()->where('variant', 'speakers')->delete();
+            }
 
-            return $this->mapper->toDomain($transcription->refresh());
+            return new TranscriptionEditResult($this->mapper->toDomain($transcription->refresh()), true);
         });
     }
 
     public function delete(string $id): bool
     {
         return (bool) $this->findModelOrFail($id)->delete();
+    }
+
+    public function prepareExportsForUser(string $id, int $userId): TranscriptionEditResult
+    {
+        return DB::transaction(function () use ($id, $userId): TranscriptionEditResult {
+            $record = TranscriptionModel::query()->where('user_id', $userId)->lockForUpdate()->find($id)
+                ?? throw new TranscriptionNotFoundException($id);
+            if (! is_string($record->transcript) || ! in_array($record->status, ['complete', 'processing', 'failed'], true)) {
+                throw ValidationException::withMessages(['transcription' => 'This transcript is not ready for export.']);
+            }
+            $needed = false;
+            foreach (TranscriptionExportOptions::required($record->segments ?? []) as $option) {
+                $export = $record->exports()->firstOrCreate($option, ['status' => 'pending', 'export_revision' => $record->export_revision]);
+                if ($export->export_revision !== $record->export_revision || $export->status !== 'completed' || blank($export->storage_path)) {
+                    $export->update(['status' => 'pending', 'export_revision' => $record->export_revision, 'storage_path' => null, 'failure_reason' => null]);
+                    $needed = true;
+                }
+            }
+            if ($needed) {
+                $record->update(['status' => 'processing']);
+            }
+
+            return new TranscriptionEditResult($this->mapper->toDomain($record->refresh()), $needed);
+        });
     }
 
     private function findModelOrFail(string $id): TranscriptionModel

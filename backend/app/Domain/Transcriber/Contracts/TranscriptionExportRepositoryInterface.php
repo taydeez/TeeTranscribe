@@ -16,11 +16,11 @@ interface TranscriptionExportRepositoryInterface
 
     public function find(string $id): ?TranscriptionExport;
 
-    /** @param array{transcription_id: string, format: string, status?: string, storage_path?: string|null, failure_reason?: string|null, processing_started_at?: DateTimeInterface|string|null} $data */
+    /** @param array{transcription_id: string, format: string, variant?: string, status?: string, storage_path?: string|null, failure_reason?: string|null, processing_started_at?: DateTimeInterface|string|null} $data */
     public function create(array $data): TranscriptionExport;
 
     /**
-     * @param  array{transcription_id?: string, format?: string, status?: string, storage_path?: string|null, failure_reason?: string|null, processing_started_at?: DateTimeInterface|string|null}  $data
+     * @param  array{transcription_id?: string, format?: string, variant?: string, status?: string, storage_path?: string|null, failure_reason?: string|null, processing_started_at?: DateTimeInterface|string|null}  $data
      *
      * @throws TranscriptionExportNotFoundException
      */

@@ -1,14 +1,18 @@
 <?php
 
+use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Billing\BillingController;
+use App\Http\Controllers\Dubbing\DubbingController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GuestSessionController;
 use App\Http\Controllers\Payment\PaymentWebhookController;
 use App\Http\Controllers\Transcription\CreateTranscriptionController;
 use App\Http\Controllers\Transcription\DeepgramWebhookController;
+use App\Http\Controllers\Transcription\RequestTranscriptionExportsController;
 use App\Http\Controllers\Transcription\UpdateTranscriptionController;
+use App\Http\Controllers\Translation\TranslationController;
 use App\Http\Controllers\Upload\MultipartUploadController;
 use App\Http\Controllers\Upload\PresignAudioUploadController;
 use Illuminate\Http\Request;
@@ -17,16 +21,42 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+    Route::post('/auth/forgot-password', [AccountSecurityController::class, 'forgotPassword'])->middleware('throttle:password-reset');
+    Route::post('/auth/reset-password', [AccountSecurityController::class, 'resetPassword'])->middleware('throttle:password-reset');
+    Route::post('/auth/email/resend', [AccountSecurityController::class, 'resendVerification'])->middleware(['auth:sanctum', 'throttle:verification-email']);
+    Route::get('/auth/email/verify/{id}/{hash}', [AccountSecurityController::class, 'verifyEmail'])
+        ->whereNumber('id')->where('hash', '[a-f0-9]{40}')->middleware(['signed:relative', 'throttle:6,1'])->name('verification.verify');
     Route::post('/auth/admin/verify', [AuthController::class, 'verifyAdmin'])->middleware('throttle:auth');
     Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect']);
     Route::get('/auth/google/callback', [AuthController::class, 'googleCallback'])->middleware('throttle:auth');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-    Route::get('/admin/user', AdminUserController::class)->middleware(['auth:sanctum', 'role:admin']);
+    Route::get('/admin/user', AdminUserController::class)->middleware(['auth:sanctum', 'verified', 'role:admin']);
     Route::get('/user', function (Request $request) {
-        return $request->user();
+        return response()->json($request->user()->toArray() + ['email_verified' => $request->user()->hasVerifiedEmail()]);
     })->middleware('auth:sanctum');
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', 'verified'])->group(function (): void {
+        Route::patch('/auth/profile', [AccountSecurityController::class, 'updateProfile'])->middleware('throttle:billing');
+        Route::post('/auth/change-password', [AccountSecurityController::class, 'changePassword'])->middleware('throttle:account-password');
+        Route::prefix('dubbings')->middleware('throttle:billing')->group(function (): void {
+            $controller = DubbingController::class;
+            Route::get('/languages', [$controller, 'languages']);
+            Route::post('/quotes', [$controller, 'quote'])->middleware('throttle:billing-quotes');
+            Route::get('/quotes/{quote}', [$controller, 'showQuote']);
+            Route::post('/', [$controller, 'store']);
+            Route::get('/', [$controller, 'index']);
+            Route::get('/{dubbing}', [$controller, 'show']);
+            Route::post('/{dubbing}/retry', [$controller, 'retry'])->middleware('throttle:billing-quotes');
+        });
+        Route::prefix('translations')->group(function (): void {
+            $controller = TranslationController::class;
+            Route::get('/languages', [$controller, 'languages'])->middleware('throttle:billing');
+            Route::post('/quotes', [$controller, 'quote'])->middleware('throttle:billing-quotes');
+            Route::post('/', [$controller, 'store'])->middleware('throttle:billing');
+            Route::get('/', [$controller, 'index'])->middleware('throttle:billing');
+            Route::get('/{translation}', [$controller, 'show'])->middleware('throttle:billing');
+            Route::patch('/{translation}', [$controller, 'update'])->middleware('throttle:translation-edits');
+        });
         Route::post('/transcribe', CreateTranscriptionController::class)->middleware('throttle:billing');
         Route::prefix('billing')->middleware('throttle:billing')->group(function (): void {
             $controller = BillingController::class;
@@ -50,7 +80,8 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('folders', FolderController::class);
         Route::put('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'attachTranscription']);
         Route::delete('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'detachTranscription']);
-        Route::patch('/transcriptions/{transcription}', UpdateTranscriptionController::class);
+        Route::patch('/transcriptions/{transcription}', UpdateTranscriptionController::class)->middleware('throttle:transcript-edits');
+        Route::post('/transcriptions/{transcription}/exports', RequestTranscriptionExportsController::class)->middleware('throttle:transcript-edits');
     });
 
     Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['paystack', 'flutterwave']);

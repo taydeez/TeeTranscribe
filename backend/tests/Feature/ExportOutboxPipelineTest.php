@@ -1,9 +1,13 @@
 <?php
 
+use App\Infrastructure\Exports\TranscriptionExportGenerator;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\OutboxEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
+use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
 use App\Jobs\GenerateTranscriptionExports;
+use App\Jobs\RegenerateTranscriptionExports;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -83,4 +87,40 @@ test('publishing recovers a prematurely acknowledged incomplete export', functio
     expect($event->refresh()->attempts)->toBe(2)
         ->and($event->published_at)->toBeNull();
     Queue::assertPushed(GenerateTranscriptionExports::class);
+});
+
+test('regeneration publishes only the latest revision for both formats', function () {
+    Storage::fake('r2');
+    $record = Transcription::factory()->create(['status' => 'processing', 'transcript' => 'Latest edited text.', 'name' => 'Interview', 'export_revision' => 2]);
+    foreach (['txt', 'pdf'] as $format) {
+        TranscriptionExport::factory()->create(['transcription_id' => $record->id, 'format' => $format, 'status' => 'pending', 'storage_path' => null, 'export_revision' => 2]);
+    }
+    $generator = app(TranscriptionExportGenerator::class);
+    $generator->generate($record->id, 'txt', 1);
+    expect(Storage::disk('r2')->allFiles())->toBe([]);
+    (new RegenerateTranscriptionExports($record->id))->handle($generator);
+    expect($record->refresh()->status)->toBe('complete');
+    expect(Storage::disk('r2')->get("exports/{$record->id}/revisions/2/Interview.txt"))->toBe('Latest edited text.');
+    Storage::disk('r2')->assertExists("exports/{$record->id}/revisions/2/Interview.pdf");
+    expect($record->exports()->pluck('export_revision')->all())->toBe([2, 2, 2]);
+});
+
+test('an edit arriving during upload prevents an old export from being published', function () {
+    $record = Transcription::factory()->create(['status' => 'processing', 'transcript' => 'Old revision.', 'name' => 'Interview', 'export_revision' => 1]);
+    $disk = Mockery::mock(FilesystemAdapter::class);
+    Storage::shouldReceive('disk')->with('r2')->andReturn($disk);
+    $disk->shouldReceive('put')->once()->andReturnUsing(function () use ($record): bool {
+        $record->update(['transcript' => 'New revision.', 'export_revision' => 2]);
+        $record->exports()->update(['export_revision' => 2, 'status' => 'pending', 'storage_path' => null]);
+
+        return true;
+    });
+    $disk->shouldReceive('exists')->once()->andReturn(true);
+    $disk->shouldReceive('size')->once()->andReturn(strlen('Old revision.'));
+    app(TranscriptionExportGenerator::class)->generate($record->id, 'txt', 1);
+    $export = $record->exports()->sole();
+    expect($export->status)->toBe('pending')->and($export->storage_path)->toBeNull()
+        ->and($export->export_revision)->toBe(2)->and($record->refresh()->status)->toBe('processing');
+    app(TranscriptionExportGenerator::class)->failed($record->id, 1);
+    expect($record->refresh()->status)->toBe('processing');
 });

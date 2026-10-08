@@ -50,13 +50,16 @@ final class CreditService
         $wallet->available -= $units;
         $wallet->reserved += $units;
         $this->repository->saveWallet($wallet);
+        $subjectKey = match ($quote['activity']) {
+            'translation' => 'translation_id', 'dubbing' => 'dubbing_id', default => 'transcription_id'
+        };
         $this->repository->createCharge([
-            'user_id' => $userId, 'quote_id' => $quote['id'], 'transcription_id' => $transcriptionId,
+            'user_id' => $userId, 'quote_id' => $quote['id'], $subjectKey => $transcriptionId,
             'activity' => $quote['activity'], 'provider' => $quote['provider'], 'model' => $quote['model'],
             'quantity' => $quote['quantity'], 'credit_units' => $units, 'rate' => $quote['rate'],
             'status' => 'reserved',
         ]);
-        $this->repository->appendEntry($wallet, 'usage:'.$quote['id'].':reserve', 'reserve', $units, ['transcription_id' => $transcriptionId]);
+        $this->repository->appendEntry($wallet, 'usage:'.$quote['id'].':reserve', 'reserve', $units, [$subjectKey => $transcriptionId]);
     }
 
     public function consume(string $transcriptionId, ?int $actualDurationMs = null): void
@@ -69,10 +72,30 @@ final class CreditService
         $this->settle($transcriptionId, 'release');
     }
 
-    private function settle(string $transcriptionId, string $action, ?int $actualDurationMs = null): void
+    public function consumeTranslation(string $translationId): void
     {
-        $this->repository->transaction(function () use ($transcriptionId, $action, $actualDurationMs): void {
-            $charge = $this->repository->charge($transcriptionId, lock: true);
+        $this->settle($translationId, 'consume', activity: 'translation');
+    }
+
+    public function releaseTranslation(string $translationId): void
+    {
+        $this->settle($translationId, 'release', activity: 'translation');
+    }
+
+    public function consumeDubbing(string $dubbingId): void
+    {
+        $this->settle($dubbingId, 'consume', activity: 'dubbing');
+    }
+
+    public function releaseDubbing(string $dubbingId): void
+    {
+        $this->settle($dubbingId, 'release', activity: 'dubbing');
+    }
+
+    private function settle(string $transcriptionId, string $action, ?int $actualDurationMs = null, string $activity = 'transcription'): void
+    {
+        $this->repository->transaction(function () use ($transcriptionId, $action, $actualDurationMs, $activity): void {
+            $charge = $activity !== 'transcription' ? $this->repository->charge($transcriptionId, lock: true, activity: $activity) : $this->repository->charge($transcriptionId, lock: true);
             if ($charge === null || $charge['status'] !== 'reserved') {
                 return;
             }
@@ -97,7 +120,10 @@ final class CreditService
                 'provider_cost_micros' => $action === 'consume' ? $cost : null,
                 'provider_cost_currency' => $action === 'consume' ? ($rate['provider_currency'] ?? null) : null,
             ]);
-            $this->repository->appendEntry($wallet, 'usage:'.$charge['quote_id'].':'.$action, $action, $units, ['transcription_id' => $transcriptionId]);
+            $subjectKey = match ($activity) {
+                'translation' => 'translation_id', 'dubbing' => 'dubbing_id', default => 'transcription_id'
+            };
+            $this->repository->appendEntry($wallet, 'usage:'.$charge['quote_id'].':'.$action, $action, $units, [$subjectKey => $transcriptionId]);
         });
     }
 

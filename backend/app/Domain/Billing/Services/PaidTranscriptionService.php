@@ -22,11 +22,14 @@ final class PaidTranscriptionService
         private readonly BillingSettingsInterface $settings,
     ) {}
 
-    public function submit(int $userId, string $quoteId, ?string $folderId): Transcription
+    public function submit(int $userId, string $quoteId, ?string $folderId, ?string $name = null): Transcription
     {
-        return $this->repository->transaction(function () use ($userId, $quoteId, $folderId): Transcription {
+        return $this->repository->transaction(function () use ($userId, $quoteId, $folderId, $name): Transcription {
             $quote = $this->repository->quote($quoteId, $userId, lock: true)
                 ?? throw new BillingException('Quote not found.', 404);
+            if ($quote['activity'] !== 'transcription') {
+                throw new BillingException('This quote is not for transcription.', 422);
+            }
             if ($quote['transcription_id'] !== null) {
                 return $this->transcriptionRepository->find($quote['transcription_id'])
                     ?? throw new BillingException('The submitted transcription no longer exists.', 410);
@@ -43,6 +46,9 @@ final class PaidTranscriptionService
             $source = $quote['source'];
             $source['user_id'] = $userId;
             $source['duration'] = $quote['quantity'] / 1000;
+            if ($name !== null && trim($name) !== '') {
+                $source['name'] = trim($name);
+            }
             $transcription = $this->transcriptions->startNewTranscription($source, dispatch: false);
             if ($transcription->provider !== $quote['provider']) {
                 throw new BillingException('The transcription provider changed. Request a new quote.');

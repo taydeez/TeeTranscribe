@@ -64,7 +64,7 @@ test('guest outcomes do not send email', function () {
     Notification::assertNothingSent();
 });
 
-test('completion is emitted once after both exports are ready', function () {
+test('completion is emitted once after all exports are ready', function () {
     Event::fake([TranscriptionCompleted::class]);
     $record = Transcription::factory()->create(['status' => 'processing']);
     TranscriptionExport::factory()->create(['transcription_id' => $record->id, 'format' => 'txt', 'status' => 'completed', 'storage_path' => 'exports/test.txt']);
@@ -72,6 +72,9 @@ test('completion is emitted once after both exports are ready', function () {
     $finalizer->handle($record->id);
     Event::assertNotDispatched(TranscriptionCompleted::class);
     TranscriptionExport::factory()->create(['transcription_id' => $record->id, 'format' => 'pdf', 'status' => 'completed', 'storage_path' => 'exports/test.pdf']);
+    $finalizer->handle($record->id);
+    Event::assertNotDispatched(TranscriptionCompleted::class);
+    TranscriptionExport::factory()->create(['transcription_id' => $record->id, 'format' => 'docx', 'status' => 'completed', 'storage_path' => 'exports/test.docx']);
     $finalizer->handle($record->id);
     $finalizer->handle($record->id);
     Event::assertDispatchedTimes(TranscriptionCompleted::class, 1);

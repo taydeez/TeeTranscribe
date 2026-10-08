@@ -17,11 +17,15 @@ export async function useAuthenticatedFetch<T>(request: string, options: FetchOp
   try {
     return await ofetch<T>(request, { ...options, headers, retry: 0 })
   } catch (error: unknown) {
-    const failure = error as { statusCode?: number; status?: number; response?: { status?: number } }
+    const failure = error as { statusCode?: number; status?: number; response?: { status?: number }; data?: { message?: string } }
     const status = failure.statusCode ?? failure.status ?? failure.response?.status
     if (status === 401) {
       auth.clearSession()
       await navigateTo('/')
+    }
+    if (status === 403 && failure.data?.message?.includes('email address is not verified')) {
+      await auth.refreshUser()
+      await navigateTo('/auth/verify-email')
     }
     throw error
   }

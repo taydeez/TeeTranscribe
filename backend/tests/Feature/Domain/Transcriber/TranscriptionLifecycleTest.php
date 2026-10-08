@@ -4,6 +4,7 @@ use App\Domain\Transcriber\Contracts\TranscriberGatewayResolverInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionPollingDispatcherInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Services\TranscribeService;
+use App\Infrastructure\Exports\TranscriptionExportGenerator;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
 use App\Jobs\GeneratePdfExport;
@@ -74,7 +75,7 @@ test('persists the Intron file id before dispatching its polling job', function 
     });
 });
 
-test('uses the transcription name for both exports and completes after both uploads', function () {
+test('uses the transcription name for all exports and completes after every upload', function () {
     Storage::fake('r2');
     $transcription = Transcription::factory()->create([
         'name' => 'Odega Interview',
@@ -86,6 +87,8 @@ test('uses the transcription name for both exports and completes after both uplo
     expect($transcription->refresh()->status)->toBe('processing');
 
     (new GeneratePdfExport($transcription->id))->handle();
+    expect($transcription->refresh()->status)->toBe('processing');
+    app(TranscriptionExportGenerator::class)->generate($transcription->id, 'docx', 0);
 
     expect($transcription->refresh()->status)->toBe('complete');
     $this->assertDatabaseHas('transcription_exports', [
@@ -100,9 +103,10 @@ test('uses the transcription name for both exports and completes after both uplo
         'status' => 'completed',
         'storage_path' => "exports/{$transcription->id}/Odega Interview.pdf",
     ]);
-    expect(TranscriptionExport::query()->count())->toBe(2);
+    expect(TranscriptionExport::query()->count())->toBe(3);
     Storage::disk('r2')->assertExists("exports/{$transcription->id}/Odega Interview.txt");
     Storage::disk('r2')->assertExists("exports/{$transcription->id}/Odega Interview.pdf");
+    Storage::disk('r2')->assertExists("exports/{$transcription->id}/Odega Interview.docx");
 });
 
 test('regenerated exports replace files containing the previous transcript', function () {
@@ -119,6 +123,7 @@ test('regenerated exports replace files containing the previous transcript', fun
 
     (new GenerateTxtExport($transcription->id))->handle();
     (new GeneratePdfExport($transcription->id))->handle();
+    app(TranscriptionExportGenerator::class)->generate($transcription->id, 'docx', 0);
 
     expect(Storage::disk('r2')->get($txtPath))->toBe('The corrected transcript.')
         ->and(Storage::disk('r2')->get($pdfPath))->not->toBe('old pdf')

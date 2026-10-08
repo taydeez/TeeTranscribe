@@ -2,8 +2,7 @@
 
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
-use App\Jobs\GeneratePdfExport;
-use App\Jobs\GenerateTxtExport;
+use App\Jobs\RegenerateTranscriptionExports;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -26,8 +25,8 @@ test('timed edits preserve provider timestamps and regenerate the combined text'
     expect($record->refresh()->segments[0])->toMatchArray([
         'start' => 1, 'end' => 4, 'speaker' => 'Ada', 'text' => 'Corrected.', 'confidence' => 0.9,
     ]);
-    Queue::assertPushed(GenerateTxtExport::class);
-    Queue::assertPushed(GeneratePdfExport::class);
+    Queue::assertPushed(RegenerateTranscriptionExports::class);
+
 });
 
 test('an owner can edit a transcript and regenerate its exports', function () {
@@ -68,8 +67,8 @@ test('an owner can edit a transcript and regenerate its exports', function () {
     expect($transcription->exports()->pluck('status')->all())->toBe(['pending', 'pending'])
         ->and($transcription->exports()->pluck('failure_reason')->filter()->all())->toBe([])
         ->and($transcription->exports()->pluck('processing_started_at')->filter()->all())->toBe([]);
-    Queue::assertPushed(GenerateTxtExport::class, fn ($job): bool => $job->transcriptionId === $transcription->id);
-    Queue::assertPushed(GeneratePdfExport::class, fn ($job): bool => $job->transcriptionId === $transcription->id);
+    Queue::assertPushed(RegenerateTranscriptionExports::class, fn ($job): bool => $job->transcriptionId === $transcription->id);
+
 });
 
 test('a user cannot edit another users transcript', function () {
@@ -98,4 +97,30 @@ test('editing a transcript requires authentication', function () {
     $this->patchJson("/api/v1/transcriptions/{$transcription->id}", [
         'transcript' => 'Edited transcript.',
     ])->assertUnauthorized();
+});
+
+test('unchanged saves leave completed exports untouched and enqueue nothing', function () {
+    Queue::fake();
+    $record = Transcription::factory()->create(['status' => 'complete', 'transcript' => 'Same transcript.', 'segments' => []]);
+    Sanctum::actingAs($record->user);
+    $export = TranscriptionExport::factory()->create(['transcription_id' => $record->id, 'format' => 'txt', 'status' => 'completed', 'storage_path' => 'exports/original.txt']);
+    $this->patchJson("/api/v1/transcriptions/{$record->id}", ['transcript' => 'Same transcript.'])->assertOk()->assertJsonPath('status', 'complete');
+    expect($record->refresh()->export_revision)->toBe(0)
+        ->and($export->refresh()->status)->toBe('completed')
+        ->and($export->storage_path)->toBe('exports/original.txt');
+    Queue::assertNothingPushed();
+});
+
+test('rapid changed saves share one delayed regeneration and excess requests are rate limited', function () {
+    Queue::fake();
+    $record = Transcription::factory()->create(['status' => 'complete', 'transcript' => 'Original.', 'segments' => []]);
+    Sanctum::actingAs($record->user);
+    for ($i = 1; $i <= 10; $i++) {
+        $this->patchJson("/api/v1/transcriptions/{$record->id}", ['transcript' => "Edit {$i}."])->assertOk();
+    }
+    $this->patchJson("/api/v1/transcriptions/{$record->id}", ['transcript' => 'Abusive edit.'])->assertStatus(429)->assertHeader('Retry-After');
+    expect($record->refresh()->transcript)->toBe('Edit 10.')
+        ->and($record->export_revision)->toBe(10);
+    Queue::assertPushed(RegenerateTranscriptionExports::class, 1);
+    Queue::assertPushed(RegenerateTranscriptionExports::class, fn ($job) => $job->delay === 5);
 });

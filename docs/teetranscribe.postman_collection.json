@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "8a874a7c-a8cc-4fb6-b5d5-f3adfb5da6e6",
     "name": "TeeTranscribe API",
-    "description": "TeeTranscribe API. Sign in, upload or supply a public audio URL, create a billing quote, poll until ready, then confirm POST /transcribe with quote_id. One credit equals NGN 1. NGN and USD purchases fund the same credit wallet. Use a fresh client_key per distinct request; reuse it only when retrying the same operation.",
+    "description": "TeeTranscribe API. Sign in, upload or supply a public audio URL, create a billing quote, poll until ready, then confirm POST /transcribe with quote_id. One credit equals NGN 1. NGN and USD purchases fund the same credit wallet. Use a fresh client_key per distinct request; reuse it only when retrying the same operation. Email/password accounts must verify email before using protected workspace endpoints. Google-verified accounts are verified automatically. Welcome, credit reservation and credit return emails are delivered through the outbox and default Redis queue. Credit purchase invoices retain their existing flow.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -85,6 +85,42 @@
     {
       "key": "flutterwaveWebhookSecretHash",
       "value": ""
+    },
+    {
+      "key": "translationId",
+      "value": ""
+    },
+    {
+      "key": "translationQuoteId",
+      "value": ""
+    },
+    {
+      "key": "dubbingId",
+      "value": ""
+    },
+    {
+      "key": "dubbingQuoteId",
+      "value": ""
+    },
+    {
+      "key": "videoStoragePath",
+      "value": ""
+    },
+    {
+      "key": "passwordResetToken",
+      "value": ""
+    },
+    {
+      "key": "verificationHash",
+      "value": ""
+    },
+    {
+      "key": "verificationExpires",
+      "value": ""
+    },
+    {
+      "key": "verificationSignature",
+      "value": ""
     }
   ],
   "item": [
@@ -102,7 +138,8 @@
           "mode": "raw",
           "raw": "{\n  \"name\": \"your name or Organization name.\",\n  \"email\": \"new-user@example.com\",\n  \"password\": \"password1\",\n  \"password_confirmation\": \"password1\"\n}"
         },
-        "url": "{{baseUrl}}/auth/register"
+        "url": "{{baseUrl}}/auth/register",
+        "description": "Creates a local unverified account and token. The welcome email contains the verification link. Verify email before accessing dashboard features; /user, logout and verification resend remain available."
       }
     },
     {
@@ -119,7 +156,162 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password\"\n}"
         },
-        "url": "{{baseUrl}}/auth/login"
+        "url": "{{baseUrl}}/auth/login",
+        "description": "Signs in local accounts, including unverified accounts so they can resend verification. User includes emailVerified; fetch /user for email_verified_at. Administrators still require their email two-factor code."
+      }
+    },
+    {
+      "name": "Update account name",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{sanctumToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Your name or organization name\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/profile",
+        "description": "Requires authentication and verified email. Updates only the signed-in account name; email, roles and other accounts cannot be changed through this endpoint."
+      }
+    },
+    {
+      "name": "Change account password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{sanctumToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"current_password\": \"password\",\n  \"password\": \"newPassword1\",\n  \"password_confirmation\": \"newPassword1\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/change-password",
+        "description": "Requires authentication, verified email, correct current password, and confirmed new password of at least eight characters including letters and numbers. Revokes all login tokens, remembered sessions, reset links and outstanding admin login codes. Log in again afterward. Limited to five requests per account per minute."
+      }
+    },
+    {
+      "name": "Request password reset",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/forgot-password",
+        "description": "Always returns the same response for registered and unknown emails. Sends a queued reset email with a 60-minute, single-use token; repeated delivery is throttled. Separate IP and email rate limits apply."
+      }
+    },
+    {
+      "name": "Reset password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"token\": \"{{passwordResetToken}}\",\n  \"password\": \"newPassword1\",\n  \"password_confirmation\": \"newPassword1\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/reset-password",
+        "description": "Use the token from the email link. A successful reset revokes all Sanctum tokens, remembered sessions and outstanding administrator login codes. It does not verify the email. Invalid, expired, or reused tokens return 422."
+      }
+    },
+    {
+      "name": "Resend email verification",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{sanctumToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{baseUrl}}/auth/email/resend",
+        "description": "Requires login, but not a verified email. Sends a signed verification link only when needed. Rate limited to one request per user per minute."
+      }
+    },
+    {
+      "name": "Verify email address",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/email/verify/{{userId}}/{{verificationHash}}?expires={{verificationExpires}}&signature={{verificationSignature}}",
+        "description": "Copy id, hash, expires, and signature from the verification email. No login is required; the expiring signed link proves ownership. Tampered and expired links return 403. Reusing a valid link is harmless."
       }
     },
     {
@@ -150,7 +342,8 @@
       "name": "Google OAuth callback",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/auth/google/callback?code=google-authorization-code"
+        "url": "{{baseUrl}}/auth/google/callback?code=google-authorization-code",
+        "description": "Requires a Google-verified email identity. New social accounts are welcomed and automatically verified; an existing local account linked through Google is verified without another welcome email."
       }
     },
     {
@@ -201,7 +394,8 @@
             "value": "Bearer {{sanctumToken}}"
           }
         ],
-        "url": "{{baseUrl}}/user"
+        "url": "{{baseUrl}}/user",
+        "description": "Available to both verified and unverified signed-in accounts. Returns email_verified_at and authoritative email_verified (true for verified local emails and social-auth accounts). Unverified local accounts must verify before using workspace endpoints."
       }
     },
     {
@@ -255,7 +449,7 @@
     {
       "name": "Confirm transcription in today’s folder",
       "request": {
-        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder.",
+        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder. Optional name (up to 255 characters) sets the transcription title and PDF/TXT download names; omitted or blank uses the source filename.",
         "method": "POST",
         "header": [
           {
@@ -269,7 +463,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"quote_id\": \"{{billingQuoteId}}\",\n  \"folder_id\": null\n}",
+          "raw": "{\n  \"quote_id\": \"{{billingQuoteId}}\",\n  \"folder_id\": null,\n  \"name\": \"Client interview\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -292,7 +486,7 @@
     {
       "name": "Confirm transcription in selected folder",
       "request": {
-        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder.",
+        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder. Optional name (up to 255 characters) sets the transcription title and PDF/TXT download names; omitted or blank uses the source filename.",
         "method": "POST",
         "header": [
           {
@@ -310,7 +504,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"quote_id\": \"{{billingQuoteId}}\",\n  \"folder_id\": \"{{folderId}}\"\n}",
+          "raw": "{\n  \"quote_id\": \"{{billingQuoteId}}\",\n  \"folder_id\": \"{{folderId}}\",\n  \"name\": \"Client interview\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -467,9 +661,27 @@
       }
     },
     {
+      "name": "Prepare transcription downloads",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{sanctumToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/exports",
+        "description": "Prepares missing or failed PDF, TXT and DOCX exports for an owned transcript, including speaker-labelled variants when segments contain speaker names. Existing successful exports and transcript content are preserved. Returns 202 with id/status while generating, or 200 if all files are ready. Repeated requests share the queued job; the transcript edit rate limits also apply. Poll GET /folders/{{folderId}} for exports with format, variant (plain or speakers), status and signed downloadUrl."
+      }
+    },
+    {
       "name": "Update transcription text",
       "request": {
-        "description": "Updates an owned transcript and queues replacement TXT and PDF exports. For timed Deepgram editing, include segments in their original order, each containing text and nullable speaker. Segment count must match the stored transcript; timing and confidence remain unchanged. The server derives transcript from segment text. Plain-text edits clear timed segments to prevent stale alignment.",
+        "description": "Updates an owned transcript and queues replacement TXT, PDF and DOCX exports in plain and speaker-labelled variants. For timed Deepgram editing, include segments in their original order, each containing text and nullable speaker. Segment count must match the stored transcript; timing and confidence remain unchanged. The server derives transcript from segment text. Plain-text edits clear timed segments to prevent stale alignment. Unchanged content preserves existing exports and queues no regeneration. Changed saves reset exports to pending; edits within five seconds share a regeneration job for the latest revision. Limits: 10 requests/minute per transcription and 30/minute per user; excess requests return 429 with Retry-After. Revision checks prevent old jobs from publishing or failing newer edits.",
         "method": "PATCH",
         "header": [
           {
@@ -495,7 +707,7 @@
     {
       "name": "Deepgram completion callback",
       "request": {
-        "description": "Validates metadata.request_id against a Deepgram transcription, atomically stores transcript and results.utterances as timed segments, and moves the transcription to processing while PDF and TXT exports are generated. Utterances include start, end, transcript, optional speaker number and confidence. Duplicate callbacks do not overwrite saved edits.",
+        "description": "Validates metadata.request_id against a Deepgram transcription, atomically stores transcript and results.utterances as timed segments, and moves the transcription to processing while PDF, TXT and DOCX exports are generated. Utterances include start, end, transcript, optional speaker number and confidence. Duplicate callbacks do not overwrite saved edits.",
         "method": "POST",
         "header": [
           {
@@ -1207,6 +1419,428 @@
           }
         }
       ]
+    },
+    {
+      "item": [
+        {
+          "name": "Supported languages",
+          "response": [],
+          "request": {
+            "method": "GET",
+            "description": "Global Google NMT catalog. Yoruba, Igbo and Hausa appear first. Pidgin is not offered unless supported by the provider.",
+            "url": "{{baseUrl}}/translations/languages",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            }
+          }
+        },
+        {
+          "name": "Quote translation",
+          "response": [],
+          "request": {
+            "url": "{{baseUrl}}/translations/quotes",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\r\n  \"name\": \"Meeting translation\",\r\n  \"client_key\": \"{{$guid}}\",\r\n  \"source_language\": \"en\",\r\n  \"text\": \"Hello, welcome to our meeting.\",\r\n  \"target_language\": \"yo\"\r\n}"
+            },
+            "description": "Check credits before confirming. Reuse client_key for retries of identical input. Optional transcription_id links an owned transcript; optional segments preserve speaker names and stored timestamps.",
+            "method": "POST",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Confirm translation",
+          "response": [],
+          "request": {
+            "url": "{{baseUrl}}/translations",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\r\n  \"quote_id\": \"{{translationQuoteId}}\"\r\n}"
+            },
+            "description": "Idempotent confirmation reserves credits and queues processing. Poll the returned translation ID.",
+            "method": "POST",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Translation history",
+          "response": [],
+          "request": {
+            "method": "GET",
+            "description": "Paginated history belonging to the authenticated user.",
+            "url": "{{baseUrl}}/translations?page=1&per_page=10",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            }
+          }
+        },
+        {
+          "name": "View translation",
+          "response": [],
+          "request": {
+            "method": "GET",
+            "description": "Includes translated text, speaker segments and signed PDF, TXT and DOCX download links when complete.",
+            "url": "{{baseUrl}}/translations/{{translationId}}",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            }
+          }
+        },
+        {
+          "name": "Edit translation",
+          "response": [],
+          "request": {
+            "url": "{{baseUrl}}/translations/{{translationId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\r\n  \"translated_text\": \"Edited translation.\"\r\n}"
+            },
+            "description": "Regenerates exports without translating or charging again. Include segments with text and speaker to preserve speaker exports. Repeated unchanged saves are ignored; failed exports can be retried.",
+            "method": "PATCH",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ],
+      "name": "Translations"
+    },
+    {
+      "item": [
+        {
+          "name": "Dubbing languages",
+          "response": [],
+          "request": {
+            "description": "Global Dubbing v2 languages and dialects. Yoruba and Hausa appear first. Igbo and Pidgin are not listed as supported.",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/dubbings/languages"
+          }
+        },
+        {
+          "name": "Quote video dubbing",
+          "response": [],
+          "request": {
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Dubbed interview\",\r\n  \"video_storage_path\": \"{{videoStoragePath}}\",\r\n  \"target_language\": \"yo\",\r\n  \"source_language\": \"en\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}"
+            },
+            "url": "{{baseUrl}}/dubbings/quotes",
+            "description": "First upload an MP4 or WebM via multipart uploads using video/mp4 or video/webm. Set videoStoragePath to its returned audio_storage_path. Server measures duration before pricing. Poll the quote until ready. Reuse client_key when retrying an identical request.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "method": "POST"
+          },
+          "event": [
+            {
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set('dubbingQuoteId', pm.response.json().id);"
+                ]
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "Poll dubbing quote",
+          "response": [],
+          "request": {
+            "description": "Wait for ready status and inspect credit_units/enough_credits before confirmation. Duration quantity is in milliseconds.",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/dubbings/quotes/{{dubbingQuoteId}}"
+          }
+        },
+        {
+          "name": "Confirm video dubbing",
+          "response": [],
+          "request": {
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "mode": "raw",
+              "raw": "{\r\n  \"quote_id\": \"{{dubbingQuoteId}}\"\r\n}"
+            },
+            "url": "{{baseUrl}}/dubbings",
+            "description": "Idempotent confirmation reserves credits and records an outbox event. The scheduler and dedicated dubbing worker perform processing.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "method": "POST"
+          },
+          "event": [
+            {
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set('dubbingId', pm.response.json().id);"
+                ]
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "Dubbing history",
+          "response": [],
+          "request": {
+            "description": "Paginated history belonging to the authenticated user.",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/dubbings?page=1&per_page=10"
+          }
+        },
+        {
+          "name": "View dubbed video",
+          "response": [],
+          "request": {
+            "description": "Poll pending or processing records. Complete records include signed MP4 preview, MP4 download and FLAC audio download links.",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/dubbings/{{dubbingId}}"
+          }
+        },
+        {
+          "name": "Retry dubbing downloads",
+          "response": [],
+          "request": {
+            "description": "Only retries failed output preparation when provider generation already completed. Reuses the same provider project and charge, without starting another paid dub.",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/dubbings/{{dubbingId}}/retry"
+          }
+        }
+      ],
+      "name": "Video dubbing"
     }
   ]
 }

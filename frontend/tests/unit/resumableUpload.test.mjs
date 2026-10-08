@@ -61,7 +61,10 @@ function harness() {
       session.status = 'completed'
       return { audio_url: 'https://storage.example/audio.mp3', audio_storage_path: 'audio/example.mp3' }
     }
-    if (path.endsWith('/abort')) { session.status = 'aborted'; return { status: 'aborted' } }
+    if (path.endsWith('/abort')) {
+      if (session.status === 'completed') throw Object.assign(new Error('This file is already uploaded.'), { statusCode: 409 })
+      session.status = 'aborted'; return { status: 'aborted' }
+    }
     throw new Error('Unexpected endpoint')
   }
   context.send = async (ticket, chunk, signal, progress) => {
@@ -84,6 +87,33 @@ function harness() {
   return context
 }
 const file = new File(['audio'], 'recording.mp3')
+
+test('discard removes a completed saved upload without aborting its stored file', async () => {
+  const context = harness()
+  await context.uploader.upload(file, 'audio/mpeg')
+  const record = [...context.saved.values()][0]
+  context.uploader = useResumableUpload()
+  await context.uploader.discard(record)
+  assert.equal(context.saved.size, 0)
+  assert.equal(context.uploader.unfinished.value.length, 0)
+  assert.equal([...context.sessions.values()][0].status, 'completed')
+  assert.match(context.uploader.notice.value, /uploaded file is preserved/)
+  assert.equal(context.uploader.cancelling.value, false)
+})
+
+test('discard preserves recovery state when an abort conflict is not a completed upload', async () => {
+  const context = harness()
+  context.pausePart = 1
+  await assert.rejects(context.uploader.upload(file, 'audio/mpeg'), { name: 'AbortError' })
+  const request = globalThis.useAuthenticatedFetch
+  globalThis.useAuthenticatedFetch = async (path, options) => {
+    if (path.endsWith('/abort')) throw Object.assign(new Error('Conflict'), { statusCode: 409 })
+    return request(path, options)
+  }
+  await assert.rejects(context.uploader.discard([...context.saved.values()][0]), /Conflict/)
+  assert.equal(context.saved.size, 1)
+  assert.equal(context.uploader.cancelling.value, false)
+})
 
 test('a new uploader instance resumes only missing parts after pause and refresh', async () => {
   const context = harness()

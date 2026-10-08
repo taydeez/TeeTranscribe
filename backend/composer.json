@@ -52,7 +52,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#86efac\" \"php artisan serve\" \"php artisan queue:listen redis --queue=ingestion,transcriptions,exports,default --tries=3 --timeout=900\" \"php artisan schedule:work\" \"npm run dev\" --names='server,queue,scheduler,vite'"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#f9a8d4,#fdba74,#86efac\" \"php artisan serve\" \"php artisan queue:listen redis --queue=ingestion,transcriptions,exports,default --tries=3 --timeout=900\" \"php artisan queue:work dubbing --queue=dubbing --tries=3 --timeout=5400\" \"php artisan schedule:work\" \"npm run dev\" --names='server,queue,dubbing,scheduler,vite'"
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",
