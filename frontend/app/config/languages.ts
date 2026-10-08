@@ -1,6 +1,7 @@
 export type LanguageOption = { name: string; codes: string[] }
 
 export const transcriptionLanguages: LanguageOption[] = [
+  { name: 'English', codes: ['en', 'en-US', 'en-AU', 'en-GB', 'en-IN', 'en-NZ'] },
   { name: 'Nigerian English', codes: ['en-NG'] }, { name: 'Nigerian Pidgin', codes: ['pcm'] },
   { name: 'Yorùbá', codes: ['yo'] }, { name: 'Igbo', codes: ['ig'] }, { name: 'Hausa', codes: ['ha'] },
   { name: 'Afrikaans', codes: ['af', 'af-ZA'] },
@@ -11,7 +12,7 @@ export const transcriptionLanguages: LanguageOption[] = [
   { name: 'Chinese (Mandarin, Simplified)', codes: ['zh', 'zh-CN', 'zh-Hans'] },
   { name: 'Chinese (Mandarin, Traditional)', codes: ['zh-TW', 'zh-Hant'] },
   { name: 'Croatian', codes: ['hr'] }, { name: 'Czech', codes: ['cs', 'cs-CZ'] }, { name: 'Danish', codes: ['da', 'da-DK'] },
-  { name: 'Dutch', codes: ['nl'] }, { name: 'English', codes: ['en', 'en-US', 'en-AU', 'en-GB', 'en-IN', 'en-NZ'] },
+  { name: 'Dutch', codes: ['nl'] },
   { name: 'Estonian', codes: ['et'] }, { name: 'Finnish', codes: ['fi'] }, { name: 'Flemish', codes: ['nl-BE'] },
   { name: 'French', codes: ['fr', 'fr-CA'] }, { name: 'Georgian', codes: ['ka', 'ka-GE'] }, { name: 'German', codes: ['de'] },
   { name: 'German (Switzerland)', codes: ['de-CH'] }, { name: 'Greek', codes: ['el'] }, { name: 'Gujarati', codes: ['gu', 'gu-IN'] },

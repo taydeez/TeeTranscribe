@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Infrastructure\Persistence\Eloquent\Models\Folder;
+use App\Notifications\EmailVerificationNotification;
+use App\Notifications\PasswordResetNotification;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,7 +18,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'google_id'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
@@ -38,5 +40,20 @@ class User extends Authenticatable
     public function folders(): HasMany
     {
         return $this->hasMany(Folder::class);
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new EmailVerificationNotification);
+    }
+
+    public function hasVerifiedEmail(): bool
+    {
+        return $this->email_verified_at !== null || filled($this->google_id);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new PasswordResetNotification($token));
     }
 }

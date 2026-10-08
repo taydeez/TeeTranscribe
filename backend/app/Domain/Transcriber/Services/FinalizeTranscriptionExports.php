@@ -15,7 +15,7 @@ class FinalizeTranscriptionExports
             if ($transcription->status === 'complete') {
                 return;
             }
-            $exports = $transcription->exports()->lockForUpdate()->get()->keyBy('format');
+            $exports = $transcription->exports()->where('export_revision', $transcription->export_revision)->lockForUpdate()->get()->keyBy(fn ($export) => $export->format.':'.$export->variant);
 
             if ($exports->contains(fn ($export): bool => $export->status === 'failed')) {
                 $transcription->update(['status' => 'failed']);
@@ -23,12 +23,14 @@ class FinalizeTranscriptionExports
                 return;
             }
 
-            if ($exports->has('txt') && $exports->has('pdf')
-                && $exports['txt']->status === 'completed' && filled($exports['txt']->storage_path)
-                && $exports['pdf']->status === 'completed' && filled($exports['pdf']->storage_path)) {
-                $transcription->update(['status' => 'complete']);
-                app(TranscriptionOutcomePublisherInterface::class)->completed($transcription->id);
+            foreach (TranscriptionExportOptions::required($transcription->segments ?? []) as $option) {
+                $export = $exports->get($option['format'].':'.$option['variant']);
+                if ($export === null || $export->status !== 'completed' || blank($export->storage_path)) {
+                    return;
+                }
             }
+            $transcription->update(['status' => 'complete']);
+            app(TranscriptionOutcomePublisherInterface::class)->completed($transcription->id);
         });
     }
 }

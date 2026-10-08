@@ -13,6 +13,6 @@ class TranscribeAudioRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['quote_id' => ['required', 'ulid'], 'folder_id' => ['nullable', 'ulid']];
+        return ['quote_id' => ['required', 'ulid'], 'folder_id' => ['nullable', 'ulid'], 'name' => ['nullable', 'string', 'max:255']];
     }
 }

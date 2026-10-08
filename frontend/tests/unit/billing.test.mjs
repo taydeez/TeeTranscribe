@@ -49,8 +49,9 @@ test('checks the price first and submits only after a second confirmation', asyn
   assert.equal(calls[0].path, 'quote')
   assert.equal(form.submitLabel.value, 'Confirm · 30.01 credits')
   form.folderId.value = 'folder-id'
+  form.name.value = '  Client interview  '
   assert.equal(await form.submit(), 'transcription-id')
-  assert.deepEqual(calls[1], { path: '/api/transcribe', body: { quote_id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', folder_id: 'folder-id' } })
+  assert.deepEqual(calls[1], { path: '/api/transcribe', body: { quote_id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', folder_id: 'folder-id', name: 'Client interview' } })
 })
 
 test('requires sign in before requesting a quote or uploading', async () => {

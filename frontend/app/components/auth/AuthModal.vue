@@ -7,6 +7,7 @@ type AuthResponse = { token?: string; requires_two_factor?: boolean; email?: str
 const props = withDefaults(defineProps<{ open: boolean; initialMode?: 'login' | 'register' }>(), { initialMode: 'login' })
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 const auth = useAuthStore()
+const route = useRoute()
 const mode = ref<AuthMode>(props.initialMode)
 const name = ref('')
 const email = ref('')
@@ -34,7 +35,7 @@ async function submit() {
     if (!response.token) throw new Error('The server did not return an authentication token.')
     await auth.establishSession(response.token)
     emit('update:open', false)
-    await navigateTo('/dashboard')
+    await navigateTo(auth.isEmailVerified ? '/dashboard' : '/auth/verify-email')
   } catch (failure: unknown) {
     const response = failure as { data?: { message?: string }; message?: string }
     error.value = response.data?.message ?? response.message ?? 'Authentication failed.'
@@ -58,12 +59,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', escape))
           <p class="mb-3 text-xs font-semibold tracking-[.2em] text-indigo-600">TEETRANSCRIBE ACCOUNT</p>
           <h2 id="auth-title" class="text-3xl font-semibold tracking-[-.04em] text-slate-900">{{ mode === 'register' ? 'Create your account' : mode === 'verify' ? 'Check your email' : 'Welcome back' }}</h2>
           <p class="mt-2 text-sm leading-6 text-slate-500">{{ mode === 'verify' ? 'Enter the six-digit administrator code we sent you.' : 'Save your recordings and keep every transcript within reach.' }}</p>
+          <p v-if="route.query.passwordChanged === '1' && mode === 'login'" class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" role="status">Your password has been changed. Log in with your new password.</p>
           <form class="mt-7 grid gap-4" @submit.prevent="submit">
             <input v-if="mode === 'register'" v-model="name" class="rounded-xl border border-slate-300 px-4 py-3 text-sm" required placeholder="Your name or organization name" autocomplete="name">
             <input v-model="email" class="rounded-xl border border-slate-300 px-4 py-3 text-sm" required type="email" placeholder="Email address" autocomplete="email">
             <input v-if="mode !== 'verify'" v-model="password" class="rounded-xl border border-slate-300 px-4 py-3 text-sm" required type="password" placeholder="Password" :autocomplete="mode === 'register' ? 'new-password' : 'current-password'">
             <input v-if="mode === 'register'" v-model="passwordConfirmation" class="rounded-xl border border-slate-300 px-4 py-3 text-sm" required type="password" placeholder="Confirm password" autocomplete="new-password">
             <input v-if="mode === 'verify'" v-model="code" class="rounded-xl border border-slate-300 px-4 py-3 text-center text-xl tracking-[.35em]" required inputmode="numeric" maxlength="6" placeholder="000000">
+            <NuxtLink v-if="mode === 'login'" class="text-right text-sm font-semibold text-indigo-600" to="/auth/forgot-password" @click="close">Forgot password?</NuxtLink>
             <p v-if="error" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ error }}</p>
             <button class="rounded-xl bg-indigo-600 px-5 py-3.5 text-sm font-bold text-white disabled:opacity-50" :disabled="busy">{{ busy ? 'Please wait…' : mode === 'register' ? 'Create account' : mode === 'verify' ? 'Verify code' : 'Log in' }}</button>
             <a v-if="mode !== 'verify'" class="rounded-xl border border-slate-300 px-5 py-3.5 text-center text-sm font-semibold text-slate-700" href="/auth/google">Continue with Google</a>

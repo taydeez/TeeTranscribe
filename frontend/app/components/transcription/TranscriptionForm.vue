@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import AudioRecorder from './AudioRecorder.vue'
+import CreateFolderModal from '~/components/folders/CreateFolderModal.vue'
+import type { Folder } from '~/types/folder'
 import { transcriptionLanguages } from '~/config/languages'
 import { formatCredits } from '~/utils/credits'
 
@@ -12,6 +14,12 @@ const form = useTranscriptionForm()
 const picker = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
 const hydrated = ref(false)
+const creatingFolder = ref(false)
+
+function folderCreated(folder: Folder) {
+  form.folders.value = [...form.folders.value.filter(item => item.id !== folder.id), folder].sort((a, b) => a.name.localeCompare(b.name))
+  form.folderId.value = folder.id
+}
 
 function choose(event: Event) {
   const input = event.target as HTMLInputElement
@@ -55,8 +63,14 @@ onMounted(() => {
 
       <div v-else class="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
         <label class="block text-xs font-bold text-slate-700" for="audio-url">Public audio URL</label>
-        <p class="mt-1 text-xs text-slate-500">Paste a direct HTTP or HTTPS link the provider can access.</p>
+        <p class="mt-1 text-xs text-slate-500">Paste a public, direct HTTP or HTTPS link to your audio.</p>
         <input id="audio-url" v-model.trim="form.pastedUrl.value" class="mt-4 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" type="url" placeholder="https://example.com/recording.mp3" :disabled="form.busy.value">
+      </div>
+
+      <div class="my-5">
+        <label for="transcription-name" class="text-sm font-bold">Transcription name <span class="font-normal text-slate-500">(optional)</span></label>
+        <input id="transcription-name" v-model="form.name.value" class="mt-2 w-full rounded-xl border border-slate-300 bg-[var(--surface)] px-4 py-3 text-sm focus:border-indigo-500" maxlength="255" placeholder="e.g. Client interview" :disabled="form.busy.value" aria-describedby="transcription-name-help">
+        <p id="transcription-name-help" class="mt-2 text-xs text-slate-500">Used for the transcription and PDF/TXT downloads. Leave blank to use the file name.</p>
       </div>
 
       <div class="language-row">
@@ -69,7 +83,7 @@ onMounted(() => {
       </div>
 
       <div v-if="hydrated && auth.isAuthenticated" class="language-row border-t border-slate-100">
-        <div><label for="folder">Folder</label><p>Choose where this transcription should be saved.</p></div>
+        <div><label for="folder">Folder</label><p>Choose where this transcription should be saved.</p><button type="button" class="mt-2 text-xs font-semibold text-indigo-600 underline disabled:opacity-50" :disabled="form.busy.value" @click="creatingFolder = true">Create new folder</button></div>
         <select id="folder" v-model="form.folderId.value" :disabled="form.busy.value">
           <option value="">{{ form.foldersLoading.value ? 'Loading folders…' : 'Today’s folder (automatic)' }}</option>
           <option v-for="folder in form.folders.value" :key="folder.id" :value="folder.id">{{ folder.name }}</option>
@@ -97,7 +111,7 @@ onMounted(() => {
         <strong>Uploaded. Over to transcription.</strong><p>Your recording was submitted successfully.</p><NuxtLink class="mt-2 inline-flex items-center gap-2 font-semibold text-emerald-700" to="/dashboard/transcriptions">Open transcriptions <UiAppIcon name="arrow" :size="16" /></NuxtLink>
       </div>
       <div v-if="form.stage.value === 'quoted' && form.quote.value" class="cost-notice" role="status">
-        <p>Your audio is {{ form.durationLabel.value }} long. It will cost <strong>{{ formatCredits(form.quote.value.credit_units ?? 0) }} credits</strong> using {{ form.quote.value.provider }}.</p>
+        <p>Your audio is {{ form.durationLabel.value }} long. It will cost <strong>{{ formatCredits(form.quote.value.credit_units ?? 0) }} credits</strong>.</p>
         <p class="mt-2 text-xs">Available: {{ formatCredits(form.quote.value.available_units) }} credits. Credits are reserved when you confirm.</p>
         <div v-if="!form.quote.value.enough_credits" class="mt-3 flex flex-wrap gap-3"><NuxtLink class="button-primary" to="/dashboard/billing" target="_blank">Add credits</NuxtLink><button class="button-secondary" type="button" @click="form.refreshPrice()">Refresh balance</button></div>
       </div>
@@ -105,6 +119,7 @@ onMounted(() => {
       <button class="submit" type="submit" :disabled="form.busy.value || (form.stage.value !== 'done' && !form.canSubmit.value)"><span>{{ form.submitLabel.value }}</span><span aria-hidden="true">↗</span></button>
       <p class="footnote">{{ !auth.isAuthenticated ? 'Sign in to upload and transcribe.' : form.source.value === 'url' ? 'We verify and save a copy of this audio before quoting.' : 'Uploads go directly to storage. Select the same file after a refresh to resume.' }}</p>
     </form>
+    <CreateFolderModal v-model:open="creatingFolder" @created="folderCreated" />
   </section>
 </template>
 

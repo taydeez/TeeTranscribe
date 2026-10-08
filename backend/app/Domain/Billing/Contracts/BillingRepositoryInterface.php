@@ -25,7 +25,7 @@ interface BillingRepositoryInterface
 
     public function updateQuote(string $id, array $data): array;
 
-    public function charge(string $transcriptionId, bool $lock = false): ?array;
+    public function charge(string $transcriptionId, bool $lock = false, string $activity = 'transcription'): ?array;
 
     public function createCharge(array $data): array;
 

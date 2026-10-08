@@ -78,6 +78,7 @@ final class EloquentFolderRepository implements FolderRepositoryInterface
                         id: $export->id,
                         transcriptionId: $export->transcription_id,
                         format: $export->format,
+                        variant: $export->variant,
                         status: $export->status,
                         storagePath: $export->storage_path,
                         failureReason: $export->failure_reason,

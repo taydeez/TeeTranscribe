@@ -127,7 +127,7 @@ final class FolderController extends Controller
         ];
     }
 
-    /** @return array{id: string, name: string, fileName: string, status: string, transcript: string|null, duration: float|null, createdAt: string|null, exports: list<array{id: string, format: string, status: string, downloadUrl: string|null}>} */
+    /** @return array{id: string, name: string, fileName: string, status: string, transcript: string|null, duration: float|null, createdAt: string|null, exports: list<array{id: string, format: string, variant: string, status: string, downloadUrl: string|null}>} */
     private function toTranscriptionResponse(FolderTranscription $transcription): array
     {
         return [
@@ -146,6 +146,7 @@ final class FolderController extends Controller
                 'format' => $export->format,
                 'status' => $export->status,
                 'downloadUrl' => $this->exportUrlGenerator->generate($export, $transcription->name),
+                'variant' => $export->variant,
             ], $transcription->exports),
         ];
     }

@@ -3,11 +3,15 @@
 namespace App\Providers;
 
 use App\Domain\Admin\TwoFactor\Contracts\AdminCodeRepositoryInterface;
+use App\Domain\Auth\Contracts\AccountSecurityGatewayInterface;
 use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Domain\Auth\Contracts\SocialAuthGatewayInterface;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Contracts\MediaDurationInspectorInterface;
+use App\Domain\Dubbing\Contracts\DubbingGatewayInterface;
+use App\Domain\Dubbing\Contracts\DubbingMediaInterface;
+use App\Domain\Dubbing\Contracts\DubbingRepositoryInterface;
 use App\Domain\Folder\Contracts\FolderRepositoryInterface;
 use App\Domain\Payment\Contracts\PaymentGatewayResolverInterface;
 use App\Domain\Payment\Contracts\PaymentInvoiceMailerInterface;
@@ -27,10 +31,18 @@ use App\Domain\Transcriber\Contracts\TranscriptionSubmissionDispatcherInterface;
 use App\Domain\Transcriber\Events\TranscriptionCompleted;
 use App\Domain\Transcriber\Events\TranscriptionFailed;
 use App\Domain\Transcriber\Mappers\TranscriptionMapper as DomainTranscriptionMapper;
+use App\Domain\Translation\Contracts\TranslationExportStorageInterface;
+use App\Domain\Translation\Contracts\TranslationGatewayInterface;
+use App\Domain\Translation\Contracts\TranslationRepositoryInterface;
 use App\Domain\Upload\Contracts\MultipartStorageInterface;
 use App\Domain\Upload\Contracts\UploadSessionRepositoryInterface;
+use App\Infrastructure\AI\Dubbing\ElevenLabs\ElevenLabsDubbingGateway;
+use App\Infrastructure\AI\Dubbing\R2DubbingMedia;
 use App\Infrastructure\AI\TranscriberGatewayResolver;
+use App\Infrastructure\AI\Translation\Gateways\GoogleTranslationGateway;
+use App\Infrastructure\AI\Translation\R2TranslationExportStorage;
 use App\Infrastructure\Auth\GoogleSocialAuthGateway;
+use App\Infrastructure\Auth\LaravelAccountSecurityGateway;
 use App\Infrastructure\Billing\ConfigBillingSettings;
 use App\Infrastructure\Billing\FfprobeMediaDurationInspector;
 use App\Infrastructure\Notifications\SendTranscriptionOutcomeEmail;
@@ -44,11 +56,13 @@ use App\Infrastructure\Persistence\Eloquent\Mappers\TranscriptionMapper as Eloqu
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminCodeRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAuthRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentBillingRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentDubbingRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentFolderRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentMethodRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionExportRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranslationRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentUploadSessionRepository;
 use App\Infrastructure\Queue\LaravelTranscriptionExportDispatcher;
 use App\Infrastructure\Queue\LaravelTranscriptionPollingDispatcher;
@@ -67,6 +81,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(AccountSecurityGatewayInterface::class, LaravelAccountSecurityGateway::class);
+        $this->app->bind(DubbingRepositoryInterface::class, EloquentDubbingRepository::class);
+        $this->app->bind(DubbingGatewayInterface::class, ElevenLabsDubbingGateway::class);
+        $this->app->bind(DubbingMediaInterface::class, R2DubbingMedia::class);
+        $this->app->bind(TranslationRepositoryInterface::class, EloquentTranslationRepository::class);
+        $this->app->bind(TranslationGatewayInterface::class, GoogleTranslationGateway::class);
+        $this->app->bind(TranslationExportStorageInterface::class, R2TranslationExportStorage::class);
         $this->app->bind(BillingRepositoryInterface::class, EloquentBillingRepository::class);
         $this->app->bind(PaymentRepositoryInterface::class, EloquentPaymentRepository::class);
         $this->app->bind(PaymentMethodRepositoryInterface::class, EloquentPaymentMethodRepository::class);
@@ -104,8 +125,22 @@ class AppServiceProvider extends ServiceProvider
             SendTranscriptionOutcomeEmail::class,
         );
         RateLimiter::for('auth', fn ($request) => Limit::perMinute(5)->by(mb_strtolower((string) $request->input('email')).'|'.$request->ip()));
+        RateLimiter::for('password-reset', fn ($request) => [
+            Limit::perMinute(5)->by('password-reset:ip:'.$request->ip()),
+            Limit::perMinute(3)->by('password-reset:email:'.mb_strtolower((string) $request->input('email'))),
+        ]);
+        RateLimiter::for('verification-email', fn ($request) => Limit::perMinute(1)->by('verification:user:'.$request->user()->getAuthIdentifier()));
+        RateLimiter::for('account-password', fn ($request) => Limit::perMinute(5)->by('password-change:user:'.$request->user()->getAuthIdentifier()));
         RateLimiter::for('uploads', fn ($request) => Limit::perMinute(120)->by((string) $request->user()?->getAuthIdentifier()));
         RateLimiter::for('billing', fn ($request) => Limit::perMinute(60)->by((string) $request->user()?->getAuthIdentifier()));
         RateLimiter::for('billing-quotes', fn ($request) => Limit::perMinute(5)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('transcript-edits', fn ($request) => [
+            Limit::perMinute(30)->by('edits:user:'.$request->user()->getAuthIdentifier()),
+            Limit::perMinute(10)->by('edits:transcription:'.$request->user()->getAuthIdentifier().':'.$request->route('transcription')),
+        ]);
+        RateLimiter::for('translation-edits', fn ($request) => [
+            Limit::perMinute(30)->by('translation-edits:user:'.$request->user()->getAuthIdentifier()),
+            Limit::perMinute(10)->by('translation-edits:'.$request->user()->getAuthIdentifier().':'.$request->route('translation')),
+        ]);
     }
 }

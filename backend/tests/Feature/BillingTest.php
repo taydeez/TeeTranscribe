@@ -315,6 +315,33 @@ test('payment reconciliation credits a confirmed purchase when a webhook was mis
     Http::assertSentCount(1);
 });
 
+test('saves an optional transcription name without replacing the source filename', function () {
+    $quote = readyBillingQuote($this);
+    app(CreditService::class)->purchase($this->user->id, 10000, 'seed');
+    $id = $this->postJson('/api/v1/transcribe', ['quote_id' => $quote['id'], 'name' => 'Client interview'])->assertAccepted()->json('id');
+    $this->assertDatabaseHas('transcriptions', ['id' => $id, 'name' => 'Client interview', 'file_name' => 'interview.mp3']);
+    $this->postJson('/api/v1/transcribe', ['quote_id' => $quote['id'], 'name' => 'Another name'])->assertAccepted()->assertJsonPath('id', $id);
+    $this->assertDatabaseHas('transcriptions', ['id' => $id, 'name' => 'Client interview']);
+});
+
+test('expires unconfirmed checkouts and still credits a later successful payment once', function () {
+    $quote = $this->postJson('/api/v1/billing/purchases', ['client_key' => (string) Str::uuid(), 'payment_method' => 'paystack', 'package_id' => 'starter', 'currency' => 'NGN'])->assertCreated()->json();
+    $payment = Payment::findOrFail($quote['id']);
+    $payment->update(['status' => 'pending', 'checkout_url' => 'https://checkout.paystack.com/test', 'expires_at' => now()->subMinute()]);
+    Http::fake(['api.paystack.co/transaction/verify/*' => Http::sequence()
+        ->push(['status' => false, 'message' => 'Transaction not found'], 404)
+        ->push(['status' => true, 'data' => successfulBillingPayment($payment)])]);
+    $this->artisan('billing:reconcile')->assertSuccessful();
+    expect($payment->refresh()->status)->toBe('expired');
+    $this->postJson('/api/v1/billing/purchases/'.$payment->id.'/checkout')->assertStatus(409);
+    $this->assertDatabaseCount('credit_transactions', 0);
+
+    $this->artisan('billing:reconcile')->assertSuccessful();
+    $this->artisan('billing:reconcile')->assertSuccessful();
+    expect($payment->refresh()->status)->toBe('paid');
+    $this->assertDatabaseCount('credit_transactions', 1);
+});
+
 test('recovers a reserved balance when the providers callback window has elapsed', function () {
     $quote = readyBillingQuote($this);
     app(CreditService::class)->purchase($this->user->id, 10000, 'seed');

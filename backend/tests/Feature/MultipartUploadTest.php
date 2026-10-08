@@ -44,6 +44,17 @@ test('multipart endpoints require authentication', function (): void {
     $this->postJson('/api/v1/uploads/multipart', $this->metadata)->assertUnauthorized();
 });
 
+test('video uploads use the resumable multipart flow without proxying video bytes', function (): void {
+    $this->metadata['filename'] = 'interview.mp4';
+    $this->metadata['content_type'] = 'video/mp4';
+    $this->metadata['size'] = 3 * 1024 * 1024 * 1024;
+    $id = startMultipart($this);
+    $this->postJson('/api/v1/uploads/multipart', $this->metadata)->assertOk()->assertJsonPath('id', $id);
+    $this->postJson("/api/v1/uploads/multipart/{$id}/part", ['part_number' => 1])->assertOk()->assertJsonStructure(['upload_url', 'headers']);
+    $this->assertDatabaseHas('upload_sessions', ['id' => $id, 'content_type' => 'video/mp4', 'size' => $this->metadata['size']]);
+    expect($this->storage->begins)->toBe(1);
+});
+
 test('cleanup preserves completed objects even if their database status was not updated', function (): void {
     $id = startMultipart($this);
     $this->storage->objects[$id] = true;

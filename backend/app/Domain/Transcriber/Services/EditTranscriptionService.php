@@ -15,14 +15,16 @@ final readonly class EditTranscriptionService
 
     public function edit(string $transcriptionId, int $userId, string $transcript, ?array $segments = null): Transcription
     {
-        $transcription = $segments === null ? $this->transcriptions->updateTranscriptForUser(
+        $result = $segments === null ? $this->transcriptions->updateTranscriptForUser(
             $transcriptionId,
             $userId,
             $transcript,
         ) : $this->transcriptions->updateTranscriptForUser($transcriptionId, $userId, $transcript, $segments);
 
-        $this->exports->dispatch($transcriptionId);
+        if ($result->changed) {
+            $this->exports->dispatch($transcriptionId);
+        }
 
-        return $transcription;
+        return $result->transcription;
     }
 }

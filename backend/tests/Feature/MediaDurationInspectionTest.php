@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Billing\Exceptions\BillingException;
+use App\Infrastructure\Billing\AudioDurationProbe;
 use App\Infrastructure\Billing\FfprobeMediaDurationInspector;
 use App\Infrastructure\Persistence\Eloquent\Models\UploadSession;
 use App\Models\User;
@@ -64,4 +65,38 @@ test('pasted URLs remain downloaded and locally inspected before the verified co
     Storage::disk('r2')->assertExists($result['audio_storage_path']);
     Process::assertRan(fn ($process) => in_array('file,pipe', $process->command, true));
     Http::assertSentCount(1);
+});
+
+test('browser recordings without duration metadata are measured from local audio packets', function () {
+    $upload = inspectionUpload($this->user->id);
+    $packetPath = null;
+    Process::fake(function ($process) use (&$packetPath) {
+        if (in_array('-o', $process->command, true)) {
+            $packetPath = $process->command[array_search('-o', $process->command, true) + 1];
+            file_put_contents($packetPath, "pts_time=0.000|duration_time=0.020\npts_time=7.000|duration_time=0.020\n");
+
+            return Process::result();
+        }
+
+        return Process::result(output: '{"streams":[{"index":0}],"format":{"format_name":"matroska,webm"}}');
+    });
+    $result = app(FfprobeMediaDurationInspector::class)->measure($this->user->id, ['audio_storage_path' => $upload->storage_path, 'audio_url' => 'https://storage.example.test/recording.webm', 'duration' => 999], (string) Str::ulid());
+    expect($result['duration_ms'])->toBe(7020)->and(file_exists($packetPath))->toBeFalse();
+    Process::assertRan(fn ($process) => in_array('-o', $process->command, true) && in_array('file,pipe', $process->command, true) && ! str_starts_with(end($process->command), 'https://'));
+});
+
+test('recordings without measurable audio packet timestamps are rejected and temporary output is removed', function () {
+    $packetPath = null;
+    Process::fake(function ($process) use (&$packetPath) {
+        if (in_array('-o', $process->command, true)) {
+            $packetPath = $process->command[array_search('-o', $process->command, true) + 1];
+            file_put_contents($packetPath, "pts_time=N/A|duration_time=N/A\n");
+
+            return Process::result();
+        }
+
+        return Process::result(output: '{"streams":[{"index":0}],"format":{"format_name":"matroska,webm"}}');
+    });
+    expect(fn () => app(AudioDurationProbe::class)->inspect('recording.webm'))->toThrow(BillingException::class, 'This media has no supported audio duration.');
+    expect(file_exists($packetPath))->toBeFalse();
 });

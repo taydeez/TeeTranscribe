@@ -64,6 +64,14 @@ return [
             'after_commit' => false,
         ],
 
+        'dubbing' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'dubbing',
+            'retry_after' => 6000,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
         'redis' => [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),

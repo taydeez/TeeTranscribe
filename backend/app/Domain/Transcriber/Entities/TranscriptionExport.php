@@ -16,5 +16,6 @@ final readonly class TranscriptionExport
         public ?DateTimeImmutable $processingStartedAt = null,
         public ?DateTimeImmutable $createdAt = null,
         public ?DateTimeImmutable $updatedAt = null,
+        public string $variant = 'plain',
     ) {}
 }

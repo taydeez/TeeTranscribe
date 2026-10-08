@@ -3,6 +3,7 @@
 namespace App\Domain\Transcriber\Contracts;
 
 use App\Domain\Transcriber\Entities\Transcription;
+use App\Domain\Transcriber\Entities\TranscriptionEditResult;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
 
 interface TranscriptionRepositoryInterface
@@ -23,7 +24,9 @@ interface TranscriptionRepositoryInterface
     public function update(string $id, array $data): Transcription;
 
     /** @throws TranscriptionNotFoundException */
-    public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): Transcription;
+    public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): TranscriptionEditResult;
+
+    public function prepareExportsForUser(string $id, int $userId): TranscriptionEditResult;
 
     /** @throws TranscriptionNotFoundException */
     public function delete(string $id): bool;

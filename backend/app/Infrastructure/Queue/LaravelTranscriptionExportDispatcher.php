@@ -3,14 +3,12 @@
 namespace App\Infrastructure\Queue;
 
 use App\Domain\Transcriber\Contracts\TranscriptionExportDispatcherInterface;
-use App\Jobs\GeneratePdfExport;
-use App\Jobs\GenerateTxtExport;
+use App\Jobs\RegenerateTranscriptionExports;
 
 final class LaravelTranscriptionExportDispatcher implements TranscriptionExportDispatcherInterface
 {
     public function dispatch(string $transcriptionId): void
     {
-        GenerateTxtExport::dispatch($transcriptionId);
-        GeneratePdfExport::dispatch($transcriptionId);
+        RegenerateTranscriptionExports::dispatch($transcriptionId)->delay(5)->afterCommit();
     }
 }

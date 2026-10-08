@@ -17,7 +17,8 @@ class UserSeeder extends Seeder
             Permission::findOrCreate('access admin', 'web'),
             Permission::findOrCreate('manage users', 'web'),
         ]);
-        User::query()->updateOrCreate(['email' => 'user@example.com'], ['name' => 'Example User', 'password' => 'password'])->syncRoles([$userRole]);
-        User::query()->updateOrCreate(['email' => 'admin@example.com'], ['name' => 'Example Admin', 'password' => 'password'])->syncRoles([$adminRole]);
+        User::query()->updateOrCreate(['email' => 'user@example.com'], ['name' => 'Example User', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([$userRole]);
+        User::query()->updateOrCreate(['email' => 'demioyewusi@gmail.com'], ['name' => 'Demilade Oyewusi', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([$userRole]);
+        User::query()->updateOrCreate(['email' => 'admin@example.com'], ['name' => 'Example Admin', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([$adminRole]);
     }
 }

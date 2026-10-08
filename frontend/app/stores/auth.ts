@@ -4,6 +4,8 @@ export type AuthUser = {
   id: number
   name: string
   email: string
+  email_verified_at?: string | null
+  email_verified?: boolean
   roles?: string[]
 }
 
@@ -14,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const initialized = ref(false)
   const isAuthenticated = computed(() => token.value !== '' && user.value !== null)
+  const isEmailVerified = computed(() => user.value?.email_verified ?? Boolean(user.value?.email_verified_at))
 
   function persistToken(value: string): void {
     token.value = value
@@ -47,6 +50,15 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       user.value = await fetchCurrentUser()
       initialized.value = true
+    } catch (error) {
+      clearSession()
+      throw error
+    }
+  }
+
+  async function refreshUser(): Promise<void> {
+    try {
+      user.value = await fetchCurrentUser()
     } catch (error) {
       clearSession()
       throw error
@@ -96,6 +108,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     initialized,
     isAuthenticated,
+    isEmailVerified,
+    refreshUser,
     establishSession,
     initialize,
     clearSession,

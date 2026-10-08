@@ -14,7 +14,8 @@ export function useTranscriptionForm() {
   const source = ref<TranscriptionSource>('file')
   const file = ref<File | null>(null)
   const pastedUrl = ref('')
-  const language = ref('en-NG')
+  const language = ref('en')
+  const name = ref('')
   const folderId = ref('')
   const folders = ref<FolderOption[]>([])
   const foldersLoading = ref(false)
@@ -41,7 +42,7 @@ export function useTranscriptionForm() {
     return parts.filter(([count]) => count > 0).map(([count, unit]) => `${count} ${unit}${count === 1 ? '' : 's'}`).join(' ')
   })
   const submitLabel = computed(() => ({
-    idle: 'Check price', preparing: 'Preparing upload…', uploading: `Uploading · ${progress.value}%`,
+    idle: 'Check price', preparing: 'Preparing upload…', uploading: 'Uploading…',
     pricing: 'Checking audio & price…', quoted: `Confirm · ${formatCredits(pricing.quote.value?.credit_units ?? 0)} credits`,
     submitting: 'Sending for transcription…', done: 'Transcribe another',
   })[stage.value])
@@ -139,7 +140,7 @@ export function useTranscriptionForm() {
   async function submit(): Promise<string | null> {
     if (busy.value) return null
     if (!auth.isAuthenticated) { error.value = 'Sign in or create an account to transcribe your audio.'; return null }
-    if (stage.value === 'done') { file.value = null; pastedUrl.value = ''; duration.value = null; resetResult(); return null }
+    if (stage.value === 'done') { file.value = null; pastedUrl.value = ''; name.value = ''; duration.value = null; resetResult(); return null }
     error.value = ''
     try {
       if (stage.value !== 'quoted') { await checkPrice(); return null }
@@ -147,7 +148,7 @@ export function useTranscriptionForm() {
       if (!quote.enough_credits) throw new Error('Add credits and refresh your balance before confirming.')
       stage.value = 'submitting'
       const response = await useAuthenticatedFetch<TranscriptionSubmission>('/api/transcribe', {
-        method: 'POST', retry: 0, body: { quote_id: quote.id, ...(folderId.value ? { folder_id: folderId.value } : {}) },
+        method: 'POST', retry: 0, body: { quote_id: quote.id, ...(folderId.value ? { folder_id: folderId.value } : {}), ...(name.value.trim() ? { name: name.value.trim() } : {}) },
       })
       requestId.value = response.id; stage.value = 'done'
       if (source.value !== 'url') {
@@ -180,5 +181,5 @@ export function useTranscriptionForm() {
     catch (failure: unknown) { error.value = failure instanceof Error ? failure.message : 'Could not cancel the saved upload.' }
   }
 
-  return { source, file, pastedUrl, language, folderId, folders, foldersLoading, stage, progress, duration, busy, canSubmit, sizeLabel, durationLabel, submitLabel, error, requestId, uploadedUrl, uploadLimit, resumable, quote: pricing.quote, refreshPrice, cancelUpload, discardUpload, chooseSource, selectFile, clearFile, loadFolders, submit }
+  return { source, file, pastedUrl, language, name, folderId, folders, foldersLoading, stage, progress, duration, busy, canSubmit, sizeLabel, durationLabel, submitLabel, error, requestId, uploadedUrl, uploadLimit, resumable, quote: pricing.quote, refreshPrice, cancelUpload, discardUpload, chooseSource, selectFile, clearFile, loadFolders, submit }
 }

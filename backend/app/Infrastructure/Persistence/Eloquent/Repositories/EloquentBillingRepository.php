@@ -27,7 +27,7 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
 
     public function exclusive(string $key, Closure $operation): mixed
     {
-        return Cache::lock('billing:'.$key, 900)->block(10, $operation);
+        return Cache::lock('billing:'.$key, str_starts_with($key, 'dubbing:') ? 6000 : 900)->block(10, $operation);
     }
 
     public function lockWallet(int $userId): Wallet
@@ -53,11 +53,14 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
 
     public function appendEntry(Wallet $wallet, string $key, string $kind, int $units, array $metadata = []): void
     {
-        CreditTransaction::create([
+        $entry = CreditTransaction::create([
             'wallet_id' => $wallet->id, 'user_id' => $wallet->userId, 'event_key' => $key,
             'kind' => $kind, 'amount_units' => $units, 'available_after' => $wallet->available,
             'reserved_after' => $wallet->reserved, 'metadata' => $metadata,
         ]);
+        if (in_array($kind, ['reserve', 'release'], true)) {
+            app(OutboxService::class)->record('credit:'.$entry->id.':'.$kind, $kind === 'reserve' ? 'CreditsReserved' : 'CreditsReturned', $entry->id, ['user_id' => $wallet->userId]);
+        }
     }
 
     public function createQuote(array $data): array
@@ -84,9 +87,13 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
         return $model->refresh()->toArray();
     }
 
-    public function charge(string $transcriptionId, bool $lock = false): ?array
+    public function charge(string $transcriptionId, bool $lock = false, string $activity = 'transcription'): ?array
     {
-        return UsageCharge::where('transcription_id', $transcriptionId)
+        $column = match ($activity) {
+            'translation' => 'translation_id', 'dubbing' => 'dubbing_id', default => 'transcription_id'
+        };
+
+        return UsageCharge::where($column, $transcriptionId)
             ->when($lock, fn ($q) => $q->lockForUpdate())->first()?->toArray();
     }
 
@@ -114,7 +121,7 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
 
             return array_intersect_key($data, array_flip(match ($type) {
                 'payments' => ['id', 'reference', 'package_name', 'credit_units', 'amount_minor', 'currency', 'status', 'paid_at', 'created_at', 'invoice_number', 'invoice_ready'],
-                'usage' => ['id', 'transcription_id', 'activity', 'provider', 'model', 'quantity', 'credit_units', 'status', 'created_at'],
+                'usage' => ['id', 'transcription_id', 'translation_id', 'dubbing_id', 'activity', 'provider', 'model', 'quantity', 'credit_units', 'status', 'created_at'],
                 default => ['id', 'kind', 'amount_units', 'available_after', 'reserved_after', 'metadata', 'created_at'],
             }));
         })->all();

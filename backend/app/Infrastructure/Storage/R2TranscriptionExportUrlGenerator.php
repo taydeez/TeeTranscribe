@@ -20,7 +20,7 @@ final class R2TranscriptionExportUrlGenerator implements TranscriptionExportUrlG
             return Storage::disk('r2')->temporaryUrl(
                 $export->storagePath,
                 now()->addMinutes(15),
-                ['ResponseContentDisposition' => 'attachment; filename="'.TranscriptionExportFileName::make($transcriptionName, $export->format).'"'],
+                ['ResponseContentDisposition' => 'attachment; filename="'.TranscriptionExportFileName::make($transcriptionName.($export->variant === 'speakers' ? ' - speakers' : ''), $export->format).'"'],
             );
         } catch (Throwable) {
             return null;

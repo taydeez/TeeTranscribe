@@ -58,12 +58,18 @@ export function useResumableUpload() {
       await refreshSaved()
     } catch (failure: unknown) {
       const issue = failure as { statusCode?: number; status?: number }
-      if ((issue.statusCode ?? issue.status) !== 410) throw failure
+      const code = issue.statusCode ?? issue.status
+      let message = 'Expired upload removed.'
+      if (code === 409 && record.sessionId) {
+        const status = await request<MultipartStatus>(`/${record.sessionId}/status`)
+        if (status.status !== 'completed') throw failure
+        message = 'Completed upload removed from saved uploads. The uploaded file is preserved.'
+      } else if (code !== 410) throw failure
       await forgetUpload(record.key)
       current = null
       paused.value = false
       progress.value = 0
-      notice.value = 'Expired upload removed.'
+      notice.value = message
       await refreshSaved()
     } finally { cancelling.value = false }
   }

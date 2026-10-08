@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const auth = useAuthStore()
+const route = useRoute()
 const authOpen = ref(false)
 const authMode = ref<'login' | 'register'>('login')
 
@@ -7,6 +8,7 @@ function openAuth(mode: 'login' | 'register') { authMode.value = mode; authOpen.
 async function signOut() { await auth.logout() }
 
 onMounted(async () => {
+  if (route.query.login === '1') openAuth('login')
   const hashToken = new URLSearchParams(window.location.hash.slice(1)).get('token')
   if (hashToken) {
     history.replaceState(null, '', window.location.pathname)
