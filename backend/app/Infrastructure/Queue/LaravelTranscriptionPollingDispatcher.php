@@ -4,12 +4,18 @@ namespace App\Infrastructure\Queue;
 
 use App\Domain\Transcriber\Contracts\TranscriptionPollingDispatcherInterface;
 use App\Domain\Transcriber\Entities\Transcription;
+use App\Jobs\PollGoogleTranscription;
 use App\Jobs\PollIntronTranscription;
 
 class LaravelTranscriptionPollingDispatcher implements TranscriptionPollingDispatcherInterface
 {
     public function dispatch(Transcription $transcription): void
     {
+        if ($transcription->provider === 'google') {
+            PollGoogleTranscription::dispatch($transcription->id)->delay(now()->addSeconds(15))->afterCommit();
+
+            return;
+        }
         if ($transcription->provider !== 'intron') {
             return;
         }

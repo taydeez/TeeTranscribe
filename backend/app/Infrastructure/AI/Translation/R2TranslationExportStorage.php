@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\AI\Translation;
 
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Services\TranscriptionExportFileName;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Domain\Translation\Contracts\TranslationExportStorageInterface;
@@ -19,6 +20,9 @@ final class R2TranslationExportStorage implements TranslationExportStorageInterf
         $disk = Storage::disk('r2');
         foreach (TranscriptionExportOptions::required($translation->segments) as $option) {
             $format = $option['format'];
+            if (app(PrivacyCoordinatorInterface::class)->generatedDeleted('translation', $translation->id, $format)) {
+                continue;
+            }
             $text = $option['variant'] === 'speakers' ? TranscriptionExportOptions::speakerText($translation->segments) : $translation->translatedText;
             $bytes = match ($format) {
                 'txt' => $text,

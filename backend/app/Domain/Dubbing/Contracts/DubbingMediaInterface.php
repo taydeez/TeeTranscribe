@@ -12,5 +12,9 @@ interface DubbingMediaInterface
 
     public function store(Dubbing $record, string $audioUrl): array;
 
+    public function storeVideo(Dubbing $record, string $videoUrl): array;
+
+    public function prepareOriginal(Dubbing $record): array;
+
     public function url(?string $storagePath, string $filename, bool $download = false): ?string;
 }

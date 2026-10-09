@@ -51,7 +51,7 @@ final class CreditService
         $wallet->reserved += $units;
         $this->repository->saveWallet($wallet);
         $subjectKey = match ($quote['activity']) {
-            'translation' => 'translation_id', 'dubbing' => 'dubbing_id', default => 'transcription_id'
+            'translation' => 'translation_id', 'dubbing' => 'dubbing_id', 'cleanup', 'summary' => 'transcript_tool_id', default => 'transcription_id'
         };
         $this->repository->createCharge([
             'user_id' => $userId, 'quote_id' => $quote['id'], $subjectKey => $transcriptionId,
@@ -92,6 +92,16 @@ final class CreditService
         $this->settle($dubbingId, 'release', activity: 'dubbing');
     }
 
+    public function consumeTool(string $id): void
+    {
+        $this->settle($id, 'consume', activity: 'transcript_tool');
+    }
+
+    public function releaseTool(string $id): void
+    {
+        $this->settle($id, 'release', activity: 'transcript_tool');
+    }
+
     private function settle(string $transcriptionId, string $action, ?int $actualDurationMs = null, string $activity = 'transcription'): void
     {
         $this->repository->transaction(function () use ($transcriptionId, $action, $actualDurationMs, $activity): void {
@@ -121,7 +131,7 @@ final class CreditService
                 'provider_cost_currency' => $action === 'consume' ? ($rate['provider_currency'] ?? null) : null,
             ]);
             $subjectKey = match ($activity) {
-                'translation' => 'translation_id', 'dubbing' => 'dubbing_id', default => 'transcription_id'
+                'translation' => 'translation_id', 'dubbing' => 'dubbing_id', 'transcript_tool' => 'transcript_tool_id', default => 'transcription_id'
             };
             $this->repository->appendEntry($wallet, 'usage:'.$charge['quote_id'].':'.$action, $action, $units, [$subjectKey => $transcriptionId]);
         });

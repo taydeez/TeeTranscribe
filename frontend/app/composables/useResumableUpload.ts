@@ -46,6 +46,7 @@ export function useResumableUpload() {
         const recovered = await request<MultipartSession>('', {
           client_key: record.clientKey, filename: record.filename, size: record.size,
           content_type: record.contentType, fingerprint: record.fingerprint,
+          source_kind: record.sourceKind,
         })
         record.sessionId = recovered.id
       }
@@ -80,7 +81,7 @@ export function useResumableUpload() {
     await cancel()
   }
 
-  async function upload(file: File, contentType: string): Promise<CompletedUpload> {
+  async function upload(file: File, contentType: string, sourceKind: 'audio' | 'video' | 'recording' = contentType.startsWith('video/') ? 'video' : 'audio'): Promise<CompletedUpload> {
     if (!auth.user || active.value || cancelling.value) throw new Error('Sign in and wait for the current upload operation to finish.')
     active.value = true
     paused.value = false
@@ -95,12 +96,13 @@ export function useResumableUpload() {
       const records = await savedUploads(userId)
       let record = records.find(item => item.fingerprint === fingerprint)
       if (!record) record = {
-        key: `${userId}:${fingerprint}`, userId, fingerprint, filename: file.name,
+        key: `${userId}:${fingerprint}`, userId, fingerprint, filename: file.name, sourceKind,
         contentType, size: file.size, clientKey: crypto.randomUUID(), updatedAt: Date.now(),
       }
       await persist(record)
       const session = await request<MultipartSession>('', {
         client_key: record.clientKey, filename: file.name, size: file.size, content_type: contentType, fingerprint,
+        source_kind: record.sourceKind ?? sourceKind,
       }, signal)
       record.sessionId = session.id
       record.expiresAt = session.expires_at

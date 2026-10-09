@@ -23,12 +23,13 @@ class DeepGramGateway implements TranscriberGatewayInterface
         ?float $duration = null,
         ?string $audioStoragePath = null,
         ?string $fileName = null,
+        ?string $model = null,
     ): string {
         if ($audioStoragePath !== null) {
             $audioUrl = Storage::disk('r2')->temporaryUrl($audioStoragePath, now()->addHours(6));
         }
         try {
-            $request_id = $this->deepGramClient->transcribe($audioUrl, $languageCode, $transcriptionId);
+            $request_id = $this->deepGramClient->transcribe($audioUrl, $languageCode, $transcriptionId, $model);
         } catch (\RuntimeException $e) {
             throw new \RuntimeException($e->getMessage());
         }

@@ -31,7 +31,7 @@ beforeEach(function () {
     Cache::forget('translation:google:nmt:languages:en');
     Storage::fake('r2');
     Storage::disk('r2')->buildTemporaryUrlsUsing(fn ($path) => 'https://downloads.example/'.$path);
-    config(['translation.google.key' => 'test-key', 'billing.free_credits' => '0', 'billing.rates.translation.google.nmt.credits' => '10']);
+    config(['translation.provider' => 'google', 'translation.google.key' => 'test-key', 'billing.free_credits' => '0', 'billing.rates.translation.google.nmt.credits' => '10']);
     $this->user = User::factory()->create();
     Sanctum::actingAs($this->user);
     app(CreditService::class)->purchase($this->user->id, 10000, 'test-funding');

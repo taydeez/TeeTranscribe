@@ -1,6 +1,11 @@
 export type DubbingLanguage = { code: string; name: string; nigerian: boolean }
-export type DubbingCatalog = { data: DubbingLanguage[]; configured: boolean }
+export type VideoOperation = 'dubbing' | 'subtitles'
+export type DubbingMediaType = 'video' | 'audio'
+export type SubtitleStyleId = 'classic' | 'boxed' | 'contrast'
+export type SubtitleStyle = { id: SubtitleStyleId; name: string; description: string }
+export type DubbingLanguageCatalog = { data: DubbingLanguage[]; sourceLanguages: DubbingLanguage[]; configured: boolean }
+export type DubbingCatalog = DubbingLanguageCatalog & { subtitleStyles: SubtitleStyle[]; subtitlesOnly: DubbingLanguageCatalog; audioDubbing: DubbingLanguageCatalog }
 export type DubbingQuote = { id: string; status: 'measuring' | 'ready' | 'failed' | 'submitted'; quantity: number | null; credit_units: number | null; expires_at: string; failure_reason: string | null; available_units: number; enough_credits: boolean }
-export type DubbingSummary = { id: string; name: string; sourceLanguage: string | null; targetLanguage: string; durationMs: number; status: 'pending' | 'processing' | 'complete' | 'failed'; createdAt: string; failureReason: string | null; canRetryExports: boolean }
-export type DubbingRecord = DubbingSummary & { videoUrl: string | null; videoDownloadUrl: string | null; audioDownloadUrl: string | null }
+export type DubbingSummary = { id: string; name: string; folderId: string | null; operation: VideoOperation; mediaType: DubbingMediaType; sourceLanguage: string | null; targetLanguage: string; durationMs: number; status: 'pending' | 'processing' | 'complete' | 'failed'; createdAt: string; failureReason: string | null; canRetryExports: boolean; subtitlesEnabled: boolean; subtitleStyle: SubtitleStyleId | null; subtitleStatus: 'pending' | 'processing' | 'complete' | 'failed' | null }
+export type DubbingRecord = DubbingSummary & { videoUrl: string | null; videoDownloadUrl: string | null; audioDownloadUrl: string | null; audioUrl: string | null; audioMp3DownloadUrl: string | null; subtitleDownloadUrl: string | null; cleanVideoDownloadUrl: string | null }
 export type DubbingHistory = { data: DubbingSummary[]; meta: { current_page: number; last_page: number; total: number; per_page: number } }

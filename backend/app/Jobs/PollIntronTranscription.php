@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Billing\Services\CreditService;
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Infrastructure\AI\Transcriber\Intron\IntronClient;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
@@ -49,6 +50,15 @@ class PollIntronTranscription implements ShouldQueue
 
     public function handle(IntronClient $client, OutboxService $outbox): void
     {
+        app(PrivacyCoordinatorInterface::class)->exclusive('transcription', $this->transcriptionId, function () use ($client, $outbox): void {
+            if (! app(PrivacyCoordinatorInterface::class)->projectDeleted('transcription', $this->transcriptionId)) {
+                $this->poll($client, $outbox);
+            }
+        });
+    }
+
+    private function poll(IntronClient $client, OutboxService $outbox): void
+    {
         $transcription = Transcription::query()->findOrFail($this->transcriptionId);
         if ($transcription->provider !== 'intron' || $transcription->status !== 'pending') {
             return;
@@ -70,6 +80,9 @@ class PollIntronTranscription implements ShouldQueue
             throw $exception;
         }
 
+        if (app(PrivacyCoordinatorInterface::class)->projectDeleted('transcription', $this->transcriptionId)) {
+            return;
+        }
         $status = strtoupper((string) (data_get($response, 'data.processing_status') ?? data_get($response, 'processing_status')));
 
         if (in_array($status, ['FILE_QUEUED', 'FILE_PENDING', 'FILE_PROCESSING'], true)) {

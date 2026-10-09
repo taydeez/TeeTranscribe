@@ -5,8 +5,10 @@ namespace App\Domain\Folder\Services;
 use App\Domain\Folder\Contracts\FolderRepositoryInterface;
 use App\Domain\Folder\Entities\Folder;
 use App\Domain\Folder\Entities\FolderPage;
+use App\Domain\Folder\Entities\FolderProject;
 use App\Domain\Folder\Entities\FolderTranscription;
 use App\Domain\Folder\Exceptions\FolderNotFoundException;
+use DateTimeImmutable;
 
 final class FolderService
 {
@@ -37,6 +39,27 @@ final class FolderService
     public function create(int $userId, string $name): Folder
     {
         return $this->repository->create($userId, $name);
+    }
+
+    public function resolveForUser(int $userId, ?string $folderId = null, ?string $transcriptionId = null): Folder
+    {
+        if ($folderId !== null) {
+            return $this->findOrFail($folderId, $userId);
+        }
+        if ($transcriptionId !== null) {
+            $folder = $this->repository->folderForTranscription($transcriptionId, $userId);
+            if ($folder !== null) {
+                return $folder;
+            }
+        }
+
+        return $this->findOrCreateByName($userId, (new DateTimeImmutable)->format('F j, Y'));
+    }
+
+    /** @return list<FolderProject> */
+    public function projectsForUser(string $id, int $userId): array
+    {
+        return $this->repository->projectsForUser($id, $userId);
     }
 
     public function findOrCreateByName(int $userId, string $name): Folder

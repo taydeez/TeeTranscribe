@@ -3,9 +3,12 @@
 namespace App\Domain\Dubbing\Services;
 
 use App\Domain\Billing\Exceptions\BillingException;
+use App\Domain\Dubbing\Contracts\DubbingGatewayResolverInterface;
 
 final class DubbingLanguages
 {
+    public function __construct(private ?DubbingGatewayResolverInterface $providers = null) {}
+
     /** ElevenLabs Dubbing v2 catalog, including supported dialects. */
     private const LANGUAGES = [
         'af' => 'Afrikaans',
@@ -118,7 +121,12 @@ final class DubbingLanguages
         'es-MX' => 'Spanish (Mexico)',
     ];
 
-    public function all(): array
+    public function all(string $mediaType = 'video'): array
+    {
+        return $this->providers?->languages($mediaType) ?? $this->sourceLanguages();
+    }
+
+    public function sourceLanguages(): array
     {
         $items = [];
         foreach (self::LANGUAGES as $code => $name) {
@@ -130,12 +138,13 @@ final class DubbingLanguages
         return $items;
     }
 
-    public function validate(?string $source, string $target): void
+    public function validate(?string $source, string $target, string $mediaType = 'video'): void
     {
-        if (! isset(self::LANGUAGES[$target]) || ($source !== null && ! isset(self::LANGUAGES[$source]))) {
+        if (! in_array($target, array_column($this->all($mediaType), 'code'), true) || ($source !== null && ! isset(self::LANGUAGES[$source]))) {
             throw new BillingException('Select a supported dubbing language.', 422);
         }
-        if ($source !== null && explode('-', $source)[0] === explode('-', $target)[0]) {
+        if ($source !== null && (explode('-', $source)[0] === explode('-', $target)[0]
+            || (self::LANGUAGES[$source] ?? null) === $target)) {
             throw new BillingException('Choose a different output language.', 422);
         }
     }

@@ -25,6 +25,7 @@ final class TranslationController extends Controller
         $input = $request->validate([
             'client_key' => ['required', 'uuid'], 'text' => ['nullable', 'required_without:transcription_id', 'string', 'max:50000'],
             'transcription_id' => ['nullable', 'ulid'], 'name' => ['nullable', 'string', 'max:255'],
+            'folder_id' => ['nullable', 'ulid'],
             'source_language' => ['nullable', 'string', 'max:20'], 'target_language' => ['required', 'string', 'max:20'],
             'segments' => ['sometimes', 'array', 'list', 'min:1', 'max:20000'],
             'segments.*.text' => ['required', 'string', 'max:100000'], 'segments.*.speaker' => ['nullable', 'string', 'max:100'],
@@ -80,6 +81,7 @@ final class TranslationController extends Controller
             'sourceLanguage' => $record->sourceLanguage, 'detectedLanguage' => $record->detectedLanguage,
             'targetLanguage' => $record->targetLanguage, 'transcriptionId' => $record->transcriptionId,
             'createdAt' => $record->createdAt, 'failureReason' => $record->failureReason,
+            'folderId' => $record->folderId,
         ];
         if (! $summary) {
             $data += ['sourceText' => $record->sourceText, 'translatedText' => $record->translatedText, 'segments' => $record->segments,

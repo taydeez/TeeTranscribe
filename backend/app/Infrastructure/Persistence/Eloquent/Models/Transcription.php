@@ -12,8 +12,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['export_revision', 'user_id', 'guest_session_id', 'audio_path', 'audio_storage_path', 'file_name', 'name', 'folder_name', 'duration', 'provider', 'provider_request_id', 'status', 'transcript', 'segments'])]
+#[Fillable(['export_revision', 'user_id', 'guest_session_id', 'audio_path', 'audio_storage_path', 'file_name', 'name', 'folder_name', 'duration', 'provider', 'provider_request_id', 'status', 'transcript', 'segments', 'source_deleted_at', 'privacy_deleted_files'])]
 #[UseFactory(TranscriptionFactory::class)]
 class Transcription extends Model
 {
@@ -21,6 +22,7 @@ class Transcription extends Model
     use HasFactory;
 
     use HasUlids;
+    use SoftDeletes;
 
     /**
      * @return array<string, string>
@@ -31,6 +33,8 @@ class Transcription extends Model
             'user_id' => 'integer', 'export_revision' => 'integer',
             'duration' => 'float',
             'segments' => 'array',
+            'source_deleted_at' => 'immutable_datetime',
+            'privacy_deleted_files' => 'array',
             'completion_notified_at' => 'immutable_datetime',
             'failure_notified_at' => 'immutable_datetime',
         ];
@@ -54,6 +58,12 @@ class Transcription extends Model
     public function exports(): HasMany
     {
         return $this->hasMany(TranscriptionExport::class);
+    }
+
+    /** @return HasMany<TranscriptTool, $this> */
+    public function tools(): HasMany
+    {
+        return $this->hasMany(TranscriptTool::class);
     }
 
     /** @return BelongsToMany<Folder, $this> */

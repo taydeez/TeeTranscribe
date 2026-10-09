@@ -17,4 +17,6 @@ interface DubbingRepositoryInterface
     public function completedUpload(int $userId, string $storagePath): ?array;
 
     public function enqueueExports(string $id): void;
+
+    public function enqueueSubtitles(string $id, bool $retry = false): void;
 }

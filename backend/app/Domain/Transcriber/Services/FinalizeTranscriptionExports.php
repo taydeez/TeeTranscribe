@@ -2,6 +2,7 @@
 
 namespace App\Domain\Transcriber\Services;
 
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionOutcomePublisherInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Illuminate\Support\Facades\DB;
@@ -11,8 +12,8 @@ class FinalizeTranscriptionExports
     public function handle(string $transcriptionId): void
     {
         DB::transaction(function () use ($transcriptionId): void {
-            $transcription = Transcription::query()->lockForUpdate()->findOrFail($transcriptionId);
-            if ($transcription->status === 'complete') {
+            $transcription = Transcription::query()->lockForUpdate()->find($transcriptionId);
+            if ($transcription === null || $transcription->status === 'complete') {
                 return;
             }
             $exports = $transcription->exports()->where('export_revision', $transcription->export_revision)->lockForUpdate()->get()->keyBy(fn ($export) => $export->format.':'.$export->variant);
@@ -24,6 +25,9 @@ class FinalizeTranscriptionExports
             }
 
             foreach (TranscriptionExportOptions::required($transcription->segments ?? []) as $option) {
+                if (app(PrivacyCoordinatorInterface::class)->generatedDeleted('transcription', $transcriptionId, $option['format'])) {
+                    continue;
+                }
                 $export = $exports->get($option['format'].':'.$option['variant']);
                 if ($export === null || $export->status !== 'completed' || blank($export->storage_path)) {
                     return;

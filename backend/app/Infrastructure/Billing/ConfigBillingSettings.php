@@ -11,7 +11,7 @@ final class ConfigBillingSettings implements BillingSettingsInterface
 {
     public function rate(string $activity, string $provider, string $model): array
     {
-        $config = config('billing.rates.'.$activity.'.'.$provider.'.'.$model);
+        $config = config('billing.rates.'.$activity.'.'.$provider, [])[$model] ?? null;
         if (! is_array($config) || ! isset($config['credits'])) {
             throw new BillingException('Pricing is not available for this language yet.', 503);
         }
@@ -29,14 +29,14 @@ final class ConfigBillingSettings implements BillingSettingsInterface
 
         return [
             'unit' => $config['unit'], 'unit_length' => $unitLength, 'credit_units' => $units,
-            'provider_cost_micros' => isset($config['provider_cost']) ? CreditMath::decimal($config['provider_cost'], 6) : null,
+            'provider_cost_micros' => filled($config['provider_cost'] ?? null) ? CreditMath::decimal($config['provider_cost'], 6) : null,
             'provider_currency' => $config['provider_currency'] ?? null,
         ];
     }
 
     public function model(string $provider): string
     {
-        return $provider === 'deepgram' ? (string) config('transcriber.deepgram.model', 'nova-2') : 'default';
+        return (string) config('transcriber.'.$provider.'.model', 'default');
     }
 
     public function packages(): array

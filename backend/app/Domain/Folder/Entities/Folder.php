@@ -14,5 +14,7 @@ final readonly class Folder
         public array $transcriptionIds = [],
         public ?DateTimeImmutable $createdAt = null,
         public ?DateTimeImmutable $updatedAt = null,
+        public int $translationCount = 0,
+        public int $dubbingCount = 0,
     ) {}
 }

@@ -7,6 +7,8 @@ use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\CreditMath;
 use App\Domain\Billing\Services\CreditService;
+use App\Domain\Folder\Services\FolderService;
+use App\Domain\Translation\Contracts\TranslationGatewayResolverInterface;
 use App\Domain\Translation\Contracts\TranslationRepositoryInterface;
 use App\Domain\Translation\Entities\Translation;
 use DateTimeImmutable;
@@ -19,6 +21,8 @@ final readonly class TranslationService
         private BillingSettingsInterface $settings,
         private CreditService $credits,
         private TranslationLanguages $languages,
+        private FolderService $folders,
+        private TranslationGatewayResolverInterface $gateways,
     ) {}
 
     public function quote(int $userId, array $input, string $key): array
@@ -34,12 +38,19 @@ final readonly class TranslationService
 
                 return $existing;
             }
-            $this->languages->validate($source['source_language'], $source['target_language']);
-            $rate = $this->settings->rate('translation', 'google', 'nmt');
+            $definition = $this->gateways->definition();
+            if (! $definition['configured']) {
+                throw new BillingException('Translation is not configured yet.', 503);
+            }
+            if (count($source['segments']) > $definition['max_segments']) {
+                throw new BillingException('This transcript has too many segments to translate. Use plain text or a shorter transcript.', 422);
+            }
+            $this->languages->validate($source['source_language'], $source['target_language'], $definition['provider']);
+            $rate = $this->settings->rate('translation', $definition['provider'], $definition['model']);
             $quantity = mb_strlen($source['text'], 'UTF-8');
 
             return $this->billing->createQuote([
-                'user_id' => $userId, 'client_key' => $key, 'activity' => 'translation', 'provider' => 'google', 'model' => 'nmt',
+                'user_id' => $userId, 'client_key' => $key, 'activity' => 'translation', 'provider' => $definition['provider'], 'model' => $definition['model'],
                 'rate' => $rate, 'source' => $source, 'request_source' => $source, 'quantity' => $quantity,
                 'credit_units' => CreditMath::prorate($rate['credit_units'], $quantity, $rate['unit_length']),
                 'status' => 'ready', 'expires_at' => $this->settings->quoteExpiresAt(),
@@ -65,9 +76,11 @@ final readonly class TranslationService
                 throw new BillingException('Source transcript not found.', 404);
             }
             $record = $this->translations->create([
+                'folder_id' => $this->folders->resolveForUser($userId, $source['folder_id'] ?? null, $source['transcription_id'])->id,
                 'user_id' => $userId, 'transcription_id' => $source['transcription_id'], 'name' => $source['name'],
                 'source_text' => $source['text'], 'source_segments' => $source['segments'],
                 'source_language' => $source['source_language'], 'target_language' => $source['target_language'], 'status' => 'pending',
+                'provider' => $quote['provider'], 'model' => $quote['model'],
             ]);
             $this->credits->reserve($userId, $quote, $record->id);
             $this->billing->updateQuote($quoteId, ['status' => 'submitted', 'translation_id' => $record->id]);
@@ -124,6 +137,9 @@ final readonly class TranslationService
 
     private function source(int $userId, array $input): array
     {
+        if (! empty($input['folder_id'])) {
+            $this->folders->findOrFail($input['folder_id'], $userId);
+        }
         $transcriptionId = $input['transcription_id'] ?? null;
         $original = $transcriptionId !== null ? ($this->translations->sourceForUser($transcriptionId, $userId) ?? throw new BillingException('Source transcript not found.', 404)) : null;
         $text = trim($input['text'] ?? $original['text'] ?? '');
@@ -145,6 +161,7 @@ final readonly class TranslationService
         }
 
         return [
+            'folder_id' => $input['folder_id'] ?? null,
             'text' => $text, 'transcription_id' => $transcriptionId,
             'name' => trim($input['name'] ?? '') ?: ($original['name'] ?? 'Translation'),
             'source_language' => $input['source_language'] ?? null, 'target_language' => $input['target_language'],

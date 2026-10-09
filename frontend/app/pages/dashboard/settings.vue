@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PrivacySettings from '~/components/privacy/PrivacySettings.vue'
 definePageMeta({ layout: 'dashboard', title: 'Settings' })
 </script>
 <template>
@@ -6,6 +7,7 @@ definePageMeta({ layout: 'dashboard', title: 'Settings' })
   <div class="grid max-w-4xl gap-6">
     <AuthProfileSettingsForm />
     <AuthPasswordSettingsForm />
+    <PrivacySettings />
     <section class="surface flex items-center justify-between p-6"><div><h2 class="text-lg font-semibold">Appearance</h2><p class="mt-2 text-sm text-slate-500">Switch between light and dark mode.</p></div><UiThemeToggle /></section>
   </div>
 </template>

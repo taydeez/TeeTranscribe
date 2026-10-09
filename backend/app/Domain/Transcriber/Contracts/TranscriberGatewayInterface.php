@@ -11,6 +11,7 @@ interface TranscriberGatewayInterface
         ?float $duration = null,
         ?string $audioStoragePath = null,
         ?string $fileName = null,
+        ?string $model = null,
     ): string;
 
     public function provider(): string;

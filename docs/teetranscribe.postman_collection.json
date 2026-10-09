@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "8a874a7c-a8cc-4fb6-b5d5-f3adfb5da6e6",
     "name": "TeeTranscribe API",
-    "description": "TeeTranscribe API. Sign in, upload or supply a public audio URL, create a billing quote, poll until ready, then confirm POST /transcribe with quote_id. One credit equals NGN 1. NGN and USD purchases fund the same credit wallet. Use a fresh client_key per distinct request; reuse it only when retrying the same operation. Email/password accounts must verify email before using protected workspace endpoints. Google-verified accounts are verified automatically. Welcome, credit reservation and credit return emails are delivered through the outbox and default Redis queue. Credit purchase invoices retain their existing flow.",
+    "description": "TeeTranscribe API. Sign in, upload or supply a public audio URL, create a billing quote, poll until ready, then confirm POST /transcribe with quote_id. One credit equals NGN 1. NGN and USD purchases fund the same credit wallet. Use a fresh client_key per distinct request; reuse it only when retrying the same operation. Email/password accounts must verify email before using protected workspace endpoints. Google-verified accounts are verified automatically. Welcome, credit reservation and credit return emails are delivered through the outbox and default Redis queue. Credit purchase invoices retain their existing flow. OpenAI is configurable for transcription and translation. Transcript cleanup and summaries use a saved source revision, credit quote, queued processing and cached reviewable results; cleanup never edits the original automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -121,9 +121,46 @@
     {
       "key": "verificationSignature",
       "value": ""
+    },
+    {
+      "key": "elevenlabsWebhookSecret",
+      "value": ""
+    },
+    {
+      "key": "elevenlabsRequestId",
+      "value": ""
+    },
+    {
+      "key": "transcriptToolId",
+      "value": ""
+    },
+    {
+      "key": "transcriptToolQuoteId",
+      "value": ""
+    },
+    {
+      "key": "transcriptToolOperation",
+      "value": "summary"
+    },
+    {
+      "key": "privacyDeletionId",
+      "value": ""
     }
   ],
   "item": [
+    {
+      "name": "Privacy and retention",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{sanctumToken}}", "type": "string" }] },
+      "item": [
+        { "name": "Read retention settings", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/settings", "description": "Per-account hours; null keeps files until manually deleted. Defaults are null for every category. Cleanup scans every 15 minutes." } },
+        { "name": "Update retention settings", "request": { "method": "PATCH", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/privacy/settings", "body": { "mode": "raw", "raw": "{\n  \"retention\": {\n    \"source_audio\": 24,\n    \"source_video\": 24,\n    \"recordings\": 24,\n    \"dubbed_audio\": null,\n    \"dubbed_video\": null,\n    \"pdf\": null,\n    \"txt\": null,\n    \"docx\": null,\n    \"subtitles\": null,\n    \"transcripts\": null,\n    \"translations\": null\n  }\n}" }, "description": "Partial updates accepted. Whole hours 1..87600 or null. Applies to existing and future items; overdue items are queued on the next cleanup. Transcript/translation expiry deletes the project and its generated files. Financial history is retained. Source removal waits for active processing." } },
+        { "name": "List saved source files", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/files?page=1&per_page=20", "description": "Ownership-checked source inventory with pagination; shared source paths appear once." } },
+        { "name": "Request project deletion", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/privacy/deletions", "body": { "mode": "raw", "raw": "{\n  \"resource_type\": \"transcription\",\n  \"resource_id\": \"{{transcriptionId}}\",\n  \"scope\": \"project\"\n}" }, "description": "202 accepted; hides the project immediately and queues permanent deletion. Types: transcription, translation, dubbing, folder. Folder supports project scope only and permanently deletes all owned contents and exclusively used owned source files. Sources shared with projects outside the folder are preserved. Scope source removes an uploaded source while retaining text/downloads; source-only types upload and quote are also supported. Scope generated with category pdf/txt/docx/subtitles/dubbed_audio/dubbed_video removes that format and prior revisions; omit category for all generated files. These controls cover workspace copies, not files retained by external providers." } },
+        { "name": "List recent deletions", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/deletions" } },
+        { "name": "Read deletion status", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/deletions/{{privacyDeletionId}}", "description": "Statuses: pending, processing, completed, failed. Internal storage manifests are never returned." } },
+        { "name": "Retry failed deletion", "request": { "method": "POST", "url": "{{baseUrl}}/privacy/deletions/{{privacyDeletionId}}/retry", "description": "Retries the saved manifest idempotently. Only the owning account may retry." } }
+      ]
+    },
     {
       "name": "Register",
       "request": {
@@ -569,7 +606,7 @@
     {
       "name": "Get folder",
       "request": {
-        "description": "Returns the folder's transcriptions and temporary download links for completed TXT and PDF exports. Deepgram transcripts also include provider, timed segments (start/end seconds, speaker, text, confidence), and audioUrl for playback. R2 playback URLs expire after one hour; reopen the folder to refresh them.",
+        "description": "Returns translationCount and dubbingCount plus projects containing translation, dubbing and subtitles summaries (id, name, type, status, sourceLanguage, targetLanguage, createdAt, mediaType). Open GET /translations/{id} or /dubbings/{id} for owned editors, previews and temporary download links. Also returns the folder's transcriptions and temporary download links for completed TXT and PDF exports. Transcripts with timing data also include provider, timed segments (start/end seconds, speaker, text, confidence), and audioUrl for playback. R2 playback URLs expire after one hour; reopen the folder to refresh them.",
         "method": "GET",
         "header": [
           {
@@ -611,6 +648,7 @@
     },
     {
       "name": "Delete folder",
+      "description": "Permanently deletes an owned folder and queues cleanup of all its transcriptions, translations, dubbing/subtitle projects, generated downloads and exclusively used owned sources. Returns 204 after hiding the folder and projects. Sources used by other projects are kept. Track and retry cleanup via privacy/deletions; use POST privacy/deletions with resource_type folder and scope project to receive the deletion ID directly. Repeated requests reuse the saved cleanup.",
       "request": {
         "method": "DELETE",
         "header": [
@@ -746,7 +784,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"client_key\": \"{{uploadClientKey}}\",\n  \"filename\": \"sample.mp3\",\n  \"content_type\": \"audio/mpeg\",\n  \"size\": 2048,\n  \"fingerprint\": \"{{uploadFingerprint}}\"\n}"
+              "raw": "{\n  \"client_key\": \"{{uploadClientKey}}\",\n  \"filename\": \"sample.mp3\",\n  \"content_type\": \"audio/mpeg\",\n  \"source_kind\": \"audio\",\n  \"size\": 2048,\n  \"fingerprint\": \"{{uploadFingerprint}}\"\n}"
             },
             "url": "{{baseUrl}}/uploads/multipart",
             "description": "Signed-in uploads only. Reuse the same client_key and metadata to recover an interrupted start. Up to 5 GiB, 16 MiB parts. This example is one 2048-byte final part; use the exact source-file bytes."
@@ -1037,7 +1075,7 @@
                 }
               }
             },
-            "description": "Returns a measuring quote and immediately queues media inspection after the transaction commits. Completed uploads owned by this user are probed through a fresh signed R2 URL; remote probing falls back to local inspection when necessary. Pasted URLs keep the verified-download flow. Poll the quote until ready before confirming transcription. The outbox recovers dispatch failures."
+            "description": "Returns a measuring quote and immediately queues media inspection after the transaction commits. Completed uploads owned by this user are probed through a fresh signed R2 URL; remote probing falls back to local inspection when necessary. Pasted URLs keep the verified-download flow. Poll the quote until ready before confirming transcription. The outbox recovers dispatch failures. OpenAI is available through TRANSCRIBER_FALLBACK=openai or per-language routing. OPENAI_TRANSCRIPTION_MODEL chooses diarized speaker/timestamp output or plain output. This provider accepts verified full audio up to 90 minutes (configurable lower); excessive duration is rejected before reserving credits. Requires FFmpeg and configured per-minute credits."
           },
           "event": [
             {
@@ -1427,7 +1465,7 @@
           "response": [],
           "request": {
             "method": "GET",
-            "description": "Global Google NMT catalog. Yoruba, Igbo and Hausa appear first. Pidgin is not offered unless supported by the provider.",
+            "description": "Global language catalog from the configured translation provider, with Yoruba, Igbo and Hausa first. Google remains the default; TRANSLATION_PROVIDER=openai selects the OpenAI text provider and its app language catalog. No provider selector is exposed to users.",
             "url": "{{baseUrl}}/translations/languages",
             "header": [
               {
@@ -1459,9 +1497,9 @@
                   "language": "json"
                 }
               },
-              "raw": "{\r\n  \"name\": \"Meeting translation\",\r\n  \"client_key\": \"{{$guid}}\",\r\n  \"source_language\": \"en\",\r\n  \"text\": \"Hello, welcome to our meeting.\",\r\n  \"target_language\": \"yo\"\r\n}"
+              "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\r\n  \"name\": \"Meeting translation\",\r\n  \"client_key\": \"{{$guid}}\",\r\n  \"source_language\": \"en\",\r\n  \"text\": \"Hello, welcome to our meeting.\",\r\n  \"target_language\": \"yo\"\r\n}"
             },
-            "description": "Check credits before confirming. Reuse client_key for retries of identical input. Optional transcription_id links an owned transcript; optional segments preserve speaker names and stored timestamps.",
+            "description": "Check credits before confirming. Reuse client_key for retries of identical input. Optional transcription_id links an owned transcript; optional segments preserve speaker names and stored timestamps. Optional folder_id selects an owned folder. If omitted or null, confirmation uses the source transcript folder when available, otherwise the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Translation responses include folderId. The configured provider and model are saved on the quote and resulting translation, so later configuration changes do not redirect retries. OpenAI supports up to 50,000 characters and 4,000 speaker segments with bounded batches; existing Google limits remain unchanged.",
             "method": "POST",
             "auth": {
               "bearer": [
@@ -1620,7 +1658,7 @@
           "name": "Dubbing languages",
           "response": [],
           "request": {
-            "description": "Global Dubbing v2 languages and dialects. Yoruba and Hausa appear first. Igbo and Pidgin are not listed as supported.",
+            "description": "Returns target languages for the configured dubbing provider and sourceLanguages containing spoken-language codes. Nigerian targets appear first when supported. Targets use ElevenLabs codes or the exact HeyGen language names. configured requires provider credentials and a credit rate. subtitleStyles lists classic, boxed and contrast presets. subtitlesOnly contains its own configured flag, sourceLanguages and translation target data; this mode can work independently of dubbing configuration. audioDubbing contains independently configured audio target and source languages; audio may be available even when video dubbing is not configured.",
             "method": "GET",
             "header": [
               {
@@ -1652,10 +1690,108 @@
                 }
               },
               "mode": "raw",
-              "raw": "{\r\n  \"name\": \"Dubbed interview\",\r\n  \"video_storage_path\": \"{{videoStoragePath}}\",\r\n  \"target_language\": \"yo\",\r\n  \"source_language\": \"en\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}"
+              "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\r\n  \"operation\": \"dubbing\",\r\n  \"name\": \"Dubbed interview\",\r\n  \"video_storage_path\": \"{{videoStoragePath}}\",\r\n  \"target_language\": \"yo\",\r\n  \"source_language\": \"en\",\r\n  \"subtitles_enabled\": true,\r\n  \"subtitle_style\": \"classic\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}"
             },
             "url": "{{baseUrl}}/dubbings/quotes",
-            "description": "First upload an MP4 or WebM via multipart uploads using video/mp4 or video/webm. Set videoStoragePath to its returned audio_storage_path. Server measures duration before pricing. Poll the quote until ready. Reuse client_key when retrying an identical request.",
+            "description": "First upload an MP4 or WebM via multipart uploads using video/mp4 or video/webm. Set videoStoragePath to its returned audio_storage_path. Fetch dubbing languages and use a data[].code as target_language: yo for ElevenLabs or an exact name such as French for HeyGen. source_language uses sourceLanguages[].code, or null for automatic detection. Server measures duration before pricing and saves the provider, mode, options and credit rate with the quote. Poll until ready. Reuse client_key when retrying identical input. operation defaults to dubbing. Optional subtitles_enabled and subtitle_style request permanent subtitles (classic, boxed or contrast). For original audio with translated captions, use the separate subtitles-only example. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "method": "POST"
+          },
+          "event": [
+            {
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set('dubbingQuoteId', pm.response.json().id);"
+                ]
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "Quote subtitles-only video",
+          "response": [],
+          "request": {
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "mode": "raw",
+              "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\n  \"operation\": \"subtitles\",\n  \"name\": \"Spanish subtitles\",\n  \"video_storage_path\": \"{{videoStoragePath}}\",\n  \"source_language\": \"en\",\n  \"target_language\": \"es\",\n  \"subtitle_style\": \"classic\",\n  \"client_key\": \"{{$guid}}\"\n}"
+            },
+            "url": "{{baseUrl}}/dubbings/quotes",
+            "description": "Keeps the original audio and adds translated subtitles. Use subtitlesOnly.sourceLanguages for the spoken language and subtitlesOnly.data for target_language. Same-language requests skip translation. Pricing is a separately configured per-minute rate covering transcription, translation and rendering. Reuse client_key only for identical input. Confirm with the returned quote_id using the existing dubbings endpoint. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ]
+            },
+            "method": "POST"
+          },
+          "event": [
+            {
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set('dubbingQuoteId', pm.response.json().id);"
+                ]
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "Quote audio dubbing",
+          "response": [],
+          "request": {
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "mode": "raw",
+              "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\n  \"media_type\": \"audio\",\n  \"operation\": \"dubbing\",\n  \"name\": \"Spanish interview\",\n  \"audio_storage_path\": \"{{audioStoragePath}}\",\n  \"source_language\": \"en\",\n  \"target_language\": \"es\",\n  \"client_key\": \"{{$guid}}\"\n}"
+            },
+            "url": "{{baseUrl}}/dubbings/quotes",
+            "description": "Upload audio through the resumable upload endpoints and save its returned audio_storage_path in audioStoragePath. Uses the independently configured audio provider and existing dubbing credit rate. Poll the quote, then confirm it using the same endpoint as video dubbing. Audio supports dubbing only; omit subtitle options. Completed records contain mediaType audio, audioUrl for MP3 playback, audioMp3DownloadUrl and audioDownloadUrl for FLAC. Video and subtitle links are null. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId.",
             "header": [
               {
                 "key": "Accept",
@@ -1793,7 +1929,7 @@
           "name": "View dubbed video",
           "response": [],
           "request": {
-            "description": "Poll pending or processing records. Complete records include signed MP4 preview, MP4 download and FLAC audio download links.",
+            "description": "Poll pending or processing records, including subtitle rendering. Responses include operation (dubbing or subtitles), subtitlesEnabled, subtitleStyle and subtitleStatus. Subtitles-only keeps original audio, saves timed transcription and translation, and remains processing until rendering and R2 verification finish. Complete records include signed videoUrl, videoDownloadUrl and audioDownloadUrl. When subtitles are enabled, the primary video includes permanent captions, subtitleDownloadUrl downloads SRT and cleanVideoDownloadUrl downloads the video without captions.",
             "method": "GET",
             "header": [
               {
@@ -1818,7 +1954,7 @@
           "name": "Retry dubbing downloads",
           "response": [],
           "request": {
-            "description": "Only retries failed output preparation when provider generation already completed. Reuses the same provider project and charge, without starting another paid dub.",
+            "description": "Retries failed output preparation or subtitle rendering when provider generation already completed. Reuses saved video, the same provider project and charge, without starting another paid dub.",
             "method": "POST",
             "header": [
               {
@@ -1841,6 +1977,196 @@
         }
       ],
       "name": "Video dubbing"
+    },
+    {
+      "name": "ElevenLabs transcription completion webhook",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const CryptoJS = require(\"crypto-js\");",
+              "const timestamp = Math.floor(Date.now() / 1000).toString();",
+              "const body = pm.variables.replaceIn(pm.request.body.raw);",
+              "const hash = CryptoJS.HmacSHA256(timestamp + \".\" + body, pm.collectionVariables.get(\"elevenlabsWebhookSecret\")).toString();",
+              "pm.request.headers.upsert({ key: \"elevenlabs-signature\", value: \"t=\" + timestamp + \",v0=\" + hash });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/webhooks/elevenlabs/transcription",
+        "description": "Configure this public HTTPS endpoint in ElevenLabs Developers > Webhooks with HMAC authentication and the Transcription completed event. Set ELEVENLABS_TRANSCRIPTION_WEBHOOK_ID and ELEVENLABS_TRANSCRIPTION_WEBHOOK_SECRET in the backend. This example signs its exact body with elevenlabsWebhookSecret. Validates the provider/request ID, stores speaker turns and timestamps atomically, and queues existing exports. Duplicate deliveries do not overwrite edits. The callback may arrive before the submission response is persisted.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"speech_to_text_transcription\",\n  \"data\": {\n    \"request_id\": \"{{elevenlabsRequestId}}\",\n    \"webhook_metadata\": {\n      \"transcription_id\": \"{{transcriptionId}}\"\n    },\n    \"transcription\": {\n      \"text\": \"Hello. Welcome.\",\n      \"words\": [\n        {\n          \"text\": \"Hello.\",\n          \"start\": 0,\n          \"end\": 1,\n          \"type\": \"word\",\n          \"speaker_id\": \"speaker_0\"\n        },\n        {\n          \"text\": \"Welcome.\",\n          \"start\": 1.5,\n          \"end\": 2.5,\n          \"type\": \"word\",\n          \"speaker_id\": \"speaker_1\"\n        }\n      ]\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Transcript tools",
+      "item": [
+        {
+          "name": "List transcript tools",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools",
+            "description": "Returns configured plus up to 20 latest owned cleanup/summary results. Each result includes operation, status, result, failureReason, createdAt and stale. stale is true when the saved transcript text or speaker segments changed after the request. Tools require a verified account. Results stay attached to their source transcript and folder."
+          }
+        },
+        {
+          "name": "Quote cleanup or summary",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools/quotes",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\r\n  \"operation\": \"{{transcriptToolOperation}}\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}",
+              "mode": "raw"
+            },
+            "description": "Set transcriptToolOperation to cleanup or summary. Prices use the saved transcript length; this endpoint does not reserve credits or call the AI provider. Save editor changes first. Reuse client_key only for the same source revision and operation. Supports up to 50,000 characters and 2,500 speaker segments. Requires OPENAI_API_KEY and positive activity rates in backend environment. Cleanup is split into UTF-8-safe bounded batches (maximum 15 requests), with successful batch results saved for retry recovery. Inputs requiring more batches are rejected before a quote or reservation."
+          },
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set(\"transcriptToolQuoteId\", pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "Confirm transcript tool",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\r\n  \"quote_id\": \"{{transcriptToolQuoteId}}\"\r\n}",
+              "mode": "raw"
+            },
+            "description": "After reviewing the quoted credits, confirm processing. Returns 202 for pending/processing or 200 for a cached complete result. Identical source/operation submissions reuse one record and credit reservation, including across different quotes. Changed or expired quotes must be refreshed. Processing uses the model saved on the quote; failed requests refund reserved credits. Poll the returned tool ID."
+          },
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 202) pm.collectionVariables.set(\"transcriptToolId\", pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "Poll transcript tool",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "bearer": [
+                {
+                  "type": "string",
+                  "value": "{{sanctumToken}}",
+                  "key": "token"
+                }
+              ],
+              "type": "bearer"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools/{{transcriptToolId}}",
+            "description": "Poll while pending/processing. Cleanup result contains text and original speaker segments with cleaned text; timestamps, speaker labels and confidence are preserved. Applying cleanup is a frontend preview: use the existing PATCH transcription endpoint to save and regenerate exports. Summary result contains summary, keyPoints and actionItems and does not modify the transcript. Never apply a stale result to a new transcript revision."
+          }
+        }
+      ]
     }
   ]
 }

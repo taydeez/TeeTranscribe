@@ -34,3 +34,20 @@ test('folder service keeps user ownership in every repository operation', functi
 });
 
 afterEach(fn () => M::close());
+
+test('folder resolution prefers the selected owned folder then the source folder then todays folder', function () {
+    $repository = M::mock(FolderRepositoryInterface::class);
+    $service = new FolderService($repository);
+    $selected = new Folder('selected', 7, 'Chosen');
+    $original = new Folder('original', 7, 'Original');
+    $today = new Folder('today', 7, (new DateTimeImmutable)->format('F j, Y'));
+    $repository->shouldReceive('findForUser')->once()->with('selected', 7)->andReturn($selected);
+    $repository->shouldReceive('folderForTranscription')->once()->with('transcript', 7)->andReturn($original);
+    $repository->shouldReceive('folderForTranscription')->once()->with('unfiled', 7)->andReturnNull();
+    $repository->shouldReceive('findOrCreateByName')->twice()->with(7, $today->name)->andReturn($today);
+
+    expect($service->resolveForUser(7, 'selected', 'transcript'))->toBe($selected)
+        ->and($service->resolveForUser(7, null, 'transcript'))->toBe($original)
+        ->and($service->resolveForUser(7, null, 'unfiled'))->toBe($today)
+        ->and($service->resolveForUser(7))->toBe($today);
+});

@@ -27,7 +27,9 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
 
     public function exclusive(string $key, Closure $operation): mixed
     {
-        return Cache::lock('billing:'.$key, str_starts_with($key, 'dubbing:') ? 6000 : 900)->block(10, $operation);
+        $seconds = str_starts_with($key, 'dubbing:subtitles:') ? 7500 : (str_starts_with($key, 'dubbing:') ? 6000 : 900);
+
+        return Cache::lock('billing:'.$key, $seconds)->block(10, $operation);
     }
 
     public function lockWallet(int $userId): Wallet
@@ -90,7 +92,7 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
     public function charge(string $transcriptionId, bool $lock = false, string $activity = 'transcription'): ?array
     {
         $column = match ($activity) {
-            'translation' => 'translation_id', 'dubbing' => 'dubbing_id', default => 'transcription_id'
+            'translation' => 'translation_id', 'dubbing' => 'dubbing_id', 'transcript_tool', 'cleanup', 'summary' => 'transcript_tool_id', default => 'transcription_id'
         };
 
         return UsageCharge::where($column, $transcriptionId)
@@ -121,7 +123,7 @@ final class EloquentBillingRepository implements BillingRepositoryInterface
 
             return array_intersect_key($data, array_flip(match ($type) {
                 'payments' => ['id', 'reference', 'package_name', 'credit_units', 'amount_minor', 'currency', 'status', 'paid_at', 'created_at', 'invoice_number', 'invoice_ready'],
-                'usage' => ['id', 'transcription_id', 'translation_id', 'dubbing_id', 'activity', 'provider', 'model', 'quantity', 'credit_units', 'status', 'created_at'],
+                'usage' => ['id', 'transcription_id', 'translation_id', 'dubbing_id', 'transcript_tool_id', 'activity', 'provider', 'model', 'quantity', 'credit_units', 'status', 'created_at'],
                 default => ['id', 'kind', 'amount_units', 'available_after', 'reserved_after', 'metadata', 'created_at'],
             }));
         })->all();

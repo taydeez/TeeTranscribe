@@ -21,7 +21,7 @@ beforeEach(function () {
     Queue::fake();
     Http::preventStrayRequests();
     Cache::forget('translation:google:nmt:languages:en');
-    config(['translation.google.key' => 'test-key', 'billing.free_credits' => '0', 'billing.rates.translation.google.nmt.credits' => '10']);
+    config(['translation.provider' => 'google', 'translation.google.key' => 'test-key', 'billing.free_credits' => '0', 'billing.rates.translation.google.nmt.credits' => '10']);
     $this->user = User::factory()->create();
     Http::fake(['translation.googleapis.com/language/translate/v2/languages*' => Http::response(['data' => ['languages' => [
         ['language' => 'fr', 'name' => 'French'], ['language' => 'en', 'name' => 'English'], ['language' => 'ja', 'name' => 'Japanese'],

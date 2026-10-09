@@ -72,6 +72,14 @@ return [
             'block_for' => null,
             'after_commit' => false,
         ],
+        'subtitle_rendering' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'subtitle-rendering',
+            'retry_after' => 7500,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
         'redis' => [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),

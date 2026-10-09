@@ -10,6 +10,7 @@ export function useTranslationWorkflow() {
   const sourceLanguage = ref('')
   const targetLanguage = ref('en')
   const name = ref(draft.sourceName)
+  const folderId = ref(typeof route.query.folder === 'string' ? route.query.folder : '')
   const quote = ref<TranslationQuote | null>(null)
   const record = ref<TranslationRecord | null>(null)
   const busy = ref(false)
@@ -20,9 +21,9 @@ export function useTranslationWorkflow() {
   let active = true
   let sequence = 0
   let timer: ReturnType<typeof setTimeout> | null = null
-  const source = () => ({ text: draft.text.trim(), source_language: sourceLanguage.value || null, target_language: targetLanguage.value, name: name.value.trim() || null, transcription_id: draft.transcriptionId || null,
+  const source = () => ({ text: draft.text.trim(), source_language: sourceLanguage.value || null, target_language: targetLanguage.value, name: name.value.trim() || null, transcription_id: draft.transcriptionId || null, folder_id: folderId.value || null,
     ...(draft.segments.length && draft.text.trim() === draft.segments.map(item => item.text.trim()).join('\n') ? { segments: draft.segments.map(item => ({ text: item.text, speaker: item.speaker })) } : {}) })
-  watch([() => draft.text, sourceLanguage, targetLanguage, name, () => draft.transcriptionId, () => JSON.stringify(draft.segments)], () => { quote.value = null; key = '' }, { flush: 'sync' })
+  watch([() => draft.text, sourceLanguage, targetLanguage, name, folderId, () => draft.transcriptionId, () => JSON.stringify(draft.segments)], () => { quote.value = null; key = '' }, { flush: 'sync' })
   const message = (failure: unknown) => (failure as { data?: { message?: string }; message?: string }).data?.message ?? (failure as Error).message ?? 'Translation could not be completed.'
 
   async function loadLanguages() {
@@ -97,11 +98,19 @@ export function useTranslationWorkflow() {
     } catch (failure) { if (active) error.value = message(failure) }
     finally { if (active) { busy.value = false; schedule() } }
   }
+  async function remove(id: string) {
+    historyVersion.value++
+    if (record.value?.id !== id && route.query.translation !== id) return
+    sequence++; if (timer) clearTimeout(timer)
+    record.value = null
+    const query = { ...route.query }; delete query.translation
+    await router.replace({ query })
+  }
   watch(() => route.query.translation, id => {
     if (typeof id === 'string') void open(id)
     else { sequence++; if (timer) clearTimeout(timer); record.value = null }
   })
   onMounted(() => { void loadLanguages(); if (typeof route.query.translation === 'string') void open(route.query.translation) })
   onBeforeUnmount(() => { active = false; sequence++; if (timer) clearTimeout(timer) })
-  return { draft, languages, languagesLoading, sourceLanguage, targetLanguage, name, quote, record, busy, opening, error, historyVersion, loadLanguages, checkPrice, submit, save }
+  return { draft, languages, languagesLoading, sourceLanguage, targetLanguage, name, folderId, quote, record, busy, opening, error, historyVersion, loadLanguages, checkPrice, submit, save, refresh, remove }
 }

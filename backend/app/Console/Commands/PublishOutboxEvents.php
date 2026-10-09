@@ -11,7 +11,9 @@ use App\Jobs\GenerateTranscriptionExports;
 use App\Jobs\MeasureBillingQuote;
 use App\Jobs\MeasureDubbingQuote;
 use App\Jobs\ProcessDubbing;
+use App\Jobs\ProcessTranscriptTool;
 use App\Jobs\ProcessTranslation;
+use App\Jobs\RenderDubbingSubtitles;
 use App\Jobs\SendAccountEmail;
 use App\Jobs\SubmitTranscription;
 use Illuminate\Console\Command;
@@ -42,7 +44,7 @@ class PublishOutboxEvents extends Command
                     });
                 }
             });
-        OutboxEvent::query()->whereIn('event_type', ['DubbingQuoteRequested', 'DubbingRequested'])->whereNull('published_at')
+        OutboxEvent::query()->whereIn('event_type', ['DubbingQuoteRequested', 'DubbingRequested', 'DubbingSubtitlesRequested'])->whereNull('published_at')
             ->where(fn ($query) => $query->where('attempts', 0)->orWhere('updated_at', '<=', now()->subMinute()))
             ->chunkById(100, function ($events): void {
                 foreach ($events as $event) {
@@ -54,6 +56,8 @@ class PublishOutboxEvents extends Command
                         $locked->increment('attempts');
                         if ($locked->event_type === 'DubbingQuoteRequested') {
                             MeasureDubbingQuote::dispatch($locked->aggregate_id, $locked->id)->afterCommit();
+                        } elseif ($locked->event_type === 'DubbingSubtitlesRequested') {
+                            RenderDubbingSubtitles::dispatch($locked->aggregate_id, $locked->id)->afterCommit();
                         } else {
                             ProcessDubbing::dispatch($locked->aggregate_id, $locked->id)->afterCommit();
                         }
@@ -71,6 +75,20 @@ class PublishOutboxEvents extends Command
                         }
                         $locked->increment('attempts');
                         ProcessTranslation::dispatch($locked->aggregate_id, $locked->id, $locked->payload['revision'] ?? 0)->afterCommit();
+                    });
+                }
+            });
+        OutboxEvent::query()->where('event_type', 'TranscriptToolRequested')->whereNull('published_at')
+            ->where(fn ($query) => $query->where('attempts', 0)->orWhere('updated_at', '<=', now()->subMinutes(5)))
+            ->chunkById(100, function ($events): void {
+                foreach ($events as $event) {
+                    DB::transaction(function () use ($event): void {
+                        $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+                        if ($locked->published_at !== null) {
+                            return;
+                        }
+                        $locked->increment('attempts');
+                        ProcessTranscriptTool::dispatch($locked->aggregate_id, $locked->id)->afterCommit();
                     });
                 }
             });

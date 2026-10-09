@@ -7,7 +7,6 @@ const items = [
   { label: 'My Transcriptions', icon: 'transcript' as const, to: '/dashboard/transcriptions', exact: false },
   { label: 'Translations', icon: 'translate' as const, to: '/dashboard/translations', exact: false },
   { label: 'Dubbing', icon: 'audio' as const, to: '/dashboard/dubbing', exact: false },
-  { label: 'Voices', icon: 'mic' as const, to: '/dashboard/voices', exact: false },
 ]
 const accountItems = [
   { label: 'Usage', icon: 'usage' as const, to: '/dashboard/usage' },

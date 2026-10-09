@@ -25,6 +25,12 @@ async function load() {
   finally { loading.value = false }
 }
 
+async function deleted() {
+  if (folders.value.data.length === 1 && folders.value.meta.currentPage > 1) {
+    await updateQuery({ page: folders.value.meta.currentPage - 1 })
+  } else { await load() }
+}
+
 async function updateQuery(values: Record<string, string | number | undefined>) {
   await router.push({ query: { ...route.query, ...values } })
 }
@@ -40,7 +46,7 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
     <div class="flex flex-col gap-5 border-b border-slate-200 bg-gradient-to-r from-white to-indigo-50/60 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"><h2 class="text-3xl font-semibold tracking-[-.04em] text-slate-900 sm:text-3xl">Transcriptions</h2><button class="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white" @click="createOpen = true">+ Create folder</button></div>
     <div class="grid gap-3 border-b border-slate-200 p-5 sm:grid-cols-[minmax(0,1fr)_220px]"><input v-model="search" class="min-h-11 w-full rounded-xl border border-slate-300 px-4 text-sm" type="search" placeholder="Search folders by name"><select v-model="sort" class="min-h-11 rounded-xl border border-slate-300 px-3 text-sm font-semibold"><option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option><option value="name:asc">Name A–Z</option><option value="name:desc">Name Z–A</option></select></div>
     <p v-if="error" class="m-6 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{{ error }}</p>
-    <FolderList :folders="folders.data" :meta="folders.meta" :loading="loading" @page="updateQuery({ page: $event })" />
+    <FolderList :folders="folders.data" :meta="folders.meta" :loading="loading" @page="updateQuery({ page: $event })" @deletion="deleted" />
   </section>
   <CreateFolderModal v-model:open="createOpen" @created="load" />
 </template>

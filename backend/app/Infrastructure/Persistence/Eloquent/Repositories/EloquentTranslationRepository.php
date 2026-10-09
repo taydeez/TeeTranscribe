@@ -2,9 +2,11 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Translation\Contracts\TranslationRepositoryInterface;
 use App\Domain\Translation\Entities\Translation;
 use App\Infrastructure\Outbox\OutboxService;
+use App\Infrastructure\Persistence\Eloquent\Models\PrivacyDeletion;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\Translation as TranslationModel;
 
@@ -26,6 +28,22 @@ final class EloquentTranslationRepository implements TranslationRepositoryInterf
     public function update(string $id, array $data): Translation
     {
         $record = TranslationModel::findOrFail($id);
+        if (! empty($data['exports'])) {
+            $clocks = $record->file_generated_at ?? [];
+            foreach ($data['exports'] as $export) {
+                if (! empty($export['storage_path']) && ($export['status'] ?? '') === 'completed') {
+                    $clocks[$export['format']] = now()->toIso8601String();
+                }
+            }
+            $data['file_generated_at'] = $clocks;
+        }
+        if (isset($data['export_revision']) && $data['export_revision'] !== $record->export_revision) {
+            if (PrivacyDeletion::query()->where('resource_type', 'translation')->where('resource_id', $id)
+                ->where('scope', 'generated')->whereIn('status', ['pending', 'processing', 'failed'])->exists()) {
+                throw new BillingException('Wait for file cleanup to finish before regenerating downloads.', 409);
+            }
+            $data['privacy_deleted_files'] = [];
+        }
         $record->update($data);
 
         return $this->toDomain($record->refresh());
@@ -58,6 +76,8 @@ final class EloquentTranslationRepository implements TranslationRepositoryInterf
             segments: $record->segments ?? [], exports: $record->exports ?? [],
             exportRevision: $record->export_revision, failureReason: $record->failure_reason,
             createdAt: $record->created_at?->toIso8601String(),
+            folderId: $record->folder_id,
+            provider: $record->provider, model: $record->model,
         );
     }
 
