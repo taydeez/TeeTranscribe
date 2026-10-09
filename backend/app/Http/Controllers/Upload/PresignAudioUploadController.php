@@ -2,22 +2,15 @@
 
 namespace App\Http\Controllers\Upload;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Transcription\PresignAudioUploadRequest;
+use App\Http\Responses\Upload\UploadResponse;
 use App\Infrastructure\Upload\GateWays\R2Gateway;
 use Illuminate\Http\JsonResponse;
 
-class PresignAudioUploadController extends Controller
+final class PresignAudioUploadController
 {
-    /**
-     * Handle the incoming request.
-     */
-    public function __invoke(PresignAudioUploadRequest $request, R2Gateway $r2Gateway): JsonResponse
+    public function __invoke(PresignAudioUploadRequest $request, R2Gateway $r2Gateway, UploadResponse $response): JsonResponse
     {
-        $data = $request->validated();
-
-        $response = $r2Gateway->Presign($data);
-
-        return response()->json($response)->header('Cache-Control', 'no-store');
+        return $response->json($r2Gateway->Presign($request->validated()));
     }
 }
