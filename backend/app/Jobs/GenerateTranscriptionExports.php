@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
+use App\Domain\Transcriber\Services\FinalizeTranscriptionExports;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Exports\TranscriptionExportGenerator;
 use App\Infrastructure\Outbox\OutboxService;
@@ -40,6 +42,18 @@ class GenerateTranscriptionExports implements ShouldBeUnique, ShouldQueue
 
     public function handle(OutboxService $outbox): void
     {
+        app(PrivacyCoordinatorInterface::class)->exclusive('transcription', $this->transcriptionId, function () use ($outbox): void {
+            if (app(PrivacyCoordinatorInterface::class)->projectDeleted('transcription', $this->transcriptionId)) {
+                $this->markOutboxPublished($outbox);
+
+                return;
+            }
+            $this->generate($outbox);
+        });
+    }
+
+    private function generate(OutboxService $outbox): void
+    {
         $transcription = Transcription::query()->findOrFail($this->transcriptionId);
         if ($transcription->export_revision !== $this->revision) {
             return;
@@ -55,7 +69,8 @@ class GenerateTranscriptionExports implements ShouldBeUnique, ShouldQueue
             throw new RuntimeException('Transcription is not ready for export.');
         }
 
-        $options = TranscriptionExportOptions::required($transcription->segments ?? []);
+        $options = array_values(array_filter(TranscriptionExportOptions::required($transcription->segments ?? []),
+            fn (array $option): bool => ! app(PrivacyCoordinatorInterface::class)->generatedDeleted('transcription', $this->transcriptionId, $option['format'])));
         foreach ($options as $option) {
             TranscriptionExport::query()->firstOrCreate(
                 ['transcription_id' => $transcription->id, ...$option],
@@ -66,6 +81,12 @@ class GenerateTranscriptionExports implements ShouldBeUnique, ShouldQueue
         $revision = $transcription->export_revision;
         foreach ($options as $option) {
             app(TranscriptionExportGenerator::class)->generate($transcription->id, $option['format'], $revision, $option['variant']);
+        }
+        app(FinalizeTranscriptionExports::class)->handle($transcription->id);
+        if (app(PrivacyCoordinatorInterface::class)->projectDeleted('transcription', $this->transcriptionId)) {
+            $this->markOutboxPublished($outbox);
+
+            return;
         }
         if ($transcription->refresh()->export_revision !== $revision) {
             return;

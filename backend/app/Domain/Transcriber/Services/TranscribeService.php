@@ -40,7 +40,7 @@ class TranscribeService
         $fileName = $transcriptionData['file_name'] ?? $derivedName;
         $name = $transcriptionData['name'] ?? pathinfo($fileName, PATHINFO_FILENAME);
 
-        $gateway = $this->transcriberGatewayResolver->resolve($language);
+        $gateway = $this->transcriberGatewayResolver->resolve($language, $transcriptionData['provider'] ?? null);
         unset($transcriptionData['audio_url'], $transcriptionData['language_code']);
 
         $newTranscription = $this->transcriptionRepository->create([

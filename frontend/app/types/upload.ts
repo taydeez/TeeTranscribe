@@ -19,6 +19,7 @@ export type SavedUpload = {
   filename: string
   size: number
   contentType: string
+  sourceKind?: 'audio' | 'video' | 'recording'
   sessionId?: string
   expiresAt?: string
   updatedAt: number

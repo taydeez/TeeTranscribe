@@ -17,9 +17,9 @@ class ProcessTranslation implements ShouldBeUnique, ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 300;
+    public int $timeout = 900;
 
-    public int $uniqueFor = 900;
+    public int $uniqueFor = 1200;
 
     public function __construct(public string $translationId, public string $outboxEventId, public int $revision = 0)
     {

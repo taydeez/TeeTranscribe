@@ -9,9 +9,12 @@ export function useFolderTranscriptions(folderId: () => string) {
   let mounted = false
   let disposed = false
 
+  const hasWorkingItems = () => Boolean(folder.value?.transcriptions.some(item => ['pending', 'processing'].includes(item.status))
+    || folder.value?.projects?.some(item => ['pending', 'processing'].includes(item.status)))
+
   function schedule() {
     if (disposed || !mounted || timer !== undefined) return
-    if (folder.value?.transcriptions.some(item => ['pending', 'processing'].includes(item.status))) {
+    if (hasWorkingItems()) {
       timer = setTimeout(() => { timer = undefined; void load(true) }, 15_000)
     }
   }
@@ -47,7 +50,7 @@ export function useFolderTranscriptions(folderId: () => string) {
   }
 
   onMounted(() => { mounted = true; void load() })
-  watch(() => folder.value?.transcriptions.some(item => ['pending', 'processing'].includes(item.status)), (active) => {
+  watch(hasWorkingItems, (active) => {
     if (active) schedule()
     else { clearTimeout(timer); timer = undefined }
   })
@@ -57,5 +60,5 @@ export function useFolderTranscriptions(folderId: () => string) {
     if (mounted && !disposed) void load()
   })
   onBeforeUnmount(() => { disposed = true; stop() })
-  return { folder, loading, error }
+  return { folder, loading, error, load }
 }

@@ -35,6 +35,24 @@ function harness(t, responses) {
 const folder = status => ({ id: 'folder-one', name: 'Interviews', transcriptions: [{ id: 'transcription-one', status }] })
 const settle = async () => { await Promise.resolve(); await Promise.resolve() }
 
+test('folders containing only translations and dubbed media poll until all projects finish', async t => {
+  const h = harness(t, [
+    { id: 'folder-one', transcriptions: [], projects: [{ id: 'translation', status: 'pending' }, { id: 'dub', status: 'processing' }] },
+    { id: 'folder-one', transcriptions: [], projects: [{ id: 'translation', status: 'complete' }, { id: 'dub', status: 'processing' }] },
+    { id: 'folder-one', transcriptions: [], projects: [{ id: 'translation', status: 'complete' }, { id: 'dub', status: 'failed' }] },
+  ])
+  h.mount(); await settle()
+  assert.equal(h.timers.size, 1)
+  for (let i = 0; i < 2; i++) {
+    const [id, timer] = [...h.timers][0]
+    assert.equal(timer.delay, 15000)
+    h.timers.delete(id); timer.fn(); await settle()
+  }
+  assert.equal(h.calls.length, 3)
+  assert.equal(h.timers.size, 0)
+  h.unmount()
+})
+
 test('polls pending and processing items every 15 seconds without hiding the list and stops when complete', async t => {
   const h = harness(t, [folder('pending'), folder('processing'), folder('complete')])
   h.mount(); await settle()

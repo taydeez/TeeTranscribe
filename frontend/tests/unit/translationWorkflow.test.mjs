@@ -30,6 +30,23 @@ function harness(t, fetch) {
 const quote = { id: 'quote', enough_credits: true, expires_at: '2099-01-01T00:00:00Z' }
 const settle = async () => { for (let i = 0; i < 6; i++) await Promise.resolve() }
 
+test('translation quotes include the chosen folder and changing it invalidates an in flight quote', async t => {
+  const calls = []
+  let finish
+  const h = harness(t, async (path, options) => { calls.push({ path, options }); return new Promise(resolve => { finish = resolve }) })
+  h.state.folderId.value = 'folder-one'
+  const pending = h.state.checkPrice()
+  assert.equal(calls[0].options.body.folder_id, 'folder-one')
+  h.state.folderId.value = 'folder-two'
+  finish(quote); await pending
+  assert.equal(h.state.quote.value, null)
+  const next = h.state.checkPrice()
+  assert.equal(calls[1].options.body.folder_id, 'folder-two')
+  assert.notEqual(calls[1].options.body.client_key, calls[0].options.body.client_key)
+  finish(quote); await next
+  assert.equal(h.state.quote.value.id, 'quote')
+})
+
 test('translation quotes require confirmation and rapid confirm clicks submit once', async t => {
   const calls = []
   let finish

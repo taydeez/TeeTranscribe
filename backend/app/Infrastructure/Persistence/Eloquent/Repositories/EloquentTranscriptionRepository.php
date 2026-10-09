@@ -14,6 +14,7 @@ use App\Domain\Transcriber\Entities\TranscriptionEditResult;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface;
+use App\Infrastructure\Persistence\Eloquent\Models\PrivacyDeletion;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription as TranscriptionModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -77,9 +78,10 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
                 ?? throw new TranscriptionNotFoundException($id);
 
             $storedSegments = $transcription->segments ?? [];
+            $this->assertCleanupFinished($id);
             if ($segments !== null) {
-                if ($transcription->provider !== 'deepgram' || count($segments) !== count($storedSegments) || $storedSegments === []) {
-                    throw ValidationException::withMessages(['segments' => 'Timed segments must match the existing Deepgram transcript.']);
+                if (count($segments) !== count($storedSegments) || $storedSegments === []) {
+                    throw ValidationException::withMessages(['segments' => 'Timed segments must match the existing transcript.']);
                 }
                 foreach ($storedSegments as $index => &$segment) {
                     $segment['text'] = trim($segments[$index]['text']);
@@ -96,6 +98,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
             }
             $revision = $transcription->export_revision + 1;
             $transcription->update([
+                'privacy_deleted_files' => [],
                 'transcript' => $transcript,
                 'segments' => $storedSegments,
                 'status' => 'processing',
@@ -130,6 +133,8 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
                 throw ValidationException::withMessages(['transcription' => 'This transcript is not ready for export.']);
             }
             $needed = false;
+            $this->assertCleanupFinished($id);
+            $record->forceFill(['privacy_deleted_files' => []])->save();
             foreach (TranscriptionExportOptions::required($record->segments ?? []) as $option) {
                 $export = $record->exports()->firstOrCreate($option, ['status' => 'pending', 'export_revision' => $record->export_revision]);
                 if ($export->export_revision !== $record->export_revision || $export->status !== 'completed' || blank($export->storage_path)) {
@@ -149,5 +154,13 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
     {
         return TranscriptionModel::query()->find($id)
             ?? throw new TranscriptionNotFoundException($id);
+    }
+
+    private function assertCleanupFinished(string $id): void
+    {
+        if (PrivacyDeletion::query()->where('resource_type', 'transcription')->where('resource_id', $id)
+            ->where('scope', 'generated')->whereIn('status', ['pending', 'processing', 'failed'])->exists()) {
+            throw ValidationException::withMessages(['transcription' => 'Wait for file cleanup to finish before regenerating downloads.']);
+        }
     }
 }

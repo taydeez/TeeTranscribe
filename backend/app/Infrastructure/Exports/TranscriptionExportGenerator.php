@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Exports;
 
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Services\FinalizeTranscriptionExports;
 use App\Domain\Transcriber\Services\TranscriptionExportFileName;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
@@ -17,6 +18,16 @@ use Throwable;
 final class TranscriptionExportGenerator
 {
     public function generate(string $id, string $format, int $revision, string $variant = 'plain'): void
+    {
+        app(PrivacyCoordinatorInterface::class)->exclusive('transcription', $id, function () use ($id, $format, $revision, $variant): void {
+            $privacy = app(PrivacyCoordinatorInterface::class);
+            if (! $privacy->projectDeleted('transcription', $id) && ! $privacy->generatedDeleted('transcription', $id, $format)) {
+                $this->render($id, $format, $revision, $variant);
+            }
+        });
+    }
+
+    private function render(string $id, string $format, int $revision, string $variant): void
     {
         if (! in_array($format, TranscriptionExportOptions::FORMATS, true) || ! in_array($variant, ['plain', 'speakers'], true)) {
             throw new RuntimeException('Unsupported export format.');
@@ -69,8 +80,8 @@ final class TranscriptionExportGenerator
                 throw new RuntimeException(strtoupper($format).' export upload could not be verified.');
             }
             DB::transaction(function () use ($id, $format, $revision, $path, $variant): void {
-                $record = Transcription::query()->lockForUpdate()->findOrFail($id);
-                if ($record->export_revision !== $revision) {
+                $record = Transcription::query()->lockForUpdate()->find($id);
+                if ($record === null || $record->export_revision !== $revision) {
                     return;
                 }
                 $record->exports()->where('format', $format)->where('variant', $variant)->where('export_revision', $revision)
@@ -79,8 +90,8 @@ final class TranscriptionExportGenerator
             app(FinalizeTranscriptionExports::class)->handle($id);
         } catch (Throwable $exception) {
             $current = DB::transaction(function () use ($id, $format, $revision, $exception, $variant): bool {
-                $record = Transcription::query()->lockForUpdate()->findOrFail($id);
-                if ($record->export_revision !== $revision) {
+                $record = Transcription::query()->lockForUpdate()->find($id);
+                if ($record === null || $record->export_revision !== $revision) {
                     return false;
                 }
                 $record->exports()->where('format', $format)->where('variant', $variant)->where('export_revision', $revision)

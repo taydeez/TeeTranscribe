@@ -2,6 +2,7 @@
 
 namespace App\Domain\Upload\Services;
 
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Upload\Contracts\MultipartStorageInterface;
 use App\Domain\Upload\Contracts\UploadSessionRepositoryInterface;
 use App\Domain\Upload\Entities\UploadSession;
@@ -14,6 +15,7 @@ final class MultipartUploadService
     public function __construct(
         private readonly UploadSessionRepositoryInterface $repository,
         private readonly MultipartStorageInterface $storage,
+        private readonly PrivacyCoordinatorInterface $privacy,
     ) {}
 
     public function start(int $userId, array $data): UploadSession
@@ -73,6 +75,11 @@ final class MultipartUploadService
     }
 
     public function complete(string $id, int $userId): array
+    {
+        return $this->privacy->exclusive('upload', $id, fn (): array => $this->completeUpload($id, $userId));
+    }
+
+    private function completeUpload(string $id, int $userId): array
     {
         return $this->repository->exclusive('session:'.$id, function () use ($id, $userId): array {
             $session = $this->find($id, $userId);

@@ -2,12 +2,14 @@
 import type { TranslationLanguage, TranslationQuote } from '~/types/translation'
 import { formatCredits } from '~/utils/credits'
 import TranslationLanguageSelect from './TranslationLanguageSelect.vue'
+import FolderSelect from '~/components/folders/FolderSelect.vue'
 defineProps<{ languages: TranslationLanguage[]; loading: boolean; busy: boolean; quote: TranslationQuote | null; sourceName: string }>()
 const emit = defineEmits<{ price: []; submit: []; retry: [] }>()
 const text = defineModel<string>('text', { required: true })
 const name = defineModel<string>('name', { required: true })
 const source = defineModel<string>('source', { required: true })
 const target = defineModel<string>('target', { required: true })
+const folder = defineModel<string>('folder', { required: true })
 const characters = computed(() => Array.from(text.value).length)
 </script>
 <template>
@@ -18,6 +20,7 @@ const characters = computed(() => Array.from(text.value).length)
     <div class="mt-5 flex items-center justify-between gap-3"><label for="translation-text" class="text-sm font-medium">Source text</label><span class="text-xs text-slate-400">{{ characters.toLocaleString() }} / 50,000</span></div>
     <textarea id="translation-text" v-model="text" :disabled="busy" maxlength="50000" rows="8" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-base leading-relaxed" placeholder="Paste text or transfer a transcript from your library…" />
     <NuxtLink class="mt-3 inline-flex items-center gap-2 text-sm text-indigo-600" to="/dashboard/transcriptions"><UiAppIcon name="folder" :size="16" />Find a transcript</NuxtLink>
+    <FolderSelect id="translation-folder" v-model="folder" class="mt-5" :disabled="busy" :automatic-label="sourceName ? 'Source transcript’s folder (automatic)' : 'Today’s folder (automatic)'" />
     <p v-if="loading" class="mt-5 text-sm text-slate-500" role="status">Loading supported languages…</p>
     <div v-else-if="languages.length" class="mt-6 grid gap-5 sm:grid-cols-2"><TranslationLanguageSelect id="translation-source-language" v-model="source" label="Source language" :languages="languages" :disabled="busy" auto /><TranslationLanguageSelect id="translation-target-language" v-model="target" label="Output language" :languages="languages" :disabled="busy" /></div>
     <button v-else type="button" class="mt-5 text-sm text-indigo-600 underline" :disabled="busy" @click="emit('retry')">Retry loading languages</button>

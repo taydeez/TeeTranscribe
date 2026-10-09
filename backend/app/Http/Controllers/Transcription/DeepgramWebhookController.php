@@ -9,6 +9,7 @@
 namespace App\Http\Controllers\Transcription;
 
 use App\Domain\Billing\Services\CreditService;
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
@@ -25,6 +26,17 @@ class DeepgramWebhookController
     public function __construct(private readonly OutboxService $outbox) {}
 
     public function __invoke(Request $request, string $transcription): Response
+    {
+        return app(PrivacyCoordinatorInterface::class)->exclusive('transcription', $transcription, function () use ($request, $transcription): Response {
+            if (app(PrivacyCoordinatorInterface::class)->projectDeleted('transcription', $transcription)) {
+                return response()->noContent();
+            }
+
+            return $this->receive($request, $transcription);
+        });
+    }
+
+    private function receive(Request $request, string $transcription): Response
     {
 
         Log::info('Deepgram webhook received', ['transcription' => $transcription]);

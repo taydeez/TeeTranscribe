@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Folder\Entities\Folder;
 use App\Domain\Folder\Entities\FolderPage;
+use App\Domain\Folder\Entities\FolderProject;
 use App\Domain\Folder\Entities\FolderTranscription;
 use App\Domain\Folder\Services\FolderService;
 use App\Domain\Transcriber\Contracts\TranscriptionExportUrlGeneratorInterface;
@@ -61,6 +62,11 @@ final class FolderController extends Controller
                 $this->toTranscriptionResponse(...),
                 $this->service->transcriptionsForUser($folder, $userId),
             ),
+            'projects' => array_map(fn (FolderProject $project): array => [
+                'id' => $project->id, 'name' => $project->name, 'type' => $project->type, 'status' => $project->status,
+                'sourceLanguage' => $project->sourceLanguage, 'targetLanguage' => $project->targetLanguage,
+                'createdAt' => $project->createdAt, 'mediaType' => $project->mediaType,
+            ], $this->service->projectsForUser($folder, $userId)),
         ]);
     }
 
@@ -108,6 +114,8 @@ final class FolderController extends Controller
             'userId' => $folder->userId,
             'name' => $folder->name,
             'transcriptionIds' => $folder->transcriptionIds,
+            'translationCount' => $folder->translationCount,
+            'dubbingCount' => $folder->dubbingCount,
             'createdAt' => $folder->createdAt?->format(DATE_ATOM),
             'updatedAt' => $folder->updatedAt?->format(DATE_ATOM),
         ];

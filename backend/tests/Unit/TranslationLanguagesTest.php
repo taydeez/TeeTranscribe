@@ -1,11 +1,11 @@
 <?php
 
 use App\Domain\Billing\Exceptions\BillingException;
-use App\Domain\Translation\Contracts\TranslationGatewayInterface;
+use App\Domain\Translation\Contracts\TranslationGatewayResolverInterface;
 use App\Domain\Translation\Services\TranslationLanguages;
 
 test('Nigerian language prioritization retains the complete global catalog', function () {
-    $gateway = Mockery::mock(TranslationGatewayInterface::class);
+    $gateway = Mockery::mock(TranslationGatewayResolverInterface::class);
     $gateway->shouldReceive('languages')->once()->andReturn([
         ['code' => 'ja', 'name' => 'Japanese'], ['code' => 'ig', 'name' => 'Igbo'], ['code' => 'en', 'name' => 'English'],
         ['code' => 'yo', 'name' => 'Yoruba'], ['code' => 'ha', 'name' => 'Hausa'], ['code' => 'ar', 'name' => 'Arabic'],
@@ -17,7 +17,7 @@ test('Nigerian language prioritization retains the complete global catalog', fun
 });
 
 test('unsupported Pidgin cannot silently be treated as English', function () {
-    $gateway = Mockery::mock(TranslationGatewayInterface::class);
+    $gateway = Mockery::mock(TranslationGatewayResolverInterface::class);
     $gateway->shouldReceive('languages')->once()->andReturn([['code' => 'en', 'name' => 'English']]);
     expect(fn () => (new TranslationLanguages($gateway))->validate('pcm', 'en'))->toThrow(BillingException::class);
     Mockery::close();

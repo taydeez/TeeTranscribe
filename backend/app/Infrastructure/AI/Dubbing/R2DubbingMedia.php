@@ -41,7 +41,7 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
 
     public function sourceUrl(string $storagePath): string
     {
-        return Storage::disk('r2')->temporaryUrl($storagePath, now()->addHours(6));
+        return Storage::disk('r2')->temporaryUrl($storagePath, now()->addHours(48));
     }
 
     public function store(Dubbing $record, string $audioUrl): array
@@ -90,6 +90,77 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
             return ['audio_storage_path' => $audioPath, 'video_storage_path' => $videoPath];
         } finally {
             foreach ([$source, $audio, $flac, $video] as $path) {
+                if (is_file($path)) {
+                    unlink($path);
+                }
+            }
+        }
+    }
+
+    public function storeVideo(Dubbing $record, string $videoUrl): array
+    {
+        return $this->prepareVideo($record, $videoUrl);
+    }
+
+    public function prepareOriginal(Dubbing $record): array
+    {
+        return $this->prepareVideo($record, null);
+    }
+
+    private function prepareVideo(Dubbing $record, ?string $videoUrl): array
+    {
+        $download = $this->temporary();
+        $video = $this->temporary();
+        $flac = $this->temporary();
+        try {
+            if ($videoUrl === null) {
+                $this->copySource($record->sourceStoragePath, $download);
+            } else {
+                $this->download($videoUrl, $download, 'heygen');
+            }
+            $input = $this->probe($download);
+            $types = array_column($input['streams'] ?? [], 'codec_type');
+            $seconds = $input['format']['duration'] ?? null;
+            if (! in_array('video', $types, true) || ! in_array('audio', $types, true) || ! is_numeric($seconds)
+                || ! is_finite((float) $seconds) || (float) $seconds <= 0 || (float) $seconds * 1000 > config('dubbing.max_duration_ms') * 2) {
+                throw new RuntimeException('The dubbed video could not be verified.');
+            }
+            $base = [(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe',
+                '-format_whitelist', 'mov,matroska,webm', '-i', $download];
+            if (! Process::timeout(600)->run([...$base, '-map', '0:a:0', '-c:a', 'flac', '-f', 'flac', $flac])->successful()) {
+                throw new RuntimeException('The dubbed audio could not be decoded.');
+            }
+            $codec = collect($input['streams'])->firstWhere('codec_type', 'video')['codec_name'] ?? null;
+            $command = [...$base, '-map', '0:v:0', '-map', '0:a:0', '-c:v', $codec === 'h264' ? 'copy' : 'libx264'];
+            if ($codec !== 'h264') {
+                array_push($command, '-preset', 'fast', '-crf', '20', '-pix_fmt', 'yuv420p');
+            }
+            $audioCodec = collect($input['streams'])->firstWhere('codec_type', 'audio')['codec_name'] ?? null;
+            array_push($command, '-c:a', $videoUrl === null && $audioCodec === 'aac' ? 'copy' : 'aac');
+            if ($videoUrl !== null || $audioCodec !== 'aac') {
+                array_push($command, '-b:a', '192k');
+            }
+            array_push($command, '-map_metadata', '-1', '-movflags', '+faststart', '-f', 'mp4', $video);
+            if (! Process::timeout(2400)->run($command)->successful()) {
+                throw new RuntimeException('The dubbed video could not be prepared.');
+            }
+            $output = $this->probe($video);
+            $audio = $this->probe($flac);
+            $outputTypes = array_column($output['streams'] ?? [], 'codec_type');
+            if (! in_array('video', $outputTypes, true) || ! in_array('audio', $outputTypes, true)
+                || ! in_array('audio', array_column($audio['streams'] ?? [], 'codec_type'), true)
+                || abs((float) ($output['format']['duration'] ?? 0) - (float) $seconds) > 2
+                || abs((float) ($audio['format']['duration'] ?? 0) - (float) $seconds) > 2) {
+                throw new RuntimeException('The dubbing outputs could not be verified.');
+            }
+            $audioPath = 'dubbings/'.$record->id.'/audio.flac';
+            $videoPath = 'dubbings/'.$record->id.'/video.mp4';
+            $this->upload($flac, $audioPath, 'audio/flac');
+            $this->upload($video, $videoPath, 'video/mp4');
+
+            return ['audio_storage_path' => $audioPath, 'video_storage_path' => $videoPath];
+        } finally {
+            foreach ([$download, $video, $flac] as $path) {
                 if (is_file($path)) {
                     unlink($path);
                 }
@@ -156,11 +227,11 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
         }
     }
 
-    private function download(string $url, string $path): void
+    private function download(string $url, string $path, string $provider = 'elevenlabs'): void
     {
         $parts = parse_url($url);
         if (! is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || isset($parts['user']) || isset($parts['pass'])
-            || ! in_array($parts['host'] ?? '', config('dubbing.download_hosts'), true)) {
+            || ! in_array($parts['host'] ?? '', config($provider === 'heygen' ? 'dubbing.heygen.download_hosts' : 'dubbing.download_hosts'), true)) {
             throw new RuntimeException('The dubbed audio download URL is invalid.');
         }
         $response = Http::withOptions($this->urls->resolve($url) + ['allow_redirects' => false, 'stream' => true])->connectTimeout(10)->timeout(600)->get($url);

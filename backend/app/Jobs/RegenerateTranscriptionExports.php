@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Exports\TranscriptionExportGenerator;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
@@ -40,6 +41,15 @@ class RegenerateTranscriptionExports implements ShouldBeUniqueUntilProcessing, S
     }
 
     public function handle(TranscriptionExportGenerator $generator): void
+    {
+        app(PrivacyCoordinatorInterface::class)->exclusive('transcription', $this->transcriptionId, function () use ($generator): void {
+            if (! app(PrivacyCoordinatorInterface::class)->projectDeleted('transcription', $this->transcriptionId)) {
+                $this->generate($generator);
+            }
+        });
+    }
+
+    private function generate(TranscriptionExportGenerator $generator): void
     {
         $record = Transcription::findOrFail($this->transcriptionId);
         $this->revision = $record->export_revision;

@@ -8,9 +8,12 @@ use App\Http\Controllers\Dubbing\DubbingController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GuestSessionController;
 use App\Http\Controllers\Payment\PaymentWebhookController;
+use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\Transcription\CreateTranscriptionController;
 use App\Http\Controllers\Transcription\DeepgramWebhookController;
+use App\Http\Controllers\Transcription\ElevenLabsWebhookController;
 use App\Http\Controllers\Transcription\RequestTranscriptionExportsController;
+use App\Http\Controllers\Transcription\TranscriptToolController;
 use App\Http\Controllers\Transcription\UpdateTranscriptionController;
 use App\Http\Controllers\Translation\TranslationController;
 use App\Http\Controllers\Upload\MultipartUploadController;
@@ -36,6 +39,15 @@ Route::prefix('v1')->group(function (): void {
     })->middleware('auth:sanctum');
 
     Route::middleware(['auth:sanctum', 'verified'])->group(function (): void {
+        Route::prefix('privacy')->middleware('throttle:billing')->group(function (): void {
+            Route::get('/settings', [PrivacyController::class, 'settings']);
+            Route::patch('/settings', [PrivacyController::class, 'updateSettings']);
+            Route::get('/files', [PrivacyController::class, 'files']);
+            Route::get('/deletions', [PrivacyController::class, 'deletions']);
+            Route::post('/deletions', [PrivacyController::class, 'delete']);
+            Route::get('/deletions/{deletion}', [PrivacyController::class, 'show']);
+            Route::post('/deletions/{deletion}/retry', [PrivacyController::class, 'retry']);
+        });
         Route::patch('/auth/profile', [AccountSecurityController::class, 'updateProfile'])->middleware('throttle:billing');
         Route::post('/auth/change-password', [AccountSecurityController::class, 'changePassword'])->middleware('throttle:account-password');
         Route::prefix('dubbings')->middleware('throttle:billing')->group(function (): void {
@@ -82,11 +94,19 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/folders/{folder}/transcriptions/{transcription}', [FolderController::class, 'detachTranscription']);
         Route::patch('/transcriptions/{transcription}', UpdateTranscriptionController::class)->middleware('throttle:transcript-edits');
         Route::post('/transcriptions/{transcription}/exports', RequestTranscriptionExportsController::class)->middleware('throttle:transcript-edits');
+        Route::prefix('transcriptions/{transcription}/tools')->group(function (): void {
+            Route::get('/', [TranscriptToolController::class, 'index'])->middleware('throttle:billing');
+            Route::post('/quotes', [TranscriptToolController::class, 'quote'])->middleware('throttle:billing-quotes');
+            Route::post('/', [TranscriptToolController::class, 'store'])->middleware('throttle:transcript-edits');
+            Route::get('/{tool}', [TranscriptToolController::class, 'show'])->middleware('throttle:billing');
+        });
     });
 
     Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['paystack', 'flutterwave']);
     Route::post('/guest-sessions', GuestSessionController::class);
     Route::post('/uploads/presign', PresignAudioUploadController::class);
+
+    Route::post('/webhooks/elevenlabs/transcription', ElevenLabsWebhookController::class)->name('elevenlabs.transcription.callback');
 
     // Deepgram Callback
     Route::post(

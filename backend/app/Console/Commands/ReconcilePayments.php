@@ -6,6 +6,7 @@ use App\Domain\Billing\Services\CreditService;
 use App\Domain\Dubbing\Services\ProcessDubbing;
 use App\Domain\Payment\Contracts\PaymentRepositoryInterface;
 use App\Domain\Payment\Services\PaymentService;
+use App\Domain\Transcriber\Services\ProcessTranscriptTool;
 use App\Domain\Translation\Contracts\TranslationRepositoryInterface;
 use App\Domain\Translation\Services\ProcessTranslation;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
@@ -42,6 +43,11 @@ class ReconcilePayments extends Command
             ->where('created_at', '<=', now()->subHours(config('billing.processing_timeout_hours', 26)))
             ->chunkById(100, function ($charges): void {
                 foreach ($charges as $charge) {
+                    if ($charge->transcript_tool_id !== null) {
+                        app(ProcessTranscriptTool::class)->fail($charge->transcript_tool_id);
+
+                        continue;
+                    }
                     if ($charge->dubbing_id !== null) {
                         app(ProcessDubbing::class)->fail($charge->dubbing_id);
 

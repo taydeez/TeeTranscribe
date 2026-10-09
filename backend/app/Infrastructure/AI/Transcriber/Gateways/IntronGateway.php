@@ -16,6 +16,7 @@ class IntronGateway implements TranscriberGatewayInterface
         ?float $duration = null,
         ?string $audioStoragePath = null,
         ?string $fileName = null,
+        ?string $model = null,
     ): string {
         $path = parse_url($audioUrl, PHP_URL_PATH) ?: $audioUrl;
         $fileName ??= rawurldecode(basename($path)) ?: 'audio';

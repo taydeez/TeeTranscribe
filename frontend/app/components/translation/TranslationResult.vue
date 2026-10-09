@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { TranslationRecord } from '~/types/translation'
+import type { PrivacyDeletion } from '~/types/privacy'
+import PrivacyDeleteAction from '~/components/privacy/PrivacyDeleteAction.vue'
 import type { TranscriptSegment, TranscriptionExportVariant } from '~/types/transcription'
 const props = defineProps<{ record: TranslationRecord | null; busy: boolean; loading: boolean }>()
-const emit = defineEmits<{ save: [text: string, segments: TranscriptSegment[] | null] }>()
+const emit = defineEmits<{ save: [text: string, segments: TranscriptSegment[] | null]; deletion: [record: PrivacyDeletion]; refresh: [] }>()
 const text = ref('')
 const segments = ref<TranscriptSegment[]>([])
 const variant = ref<TranscriptionExportVariant>('plain')
@@ -20,6 +22,10 @@ const downloads = computed(() => (['pdf', 'txt', 'docx'] as const).map(format =>
     <p v-if="loading" class="mt-5 text-sm text-slate-500">Loading translation…</p>
     <div v-else-if="!record" class="mt-5 grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">Your translation will appear here. You can also open a saved translation below.</div>
     <template v-else>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <PrivacyDeleteAction resource-type="translation" :resource-id="record.id" scope="project" :name="record.name" label="Delete translation" :disabled="busy" @accepted="emit('deletion', $event)" />
+      </div>
+      <NuxtLink v-if="record.folderId" :to="`/dashboard/transcriptions/${record.folderId}`" class="mt-3 inline-flex items-center gap-2 text-sm font-medium text-indigo-600"><UiAppIcon name="folder" :size="16" />Open folder</NuxtLink>
       <p v-if="working" class="mt-4 flex items-center gap-3 text-sm text-indigo-600"><span class="size-4 rounded-full border-2 border-indigo-200 border-t-indigo-600 motion-safe:animate-spin" aria-hidden="true" />{{ record.translatedText === null ? 'Translating your text…' : 'Preparing your downloads…' }}</p>
       <p v-if="record.failureReason" class="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ record.failureReason }}</p>
       <details class="mt-5"><summary class="cursor-pointer text-sm font-medium text-slate-600">Original text</summary><p class="mt-3 max-h-60 overflow-y-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-relaxed">{{ record.sourceText }}</p></details>
@@ -28,7 +34,7 @@ const downloads = computed(() => (['pdf', 'txt', 'docx'] as const).map(format =>
         <template v-else><label for="translated-result" class="mt-5 block text-sm font-medium">Translated text</label><textarea id="translated-result" v-model="text" :disabled="busy" rows="10" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-base leading-relaxed" /></template>
         <button type="button" class="button-secondary mt-4 disabled:opacity-50" :disabled="busy || !editedText || (!dirty && record.status !== 'failed')" @click="emit('save', editedText, segments.length ? segments : null)">{{ busy ? 'Saving…' : !dirty && record.status === 'failed' ? 'Retry downloads' : 'Save changes' }}</button><p class="mt-2 text-xs text-slate-500">Editing regenerates your files without translating or charging again.</p>
       </template>
-      <div v-if="record.translatedText !== null" class="mt-6 border-t border-slate-100 pt-5"><label v-if="hasSpeakers" for="translation-download-style" class="block text-sm font-medium">Download style<select id="translation-download-style" v-model="variant" class="mt-2 block w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option value="plain">Plain text</option><option value="speakers">With speaker labels</option></select></label><div class="mt-4 grid grid-cols-3 gap-2"><template v-for="download in downloads" :key="download.format"><a v-if="download.item?.status === 'completed' && download.item.downloadUrl" :href="download.item.downloadUrl" target="_blank" rel="noopener" class="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-center text-sm font-semibold uppercase text-indigo-700">{{ download.format }} ↓</a><button v-else type="button" disabled class="flex items-center justify-center gap-2 rounded-xl border bg-slate-50 p-3 text-sm uppercase text-slate-400"><span v-if="working" class="size-3 rounded-full border-2 border-indigo-200 border-t-indigo-600 motion-safe:animate-spin" aria-hidden="true" />{{ download.format }}</button></template></div></div>
+      <div v-if="record.translatedText !== null" class="mt-6 border-t border-slate-100 pt-5"><label v-if="hasSpeakers" for="translation-download-style" class="block text-sm font-medium">Download style<select id="translation-download-style" v-model="variant" class="mt-2 block w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option value="plain">Plain text</option><option value="speakers">With speaker labels</option></select></label><div class="mt-4 grid gap-3 sm:grid-cols-3"><div v-for="download in downloads" :key="download.format" class="relative"><a v-if="download.item?.status === 'completed' && download.item.downloadUrl" :href="download.item.downloadUrl" target="_blank" rel="noopener" class="flex min-h-20 items-center rounded-xl border border-indigo-100 bg-indigo-50 p-3 pr-12 text-left text-sm font-semibold uppercase text-indigo-700">{{ download.format }} ↓</a><button v-else type="button" disabled class="flex min-h-20 w-full items-center gap-2 rounded-xl border bg-slate-50 p-3 pr-12 text-sm uppercase text-slate-400"><span v-if="working" class="size-3 rounded-full border-2 border-indigo-200 border-t-indigo-600 motion-safe:animate-spin" aria-hidden="true" />{{ download.format }}</button><PrivacyDeleteAction v-if="download.item?.downloadUrl" placement="corner" resource-type="translation" :resource-id="record.id" scope="generated" :category="download.format" :name="record.name" :label="`Delete ${download.format.toUpperCase()} files`" :disabled="busy || working" @completed="emit('refresh')" /></div></div></div>
     </template>
   </section>
 </template>

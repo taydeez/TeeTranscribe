@@ -57,7 +57,8 @@ class IntronClient
 
             Log::info('Intron upload response', [
                 'http_status' => $response->status(),
-                'response' => $response->json() ?? $response->body(),
+                'file_id' => $response->json('data.file_id') ?? $response->json('file_id'),
+                'status' => $response->json('status'),
             ]);
 
             $response = $response->throw()->json();
@@ -145,7 +146,8 @@ class IntronClient
         Log::info('Intron status response', [
             'file_id' => $fileId,
             'http_status' => $response->status(),
-            'response' => $response->json() ?? $response->body(),
+            'processing_status' => $response->json('data.processing_status'),
+            'duration_seconds' => $response->json('data.processed_audio_duration_in_seconds'),
         ]);
 
         $response = $response->throw()->json();

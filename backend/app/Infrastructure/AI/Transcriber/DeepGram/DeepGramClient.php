@@ -28,7 +28,7 @@ final class DeepGramClient
         $this->model = rtrim(config('transcriber.deepgram.model', 'nova-2'));
     }
 
-    public function transcribe(string $audioUrl, string $languageCode, string $transcription_id): string
+    public function transcribe(string $audioUrl, string $languageCode, string $transcription_id, ?string $model = null): string
     {
 
         if ((! filter_var($audioUrl, FILTER_VALIDATE_URL)) || $languageCode === '') {
@@ -45,7 +45,7 @@ final class DeepGramClient
 
             $callbackUrl = rtrim(config('app.url'), '/').$relativeUrl;
 
-            Log::info('Deepgram API request initiated-----------'."$audioUrl"."$callbackUrl");
+            Log::info('Deepgram API request initiated', ['transcription_id' => $transcription_id]);
 
             $response = Http::withToken(
                 config('transcriber.deepgram.key'),
@@ -53,7 +53,7 @@ final class DeepGramClient
             )
                 ->acceptJson()
                 ->withQueryParameters([
-                    'model' => $this->model,
+                    'model' => $model ?? $this->model,
                     'language' => $languageCode,
                     'punctuate' => $this->punctuate,
                     'smart_format' => 'true',
@@ -66,9 +66,10 @@ final class DeepGramClient
                     'url' => $audioUrl,
                 ])->throw();
         } catch (\Exception $e) {
-            throw new RuntimeException('Deepgram API request failed----------------------->'.$e->getMessage());
+            Log::warning('Deepgram API request failed', ['transcription_id' => $transcription_id, 'exception_type' => $e::class]);
+            throw new RuntimeException('Deepgram API request failed.');
         }
-        Log::info('Deepgram API request successful', ['response' => $response->json()]);
+        Log::info('Deepgram API request successful', ['transcription_id' => $transcription_id, 'http_status' => $response->status(), 'request_id' => $response->json('request_id')]);
 
         return $response->json('request_id');
     }

@@ -97,6 +97,21 @@ final readonly class ElevenLabsDubbingGateway implements DubbingGatewayInterface
         ]);
     }
 
+    public function subtitles(Dubbing $record): array
+    {
+        $this->id($record->projectId);
+        $this->id($record->languageId);
+        $result = $this->client->request('GET', '/'.$record->projectId.'/language/'.$record->languageId.'/transcript');
+        $language = $this->language($record->projectId, $record->languageId);
+        if (($result['target_language'] ?? null) !== $record->targetLanguage || ! is_array($result['segments'] ?? null)
+            || $language['status'] !== 'completed' || ($result['revision'] ?? null) !== ($language['output_revision'] ?? null)) {
+            throw new BillingException('The dubbing subtitles are not ready.', 502);
+        }
+
+        return ['segments' => array_map(fn ($segment) => ['start' => $segment['start_s'] ?? null,
+            'end' => $segment['end_s'] ?? null, 'text' => $segment['translation'] ?? null], $result['segments'])];
+    }
+
     private function id(mixed $id): void
     {
         if (! is_string($id) || preg_match('/^[a-zA-Z0-9_-]{1,200}$/D', $id) !== 1) {

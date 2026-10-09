@@ -26,6 +26,14 @@ final class EloquentDubbingRepository implements DubbingRepositoryInterface
     public function update(string $id, array $data): Dubbing
     {
         $record = Record::findOrFail($id);
+        $clocks = $record->file_generated_at ?? [];
+        foreach (['audio_storage_path' => 'dubbed_audio', 'audio_preview_storage_path' => 'dubbed_audio',
+            'video_storage_path' => 'dubbed_video', 'captioned_video_storage_path' => 'dubbed_video', 'subtitle_storage_path' => 'subtitles'] as $column => $category) {
+            if (! empty($data[$column])) {
+                $clocks[$category] = now()->toIso8601String();
+            }
+        }
+        $data['file_generated_at'] = $clocks;
         $record->update($data);
 
         return $this->entity($record->refresh());
@@ -55,6 +63,17 @@ final class EloquentDubbingRepository implements DubbingRepositoryInterface
         return new Dubbing($r->id, $r->user_id, $r->name, $r->source_storage_path, $r->source_language, $r->target_language,
             $r->duration_ms, $r->status, $r->provider_project_id, $r->provider_language_id,
             $r->submission_started_at?->toIso8601String(), $r->provider_completed_at?->toIso8601String(),
-            $r->audio_storage_path, $r->video_storage_path, $r->failure_reason, $r->created_at?->toIso8601String());
+            $r->audio_storage_path, $r->video_storage_path, $r->failure_reason, $r->created_at?->toIso8601String(),
+            $r->provider, $r->model, $r->provider_options ?? [], $r->subtitles_enabled, $r->subtitle_style, $r->subtitle_status,
+            $r->subtitle_storage_path, $r->captioned_video_storage_path, $r->operation, $r->source_subtitle_segments,
+            $r->translated_subtitle_segments, $r->detected_source_language, $r->media_type, $r->audio_preview_storage_path, $r->folder_id);
+    }
+
+    public function enqueueSubtitles(string $id, bool $retry = false): void
+    {
+        $event = app(OutboxService::class)->record('dubbing:'.$id.':subtitles', 'DubbingSubtitlesRequested', $id, []);
+        if ($retry && $event->published_at !== null) {
+            $event->update(['published_at' => null, 'attempts' => 0]);
+        }
     }
 }

@@ -18,6 +18,24 @@ return [
     ],
     'rates' => [
         'transcription' => [
+            'openai' => [env('OPENAI_TRANSCRIPTION_MODEL', 'gpt-4o-transcribe-diarize') => [
+                'unit' => 'minute',
+                'credits' => env('BILLING_OPENAI_TRANSCRIPTION_CREDITS_PER_MINUTE'),
+                'provider_cost' => env('BILLING_OPENAI_TRANSCRIPTION_USD_PER_MINUTE'),
+                'provider_currency' => 'USD',
+            ]],
+            'google' => [env('GOOGLE_SPEECH_MODEL', 'chirp_3') => [
+                'unit' => 'minute',
+                'credits' => env('BILLING_GOOGLE_TRANSCRIPTION_CREDITS_PER_MINUTE'),
+                'provider_cost' => env('BILLING_GOOGLE_TRANSCRIPTION_USD_PER_MINUTE'),
+                'provider_currency' => 'USD',
+            ]],
+            'elevenlabs' => [env('ELEVENLABS_TRANSCRIPTION_MODEL', 'scribe_v2') => [
+                'unit' => 'minute',
+                'credits' => env('BILLING_ELEVENLABS_TRANSCRIPTION_CREDITS_PER_MINUTE'),
+                'provider_cost' => env('BILLING_ELEVENLABS_TRANSCRIPTION_USD_PER_MINUTE'),
+                'provider_currency' => 'USD',
+            ]],
             'deepgram' => [
                 env('DEEPGRAM_MODEL', 'nova-2') => [
                     'unit' => 'minute',
@@ -33,13 +51,39 @@ return [
                 'provider_currency' => 'USD',
             ]],
         ],
-        'translation' => ['google' => ['nmt' => [
+        'subtitles' => ['deepgram' => ['nova-2' => [
+            'unit' => 'minute', 'credits' => env('BILLING_SUBTITLES_CREDITS_PER_MINUTE'),
+            'provider_cost' => env('BILLING_SUBTITLES_USD_PER_MINUTE'), 'provider_currency' => 'USD',
+        ]]],
+        'translation' => ['openai' => [env('OPENAI_TRANSLATION_MODEL', env('OPENAI_TEXT_MODEL', 'gpt-4.1-mini')) => [
+            'unit' => '1000_characters',
+            'credits' => env('BILLING_OPENAI_TRANSLATION_CREDITS_PER_1000_CHARACTERS'),
+            'provider_cost' => env('BILLING_OPENAI_TRANSLATION_USD_PER_1000_CHARACTERS'),
+            'provider_currency' => 'USD',
+        ]], 'google' => ['nmt' => [
             'unit' => '1000_characters',
             'credits' => env('BILLING_GOOGLE_TRANSLATION_CREDITS_PER_1000_CHARACTERS'),
             'provider_cost' => env('BILLING_GOOGLE_TRANSLATION_USD_PER_1000_CHARACTERS'),
             'provider_currency' => 'USD',
         ]]],
-        'dubbing' => ['elevenlabs' => ['dubbing_v2' => [
+        'cleanup' => ['openai' => [env('OPENAI_TEXT_MODEL', 'gpt-4.1-mini') => [
+            'unit' => '1000_characters',
+            'credits' => env('BILLING_OPENAI_CLEANUP_CREDITS_PER_1000_CHARACTERS'),
+            'provider_cost' => env('BILLING_OPENAI_CLEANUP_USD_PER_1000_CHARACTERS'),
+            'provider_currency' => 'USD',
+        ]]],
+        'summary' => ['openai' => [env('OPENAI_TEXT_MODEL', 'gpt-4.1-mini') => [
+            'unit' => '1000_characters',
+            'credits' => env('BILLING_OPENAI_SUMMARY_CREDITS_PER_1000_CHARACTERS'),
+            'provider_cost' => env('BILLING_OPENAI_SUMMARY_USD_PER_1000_CHARACTERS'),
+            'provider_currency' => 'USD',
+        ]]],
+        'dubbing' => ['heygen' => [
+            'precision' => ['unit' => 'minute', 'credits' => env('BILLING_HEYGEN_PRECISION_CREDITS_PER_MINUTE'),
+                'provider_cost' => env('BILLING_HEYGEN_PRECISION_USD_PER_MINUTE'), 'provider_currency' => 'USD'],
+            'speed' => ['unit' => 'minute', 'credits' => env('BILLING_HEYGEN_SPEED_CREDITS_PER_MINUTE'),
+                'provider_cost' => env('BILLING_HEYGEN_SPEED_USD_PER_MINUTE'), 'provider_currency' => 'USD'],
+        ], 'elevenlabs' => ['dubbing_v2' => [
             'unit' => 'minute',
             'credits' => env('BILLING_ELEVENLABS_DUBBING_CREDITS_PER_MINUTE'),
             'provider_cost' => env('BILLING_ELEVENLABS_DUBBING_USD_PER_MINUTE'),

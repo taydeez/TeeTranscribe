@@ -4,6 +4,7 @@ namespace App\Domain\Folder\Contracts;
 
 use App\Domain\Folder\Entities\Folder;
 use App\Domain\Folder\Entities\FolderPage;
+use App\Domain\Folder\Entities\FolderProject;
 use App\Domain\Folder\Entities\FolderTranscription;
 
 interface FolderRepositoryInterface
@@ -18,6 +19,11 @@ interface FolderRepositoryInterface
     ): FolderPage;
 
     public function findForUser(string $id, int $userId): ?Folder;
+
+    public function folderForTranscription(string $transcriptionId, int $userId): ?Folder;
+
+    /** @return list<FolderProject> */
+    public function projectsForUser(string $id, int $userId): array;
 
     /** @return list<FolderTranscription> */
     public function transcriptionsForUser(string $id, int $userId): array;

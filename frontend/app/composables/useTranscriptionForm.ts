@@ -127,7 +127,7 @@ export function useTranscriptionForm() {
         if (!file.value) throw new Error('Choose or record audio before submitting.')
         stage.value = 'uploading'
         const extension = file.value.name.split('.').pop()!.toLowerCase()
-        const result = await resumable.upload(file.value, formats[extension]!)
+        const result = await resumable.upload(file.value, formats[extension]!, source.value === 'record' ? 'recording' : 'audio')
         uploadedUrl.value = result.audio_url; audioStoragePath = result.audio_storage_path
       }
     }

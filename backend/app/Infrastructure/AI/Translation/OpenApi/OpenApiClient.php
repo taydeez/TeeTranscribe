@@ -6,6 +6,6 @@
  * See the LICENSE file for details.
  */
 
-namespace App\Infrastructure\AI\Translator\OpenApi;
+namespace App\Infrastructure\AI\Translation\OpenApi;
 
 final class OpenApiClient {}

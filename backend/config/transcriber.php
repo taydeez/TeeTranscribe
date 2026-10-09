@@ -19,6 +19,37 @@ return [
     */
 
     'fallback' => env('TRANSCRIBER_FALLBACK', 'deepgram'),
+    'language_providers' => json_decode(env('TRANSCRIBER_LANGUAGE_PROVIDERS', '{}'), true, 512, JSON_THROW_ON_ERROR),
+
+    'openai' => [
+        // This speaker model retires on 2027-02-26; the configurable gpt-transcribe replacement currently returns plain text.
+        'model' => env('OPENAI_TRANSCRIPTION_MODEL', 'gpt-4o-transcribe-diarize'),
+        'max_duration_ms' => min(5400000, (int) env('OPENAI_TRANSCRIPTION_MAX_MINUTES', 90) * 60000),
+        'max_upload_bytes' => 24000000,
+        'bitrate' => '32k',
+        'conversion_timeout' => 180,
+        'request_timeout' => 600,
+        'ffmpeg' => env('FFMPEG_BIN', 'ffmpeg'),
+    ],
+
+    'google' => [
+        'model' => env('GOOGLE_SPEECH_MODEL', 'chirp_3'),
+        'project' => env('GOOGLE_SPEECH_PROJECT_ID'),
+        'location' => env('GOOGLE_SPEECH_LOCATION', 'us'),
+        'credentials' => env('GOOGLE_APPLICATION_CREDENTIALS'),
+        'bucket' => env('GOOGLE_SPEECH_BUCKET'),
+        'diarization' => env('GOOGLE_SPEECH_DIARIZATION', true),
+        'word_timestamps' => env('GOOGLE_SPEECH_WORD_TIMESTAMPS', true),
+        'poll_interval' => 15,
+        'poll_timeout_minutes' => 120,
+    ],
+    'elevenlabs' => [
+        'model' => env('ELEVENLABS_TRANSCRIPTION_MODEL', 'scribe_v2'),
+        'key' => env('ELEVENLABS_API_KEY', env('ELEVEN_LABS_API_KEY')),
+        'webhook_id' => env('ELEVENLABS_TRANSCRIPTION_WEBHOOK_ID'),
+        'webhook_secret' => env('ELEVENLABS_TRANSCRIPTION_WEBHOOK_SECRET'),
+        'diarization' => env('ELEVENLABS_TRANSCRIPTION_DIARIZATION', true),
+    ],
 
     'deepgram' => [
         'model' => env('DEEPGRAM_MODEL', 'nova-2'),

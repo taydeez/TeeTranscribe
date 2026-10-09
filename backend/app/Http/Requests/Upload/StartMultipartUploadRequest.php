@@ -22,6 +22,7 @@ class StartMultipartUploadRequest extends PresignAudioUploadRequest
             'size' => ['required', 'integer', 'min:1', 'max:'.config('uploads.max_bytes')],
             'client_key' => ['required', 'uuid'],
             'fingerprint' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'source_kind' => ['sometimes', 'in:audio,video,recording'],
         ]);
     }
 }

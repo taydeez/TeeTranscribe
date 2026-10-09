@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['user_id', 'name'])]
 class Folder extends Model
@@ -26,5 +27,17 @@ class Folder extends Model
         return $this->belongsToMany(Transcription::class)
             ->using(FolderTranscription::class)
             ->withPivot('id');
+    }
+
+    /** @return HasMany<Translation, $this> */
+    public function translations(): HasMany
+    {
+        return $this->hasMany(Translation::class);
+    }
+
+    /** @return HasMany<Dubbing, $this> */
+    public function dubbings(): HasMany
+    {
+        return $this->hasMany(Dubbing::class);
     }
 }

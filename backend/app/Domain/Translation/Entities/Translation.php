@@ -21,5 +21,8 @@ final readonly class Translation
         public int $exportRevision = 0,
         public ?string $failureReason = null,
         public ?string $createdAt = null,
+        public ?string $folderId = null,
+        public string $provider = 'google',
+        public string $model = 'nmt',
     ) {}
 }
