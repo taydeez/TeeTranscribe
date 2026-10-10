@@ -44,6 +44,7 @@ beforeEach(function () {
         'billing.rates.transcription.deepgram.nova-2.provider_cost' => '0.01',
         'billing.rates.transcription.intron.default.credits' => '30',
         'billing.rates.transcription.intron.default.provider_cost' => '0.01',
+        'transcriber.deepgram.key' => 'test-deepgram-key', 'transcriber.intron.key' => 'test-intron-key',
         'transcriber.deepgram.model' => 'nova-2',
         'transcriber.fallback' => 'deepgram',
         'transcriber.intron.languages' => ['yo', 'ig', 'ha', 'pcm', 'en-NG'],

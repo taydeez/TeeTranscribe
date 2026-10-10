@@ -27,19 +27,21 @@ final readonly class TranscriptToolService
 
     public function configured(): bool
     {
-        $definition = $this->gateway->definition();
-        if (! $definition['configured']) {
-            return false;
-        }
-        try {
-            foreach (['cleanup', 'summary'] as $operation) {
+        foreach (['cleanup', 'summary'] as $operation) {
+            try {
+                $definition = $this->gateway->definition($operation);
+                if (! $definition['configured']) {
+                    continue;
+                }
                 $this->settings->rate($operation, 'openai', $definition['model']);
+
+                return true;
+            } catch (BillingException) {
+                continue;
             }
-        } catch (BillingException) {
-            return false;
         }
 
-        return true;
+        return false;
     }
 
     public function source(string $id, int $userId): Transcription
@@ -103,7 +105,7 @@ final readonly class TranscriptToolService
 
                 return $existing;
             }
-            $definition = $this->gateway->definition();
+            $definition = $this->gateway->definition($operation);
             if (! $definition['configured']) {
                 throw new BillingException('Transcript tools are not configured yet.', 503);
             }

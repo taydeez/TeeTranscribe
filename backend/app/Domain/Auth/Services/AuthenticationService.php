@@ -20,6 +20,6 @@ class AuthenticationService
     {
         $user = $this->repository->authenticate($email, $password) ?? throw new AuthenticationException('Invalid credentials.');
 
-        return ['user' => $user, 'is_admin' => in_array('admin', $user->roles, true), 'token' => in_array('admin', $user->roles, true) ? null : $this->repository->issueToken($user->id, 'web')];
+        return ['user' => $user, 'is_admin' => $user->isAdmin(), 'token' => $user->isAdmin() ? null : $this->repository->issueToken($user->id, 'web')];
     }
 }

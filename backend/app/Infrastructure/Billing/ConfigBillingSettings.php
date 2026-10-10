@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Billing;
 
+use App\Domain\AI\Services\ProviderRouting;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\CreditMath;
@@ -9,9 +10,13 @@ use Carbon\CarbonImmutable;
 
 final class ConfigBillingSettings implements BillingSettingsInterface
 {
+    public function __construct(private readonly ProviderRouting $routing) {}
+
     public function rate(string $activity, string $provider, string $model): array
     {
-        $config = config('billing.rates.'.$activity.'.'.$provider, [])[$model] ?? null;
+        $entry = ProviderRouting::findModel($this->routing->models($activity === 'dubbing' ? 'video_dubbing' : $activity, $provider), $model);
+        $billingActivity = str_ends_with($activity, '_dubbing') ? 'dubbing' : $activity;
+        $config = $entry['pricing'] ?? config('billing.rates.'.$billingActivity.'.'.$provider, [])[$model] ?? null;
         if (! is_array($config) || ! isset($config['credits'])) {
             throw new BillingException('Pricing is not available for this language yet.', 503);
         }
@@ -36,7 +41,7 @@ final class ConfigBillingSettings implements BillingSettingsInterface
 
     public function model(string $provider): string
     {
-        return (string) config('transcriber.'.$provider.'.model', 'default');
+        return (string) ($this->routing->configuration('transcription')['configuration']['providers'][$provider]['model'] ?? config('transcriber.'.$provider.'.model', 'default'));
     }
 
     public function packages(): array

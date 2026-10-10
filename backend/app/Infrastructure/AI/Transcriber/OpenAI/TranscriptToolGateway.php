@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\AI\Transcriber\OpenAI;
 
+use App\Domain\AI\Services\ProviderRouting;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Transcriber\Contracts\TranscriptToolGatewayInterface;
 use App\Domain\Transcriber\Contracts\TranscriptToolRepositoryInterface;
@@ -11,12 +12,12 @@ use App\Infrastructure\AI\OpenAI\OpenAIClient;
 
 final readonly class TranscriptToolGateway implements TranscriptToolGatewayInterface
 {
-    public function __construct(private OpenAIClient $client, private TranscriptToolRepositoryInterface $tools) {}
+    public function __construct(private OpenAIClient $client, private TranscriptToolRepositoryInterface $tools, private ProviderRouting $routing) {}
 
-    public function definition(): array
+    public function definition(string $operation = 'cleanup'): array
     {
         $key = config('openai.key');
-        $model = (string) config('openai.text_model', 'gpt-4.1-mini');
+        $model = $this->routing->select($operation)['model'];
 
         return ['configured' => is_string($key) && trim($key) !== '' && trim($model) !== '', 'model' => $model];
     }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Models\AdminLoginCode;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -92,5 +93,5 @@ test('restricts administrator endpoints to the admin role', function () {
 
     $this->withToken($user->createToken('web')->plainTextToken)->getJson('/api/v1/admin/user')->assertForbidden();
     app('auth')->forgetGuards();
-    $this->withToken($admin->createToken('admin')->plainTextToken)->getJson('/api/v1/admin/user')->assertOk();
+    $this->withToken(app(AuthRepositoryInterface::class)->issueToken($admin->id, 'admin'))->getJson('/api/v1/admin/user')->assertOk();
 });

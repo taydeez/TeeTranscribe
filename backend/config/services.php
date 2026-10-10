@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'signup_location' => [
+        'enabled' => env('SIGNUP_LOCATION_ENABLED', true),
+        'key' => env('IPAPI_KEY'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

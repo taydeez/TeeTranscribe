@@ -38,7 +38,7 @@ final readonly class TranslationService
 
                 return $existing;
             }
-            $definition = $this->gateways->definition();
+            $definition = $this->gateways->definition($source['target_language']);
             if (! $definition['configured']) {
                 throw new BillingException('Translation is not configured yet.', 503);
             }

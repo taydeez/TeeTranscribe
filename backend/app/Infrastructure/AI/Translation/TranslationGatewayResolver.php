@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\AI\Translation;
 
+use App\Domain\AI\Services\ProviderRouting;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Translation\Contracts\TranslationGatewayInterface;
 use App\Domain\Translation\Contracts\TranslationGatewayResolverInterface;
@@ -10,13 +11,14 @@ use App\Infrastructure\AI\Translation\Gateways\OpenAITranslationGateway;
 
 final readonly class TranslationGatewayResolver implements TranslationGatewayResolverInterface
 {
-    public function __construct(private TranslationGatewayInterface $google, private OpenAIClient $openai) {}
+    public function __construct(private TranslationGatewayInterface $google, private OpenAIClient $openai, private ProviderRouting $routing) {}
 
-    public function definition(): array
+    public function definition(?string $language = null): array
     {
-        $provider = (string) config('translation.provider', 'google');
+        $selection = $this->routing->select('translation', $language);
+        $provider = $selection['provider'];
         $this->resolve($provider);
-        $model = $provider === 'google' ? 'nmt' : (string) config('translation.openai.model', config('openai.text_model', 'gpt-4.1-mini'));
+        $model = $selection['model'];
 
         return ['provider' => $provider, 'model' => $model, 'max_segments' => $provider === 'openai' ? 4000 : 20000,
             'configured' => $model !== '' && filled(config($provider === 'google' ? 'translation.google.key' : 'openai.key'))];
@@ -33,6 +35,25 @@ final readonly class TranslationGatewayResolver implements TranslationGatewayRes
 
     public function languages(?string $provider = null): array
     {
-        return $this->resolve($provider ?? $this->definition()['provider'])->languages();
+        if ($provider !== null) {
+            return $this->resolve($provider)->languages();
+        }
+        $configuration = $this->routing->configuration('translation')['configuration'];
+        $items = [];
+        foreach ($this->routing->available('translation') as $name => $settings) {
+            if (! ProviderRouting::usesProvider($configuration, $name)) {
+                continue;
+            }
+            $models = $this->routing->models('translation', $name);
+            foreach ($this->resolve($name)->languages() as $language) {
+                if (ProviderRouting::providerFor($configuration, $language['code']) === $name
+                    && ProviderRouting::modelSupports($configuration, $language['code'], $models)
+                    && ($settings['languages'] === [] || ProviderRouting::supports($settings['languages'], strtolower($language['code'])))) {
+                    $items[$language['code']] = $language;
+                }
+            }
+        }
+
+        return array_values($items);
     }
 }

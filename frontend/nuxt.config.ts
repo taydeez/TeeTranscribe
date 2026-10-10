@@ -8,6 +8,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
+    trustedProxyIps: '',
     apiBase: 'http://127.0.0.1:8000/api/v1',
   },
   app: {

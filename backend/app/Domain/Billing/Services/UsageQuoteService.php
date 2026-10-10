@@ -34,11 +34,12 @@ final class UsageQuoteService
                 return $existing;
             }
             try {
-                $provider = $this->resolver->resolve($source['language_code'])->provider();
+                $selection = $this->resolver->definition($source['language_code']);
+                $provider = $selection['provider'];
             } catch (\InvalidArgumentException $exception) {
                 throw new BillingException('The selected language is not supported by the configured speech model.', 422);
             }
-            $model = $this->settings->model($provider);
+            $model = $selection['model'];
             if ($provider === 'openai') {
                 try {
                     OpenAITranscriptionCapabilities::format($model);

@@ -3,7 +3,11 @@ const auth = useAuthStore()
 const route = useRoute()
 const menuOpen = ref(false)
 const title = computed(() => String(route.meta.title ?? 'Home'))
-async function logout() { await auth.logout(); await navigateTo('/') }
+async function logout() {
+  const loginUrl = auth.isAdmin ? '/taydeez/login' : '/'
+  await auth.logout()
+  await navigateTo(loginUrl)
+}
 </script>
 <template>
   <div class="workspace-layout">

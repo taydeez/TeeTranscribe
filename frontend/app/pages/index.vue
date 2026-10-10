@@ -8,11 +8,15 @@ function openAuth(mode: 'login' | 'register') { authMode.value = mode; authOpen.
 async function signOut() { await auth.logout() }
 
 onMounted(async () => {
+  if (typeof route.query.admin_verify === 'string') {
+    await navigateTo({ path: '/taydeez/login', query: { verify: '1', email: route.query.admin_verify } })
+    return
+  }
   if (route.query.login === '1') openAuth('login')
   const hashToken = new URLSearchParams(window.location.hash.slice(1)).get('token')
   if (hashToken) {
     history.replaceState(null, '', window.location.pathname)
-    try { await auth.establishSession(hashToken); await navigateTo('/dashboard') }
+    try { await auth.establishSession(hashToken); await navigateTo(auth.isAdmin ? '/taydeez' : '/dashboard') }
     catch { authOpen.value = true }
     return
   }
