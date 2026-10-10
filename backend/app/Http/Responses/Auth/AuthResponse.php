@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses\Auth;
 
+use App\Domain\Admin\Auth\Services\AdminAccess;
 use App\Http\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -74,6 +75,11 @@ final class AuthResponse extends ApiResponse
         return $this->json(['token' => $token]);
     }
 
+    public function adminEmailChallenge(string $email): JsonResponse
+    {
+        return $this->json(['requires_two_factor' => true, 'email' => $email]);
+    }
+
     public function googleCallback(string $token): RedirectResponse
     {
         return $this->away(rtrim((string) config('app.frontend_url', 'http://127.0.0.1:3000'), '/').'/#token='.rawurlencode($token));
@@ -81,7 +87,23 @@ final class AuthResponse extends ApiResponse
 
     public function user(Request $request, bool $admin = false): JsonResponse
     {
-        return $this->json($admin ? $request->user() : $request->user()->toArray() + ['email_verified' => $request->user()->hasVerifiedEmail()]);
+        return $this->json(array_merge($request->user()->toArray(), [
+            'roles' => $request->user()->getRoleNames()->all(),
+            'is_admin' => $request->user()->hasAnyRole(AdminAccess::ROLES),
+            'permissions' => $request->user()->hasAnyRole(AdminAccess::ROLES)
+                ? $request->user()->getAllPermissions()->pluck('name')->all() : [],
+            'email_verified' => $request->user()->hasVerifiedEmail(),
+        ]));
+    }
+
+    public function adminActivity(string $expiresAt): JsonResponse
+    {
+        return $this->json(['expires_at' => $expiresAt])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function googleAdminChallenge(string $email): RedirectResponse
+    {
+        return $this->away(rtrim((string) config('app.frontend_url', 'http://127.0.0.1:3000'), '/').'/taydeez/login?verify=1&email='.rawurlencode($email));
     }
 
     public function guestSession(string $id): JsonResponse

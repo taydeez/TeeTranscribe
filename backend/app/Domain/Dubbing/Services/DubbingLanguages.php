@@ -121,9 +121,9 @@ final class DubbingLanguages
         'es-MX' => 'Spanish (Mexico)',
     ];
 
-    public function all(string $mediaType = 'video'): array
+    public function all(string $mediaType = 'video', ?string $language = null): array
     {
-        return $this->providers?->languages($mediaType) ?? $this->sourceLanguages();
+        return $this->providers?->languages($mediaType, $language) ?? $this->sourceLanguages();
     }
 
     public function sourceLanguages(): array
@@ -138,9 +138,20 @@ final class DubbingLanguages
         return $items;
     }
 
+    public static function routingCode(string $language): string
+    {
+        foreach (self::LANGUAGES as $code => $name) {
+            if (strcasecmp($name, $language) === 0) {
+                return strtolower($code);
+            }
+        }
+
+        return strtolower($language);
+    }
+
     public function validate(?string $source, string $target, string $mediaType = 'video'): void
     {
-        if (! in_array($target, array_column($this->all($mediaType), 'code'), true) || ($source !== null && ! isset(self::LANGUAGES[$source]))) {
+        if (! in_array($target, array_column($this->all($mediaType, $target), 'code'), true) || ($source !== null && ! isset(self::LANGUAGES[$source]))) {
             throw new BillingException('Select a supported dubbing language.', 422);
         }
         if ($source !== null && (explode('-', $source)[0] === explode('-', $target)[0]

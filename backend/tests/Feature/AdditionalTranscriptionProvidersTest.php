@@ -51,6 +51,7 @@ function sendElevenSpeechEvent($test, array $payload, ?int $timestamp = null, ?s
     ], $body);
 }
 beforeEach(function () {
+    config(['transcriber.google.credentials' => 'test-credentials.json', 'transcriber.elevenlabs.key' => 'test-key', 'transcriber.elevenlabs.webhook_id' => 'webhook-test', 'transcriber.elevenlabs.webhook_secret' => 'webhook-secret', 'transcriber.intron.key' => 'test-key']);
     config()->set('transcriber.google.project', 'test-project');
     config()->set('transcriber.google.bucket', 'test-speech-bucket');
     config()->set('transcriber.google.location', 'us');

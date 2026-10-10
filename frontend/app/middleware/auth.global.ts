@@ -12,4 +12,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!auth.isEmailVerified) {
     return navigateTo('/auth/verify-email')
   }
+  if (auth.isAdmin) {
+    return navigateTo('/taydeez')
+  }
 })

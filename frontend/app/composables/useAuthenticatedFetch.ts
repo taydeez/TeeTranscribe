@@ -20,8 +20,9 @@ export async function useAuthenticatedFetch<T>(request: string, options: FetchOp
     const failure = error as { statusCode?: number; status?: number; response?: { status?: number }; data?: { message?: string } }
     const status = failure.statusCode ?? failure.status ?? failure.response?.status
     if (status === 401) {
+      const loginUrl = auth.isAdmin ? '/taydeez/login?sessionExpired=1' : '/'
       auth.clearSession()
-      await navigateTo('/')
+      await navigateTo(loginUrl)
     }
     if (status === 403 && failure.data?.message?.includes('email address is not verified')) {
       await auth.refreshUser()

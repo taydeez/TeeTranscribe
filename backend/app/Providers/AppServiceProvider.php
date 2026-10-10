@@ -2,7 +2,15 @@
 
 namespace App\Providers;
 
+use App\Domain\Admin\Account\Contracts\AdminAccountRepositoryInterface;
+use App\Domain\Admin\Auth\Contracts\AdminSessionGatewayInterface;
+use App\Domain\Admin\Auth\Services\AdminAccess;
+use App\Domain\Admin\Customer\Contracts\CustomerRepositoryInterface;
+use App\Domain\Admin\Role\Contracts\AdminRoleRepositoryInterface;
+use App\Domain\Admin\TwoFactor\Contracts\AdminCodeMailerInterface;
 use App\Domain\Admin\TwoFactor\Contracts\AdminCodeRepositoryInterface;
+use App\Domain\AI\Contracts\ProviderCatalogInterface;
+use App\Domain\AI\Contracts\ProviderConfigurationRepositoryInterface;
 use App\Domain\Auth\Contracts\AccountSecurityGatewayInterface;
 use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Domain\Auth\Contracts\SocialAuthGatewayInterface;
@@ -46,6 +54,7 @@ use App\Domain\Translation\Contracts\TranslationGatewayResolverInterface;
 use App\Domain\Translation\Contracts\TranslationRepositoryInterface;
 use App\Domain\Upload\Contracts\MultipartStorageInterface;
 use App\Domain\Upload\Contracts\UploadSessionRepositoryInterface;
+use App\Infrastructure\AI\ConfigProviderCatalog;
 use App\Infrastructure\AI\Dubbing\DeepgramSubtitleTranscriber;
 use App\Infrastructure\AI\Dubbing\DubbingGatewayResolver;
 use App\Infrastructure\AI\Dubbing\R2DubbedAudioStorage;
@@ -56,6 +65,8 @@ use App\Infrastructure\AI\TranscriberGatewayResolver;
 use App\Infrastructure\AI\Translation\Gateways\GoogleTranslationGateway;
 use App\Infrastructure\AI\Translation\R2TranslationExportStorage;
 use App\Infrastructure\AI\Translation\TranslationGatewayResolver;
+use App\Infrastructure\Auth\AdminCodeMailer;
+use App\Infrastructure\Auth\AdminSessionGateway;
 use App\Infrastructure\Auth\GoogleSocialAuthGateway;
 use App\Infrastructure\Auth\LaravelAccountSecurityGateway;
 use App\Infrastructure\Billing\ConfigBillingSettings;
@@ -68,14 +79,18 @@ use App\Infrastructure\Payment\Invoices\R2PaymentInvoiceStorage;
 use App\Infrastructure\Payment\PaymentGatewayResolver;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface as EloquentTranscriptionMapperInterface;
 use App\Infrastructure\Persistence\Eloquent\Mappers\TranscriptionMapper as EloquentTranscriptionMapper;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminAccountRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminCodeRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminRoleRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAuthRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentBillingRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentCustomerRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentDubbingRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentFolderRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentMethodRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPrivacyRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentProviderConfigurationRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionExportRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptionRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTranscriptToolRepository;
@@ -88,10 +103,13 @@ use App\Infrastructure\Queue\LaravelTranscriptionPollingDispatcher;
 use App\Infrastructure\Queue\LaravelTranscriptionSubmissionDispatcher;
 use App\Infrastructure\Storage\R2TranscriptionExportUrlGenerator;
 use App\Infrastructure\Upload\R2\R2MultipartStorage;
+use App\Models\User;
+use App\Observers\SignupLocationObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -100,6 +118,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(ProviderConfigurationRepositoryInterface::class, EloquentProviderConfigurationRepository::class);
+        $this->app->bind(ProviderCatalogInterface::class, ConfigProviderCatalog::class);
+        $this->app->bind(AdminAccountRepositoryInterface::class, EloquentAdminAccountRepository::class);
+        $this->app->bind(CustomerRepositoryInterface::class, EloquentCustomerRepository::class);
+        $this->app->bind(AdminRoleRepositoryInterface::class, EloquentAdminRoleRepository::class);
+        $this->app->bind(AdminSessionGatewayInterface::class, AdminSessionGateway::class);
+        $this->app->bind(AdminCodeMailerInterface::class, AdminCodeMailer::class);
         $this->app->bind(PrivacyRepositoryInterface::class, EloquentPrivacyRepository::class);
         $this->app->bind(PrivacyStorageInterface::class, R2PrivacyStorage::class);
         $this->app->singleton(PrivacyCoordinatorInterface::class, LaravelPrivacyCoordinator::class);
@@ -153,6 +178,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        User::observe(SignupLocationObserver::class);
+        Sanctum::authenticateAccessTokensUsing(function ($token, bool $valid): bool {
+            if (! $valid || ! $token->tokenable->hasAnyRole(AdminAccess::ROLES)) {
+                return $valid;
+            }
+
+            return $token->name === 'admin' && $token->expires_at !== null
+                && $token->expires_at->greaterThan(now())
+                && in_array(AdminAccess::TOKEN_ABILITY, $token->abilities, true);
+        });
         Event::listen(
             [TranscriptionCompleted::class, TranscriptionFailed::class],
             SendTranscriptionOutcomeEmail::class,

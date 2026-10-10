@@ -17,7 +17,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'google_id'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'signup_ip', 'signup_location', 'restriction_reason'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -34,6 +34,10 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'privacy_retention' => 'array',
+            'signup_location' => 'array',
+            'suspended_until' => 'datetime',
+            'must_change_password' => 'boolean',
+            'admin_deleted_at' => 'datetime',
         ];
     }
 
@@ -41,6 +45,12 @@ class User extends Authenticatable implements MustVerifyEmail
     public function folders(): HasMany
     {
         return $this->hasMany(Folder::class);
+    }
+
+    public function isRestricted(): bool
+    {
+        return $this->admin_deleted_at !== null || $this->account_status === 'blocked'
+            || ($this->account_status === 'suspended' && ($this->suspended_until === null || $this->suspended_until->isFuture()));
     }
 
     public function sendEmailVerificationNotification(): void

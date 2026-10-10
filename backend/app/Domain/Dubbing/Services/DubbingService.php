@@ -44,7 +44,7 @@ final readonly class DubbingService
                 throw new BillingException('Subtitles require a video upload.', 422);
             }
             $definition = $subtitleOnly ? $this->videoSubtitles->validate($source['source_language'] ?? null, $source['target_language'])
-                : ($audioOnly ? $this->providers->definition('audio') : $this->providers->definition());
+                : $this->providers->definition($audioOnly ? 'audio' : 'video', $source['target_language']);
             if (! $definition['configured']) {
                 throw new BillingException('Dubbing is not configured yet.', 503);
             }
@@ -58,7 +58,7 @@ final readonly class DubbingService
             if ($audioOnly && ! str_starts_with($upload['content_type'], 'audio/')) {
                 throw new BillingException('Choose an audio upload for audio dubbing.', 422);
             }
-            $rate = $this->settings->rate($subtitleOnly ? 'subtitles' : 'dubbing', $definition['provider'], $definition['model']);
+            $rate = $this->settings->rate($subtitleOnly ? 'subtitles' : ($audioOnly ? 'audio_dubbing' : 'video_dubbing'), $definition['provider'], $definition['model']);
 
             return $this->billing->transaction(function () use ($userId, $source, $key, $rate, $definition): array {
                 $quote = $this->billing->createQuote(['user_id' => $userId, 'client_key' => $key, 'activity' => 'dubbing',

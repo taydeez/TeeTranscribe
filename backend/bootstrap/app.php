@@ -5,6 +5,8 @@ use App\Domain\Folder\Exceptions\FolderNotFoundException;
 use App\Domain\Folder\Exceptions\TranscriptionCannotBeAddedToFolderException;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
 use App\Domain\Upload\Exceptions\UploadException;
+use App\Http\Middleware\RequireActiveAccount;
+use App\Http\Middleware\RequireAdminSession;
 use Aws\S3\Exception\S3Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Application;
@@ -23,10 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: array_filter(explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1'))));
+        $middleware->appendToGroup('api', RequireActiveAccount::class);
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'admin.session' => RequireAdminSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

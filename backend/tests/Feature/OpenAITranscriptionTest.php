@@ -30,7 +30,7 @@ beforeEach(function () {
     Queue::fake();
     Storage::fake('r2');
     Storage::disk('r2')->put('uploads/verified-audio.wav', 'verified-audio');
-    config(['openai.key' => 'test-openai-key', 'openai.endpoint' => 'https://api.openai.com/v1/',
+    config(['transcriber.intron.key' => 'test-intron-key', 'openai.key' => 'test-openai-key', 'openai.endpoint' => 'https://api.openai.com/v1/',
         'transcriber.fallback' => 'openai', 'transcriber.language_providers' => [],
         'transcriber.openai.model' => 'gpt-4o-transcribe-diarize', 'billing.free_credits' => '0',
         'billing.rates.transcription.openai.gpt-4o-transcribe-diarize' => ['unit' => 'minute', 'credits' => '10']]);

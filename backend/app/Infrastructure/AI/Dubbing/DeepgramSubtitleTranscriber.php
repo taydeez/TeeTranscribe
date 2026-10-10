@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\AI\Dubbing;
 
+use App\Domain\AI\Services\ProviderRouting;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Dubbing\Contracts\VideoSubtitleTranscriberInterface;
 use App\Domain\Dubbing\Entities\Dubbing;
@@ -11,9 +12,13 @@ use Illuminate\Support\Facades\Log;
 
 final class DeepgramSubtitleTranscriber implements VideoSubtitleTranscriberInterface
 {
+    public function __construct(private readonly ProviderRouting $routing) {}
+
     public function definition(): array
     {
-        return ['provider' => 'deepgram', 'model' => 'nova-2',
+        $selection = $this->routing->select('subtitles');
+
+        return ['provider' => $selection['provider'], 'model' => $selection['model'],
             'configured' => filled(config('transcriber.deepgram.key')) && filled(config('translation.google.key')),
             'source_codes' => ['en', 'bg', 'ca', 'zh', 'zh-TW', 'zh-HK', 'cs', 'da', 'nl', 'nl-BE', 'et', 'fi', 'fr', 'de', 'de-CH',
                 'el', 'hi', 'hu', 'id', 'it', 'ja', 'ko', 'lv', 'lt', 'ms', 'no', 'pl', 'pt', 'ro', 'ru', 'sk', 'es', 'sv', 'th', 'tr', 'uk', 'vi']];
@@ -21,7 +26,7 @@ final class DeepgramSubtitleTranscriber implements VideoSubtitleTranscriberInter
 
     public function transcribe(Dubbing $record, string $sourceUrl): array
     {
-        if ($record->provider !== 'deepgram' || $record->model !== 'nova-2' || blank(config('transcriber.deepgram.key'))) {
+        if ($record->provider !== 'deepgram' || blank(config('transcriber.deepgram.key'))) {
             throw new BillingException('Subtitle transcription is not configured.', 503);
         }
         $options = ['model' => $record->model, 'punctuate' => 'true', 'smart_format' => 'true', 'utterances' => 'true'];

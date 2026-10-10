@@ -1,6 +1,26 @@
 <?php
 
+use App\Http\Controllers\Admin\Account\DeleteAdminAccountController;
+use App\Http\Controllers\Admin\Account\ListAdminAccountController;
+use App\Http\Controllers\Admin\Account\StoreAdminAccountController;
+use App\Http\Controllers\Admin\Account\UpdateAdminAccountRoleController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AIProvider\ListAIProviderConfigurationController;
+use App\Http\Controllers\Admin\AIProvider\UpdateAIProviderConfigurationController;
+use App\Http\Controllers\Admin\Auth\ChangeInitialPasswordController;
+use App\Http\Controllers\Admin\Auth\LoginAdminController;
+use App\Http\Controllers\Admin\Auth\RecordAdminActivityController;
+use App\Http\Controllers\Admin\Customer\AdjustCustomerCreditsController;
+use App\Http\Controllers\Admin\Customer\ListCustomerController;
+use App\Http\Controllers\Admin\Customer\ShowCustomerController;
+use App\Http\Controllers\Admin\Customer\UpdateCustomerAccessController;
+use App\Http\Controllers\Admin\Role\DeleteRoleController;
+use App\Http\Controllers\Admin\Role\ListPermissionsController;
+use App\Http\Controllers\Admin\Role\ListRoleController;
+use App\Http\Controllers\Admin\Role\ShowRoleController;
+use App\Http\Controllers\Admin\Role\StoreRoleController;
+use App\Http\Controllers\Admin\Role\SyncRolePermissionsController;
+use App\Http\Controllers\Admin\Role\UpdateRoleController;
 use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\GoogleCallbackController;
@@ -79,10 +99,32 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/auth/email/verify/{id}/{hash}', VerifyEmailController::class)
         ->whereNumber('id')->where('hash', '[a-f0-9]{40}')->middleware(['signed:relative', 'throttle:6,1'])->name('verification.verify');
     Route::post('/auth/admin/verify', VerifyAdminLoginController::class)->middleware('throttle:auth');
+    Route::post('/auth/admin/login', LoginAdminController::class)->middleware('throttle:auth');
     Route::get('/auth/google/redirect', GoogleRedirectController::class);
     Route::get('/auth/google/callback', GoogleCallbackController::class)->middleware('throttle:auth');
     Route::post('/auth/logout', LogoutController::class)->middleware('auth:sanctum');
-    Route::get('/admin/user', AdminUserController::class)->middleware(['auth:sanctum', 'verified', 'role:admin']);
+    Route::prefix('admin')->middleware(['auth:sanctum', 'verified', 'role:admin|super_admin', 'admin.session', 'throttle:billing'])->group(function (): void {
+        Route::get('/user', AdminUserController::class);
+        Route::get('/ai-providers', ListAIProviderConfigurationController::class)->middleware('permission:ViewAny_AIProvider');
+        Route::put('/ai-providers/{activity}', UpdateAIProviderConfigurationController::class)->middleware('permission:Update_AIProvider');
+        Route::post('/password', ChangeInitialPasswordController::class)->middleware('throttle:account-password');
+        Route::get('/accounts', ListAdminAccountController::class)->middleware('permission:ViewAny_AdminAccount');
+        Route::post('/accounts', StoreAdminAccountController::class)->middleware('permission:Create_AdminAccount');
+        Route::patch('/accounts/{account}/role', UpdateAdminAccountRoleController::class)->whereNumber('account')->middleware('permission:Update_AdminAccount');
+        Route::delete('/accounts/{account}', DeleteAdminAccountController::class)->whereNumber('account')->middleware('permission:Delete_AdminAccount');
+        Route::get('/customers', ListCustomerController::class)->middleware('permission:ViewAny_User');
+        Route::get('/customers/{customer}', ShowCustomerController::class)->whereNumber('customer')->middleware('permission:View_User');
+        Route::patch('/customers/{customer}/access', UpdateCustomerAccessController::class)->whereNumber('customer')->middleware('permission:Update_User');
+        Route::post('/customers/{customer}/credits', AdjustCustomerCreditsController::class)->whereNumber('customer')->middleware('permission:Create_CreditLedger');
+        Route::post('/session/activity', RecordAdminActivityController::class);
+        Route::get('/permissions', ListPermissionsController::class)->middleware('permission:ViewAny_Role');
+        Route::get('/roles', ListRoleController::class)->middleware('permission:ViewAny_Role');
+        Route::post('/roles', StoreRoleController::class)->middleware('permission:Create_Role');
+        Route::get('/roles/{role}', ShowRoleController::class)->whereNumber('role')->middleware('permission:View_Role');
+        Route::patch('/roles/{role}', UpdateRoleController::class)->whereNumber('role')->middleware('permission:Update_Role');
+        Route::put('/roles/{role}/permissions', SyncRolePermissionsController::class)->whereNumber('role')->middleware('permission:Update_Role');
+        Route::delete('/roles/{role}', DeleteRoleController::class)->whereNumber('role')->middleware('permission:Delete_Role');
+    });
     Route::get('/user', ShowUserController::class)->middleware('auth:sanctum');
 
     Route::middleware(['auth:sanctum', 'verified'])->group(function (): void {

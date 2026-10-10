@@ -3,9 +3,10 @@
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Dubbing\Contracts\DubbingGatewayResolverInterface;
 use App\Infrastructure\AI\Dubbing\ElevenLabs\ElevenLabsDubbingGateway;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
 
-uses(TestCase::class);
+uses(TestCase::class, LazilyRefreshDatabase::class);
 
 test('audio provider selection stays separate from video provider selection', function () {
     config(['dubbing.provider' => 'heygen', 'dubbing.heygen.key' => 'video-key', 'dubbing.heygen.mode' => 'precision',

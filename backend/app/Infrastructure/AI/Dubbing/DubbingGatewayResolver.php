@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\AI\Dubbing;
 
+use App\Domain\AI\Services\ProviderRouting;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Dubbing\Contracts\DubbingGatewayInterface;
 use App\Domain\Dubbing\Contracts\DubbingGatewayResolverInterface;
@@ -11,16 +12,17 @@ use App\Infrastructure\AI\Dubbing\HeyGen\HeyGenDubbingGateway;
 
 final readonly class DubbingGatewayResolver implements DubbingGatewayResolverInterface
 {
-    public function __construct(private ElevenLabsDubbingGateway $elevenlabs, private HeyGenDubbingGateway $heygen) {}
+    public function __construct(private ElevenLabsDubbingGateway $elevenlabs, private HeyGenDubbingGateway $heygen, private ProviderRouting $routing) {}
 
-    public function definition(string $mediaType = 'video'): array
+    public function definition(string $mediaType = 'video', ?string $language = null): array
     {
-        $provider = (string) config($mediaType === 'audio' ? 'dubbing.audio_provider' : 'dubbing.provider', 'elevenlabs');
+        $selection = $this->routing->select($mediaType === 'audio' ? 'audio_dubbing' : 'video_dubbing', $language === null ? null : DubbingLanguages::routingCode($language));
+        $provider = $selection['provider'];
         if ($mediaType === 'audio' && $provider !== 'elevenlabs') {
             throw new BillingException('Audio dubbing is not configured yet.', 503);
         }
         $this->resolve($provider);
-        $model = $provider === 'heygen' ? (string) config('dubbing.heygen.mode', 'precision') : 'dubbing_v2';
+        $model = $selection['model'];
         if ($provider === 'heygen' && ! in_array($model, ['speed', 'precision'], true)) {
             throw new BillingException('Dubbing is not configured yet.', 503);
         }
@@ -44,8 +46,29 @@ final readonly class DubbingGatewayResolver implements DubbingGatewayResolverInt
         };
     }
 
-    public function languages(string $mediaType = 'video'): array
+    public function languages(string $mediaType = 'video', ?string $language = null): array
     {
-        return $this->definition($mediaType)['provider'] === 'heygen' ? $this->heygen->languages() : (new DubbingLanguages)->sourceLanguages();
+        if ($language !== null) {
+            return $this->definition($mediaType, $language)['provider'] === 'heygen' ? $this->heygen->languages() : (new DubbingLanguages)->sourceLanguages();
+        }
+        $activity = $mediaType === 'audio' ? 'audio_dubbing' : 'video_dubbing';
+        $configuration = $this->routing->configuration($activity)['configuration'];
+        $items = [];
+        foreach ($this->routing->available($activity) as $name => $settings) {
+            if (! ProviderRouting::usesProvider($configuration, $name)) {
+                continue;
+            }
+            $models = $this->routing->models($activity, $name);
+            $languages = $name === 'heygen' ? $this->heygen->languages() : (new DubbingLanguages)->sourceLanguages();
+            foreach ($languages as $item) {
+                if (ProviderRouting::providerFor($configuration, DubbingLanguages::routingCode($item['code'])) === $name
+                    && ProviderRouting::modelSupports($configuration, DubbingLanguages::routingCode($item['code']), $models)
+                    && ($settings['languages'] === [] || ProviderRouting::supports($settings['languages'], DubbingLanguages::routingCode($item['code'])))) {
+                    $items[$item['code']] = $item;
+                }
+            }
+        }
+
+        return array_values($items);
     }
 }

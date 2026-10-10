@@ -4,13 +4,13 @@ import type { AuthUser } from '~/stores/auth'
 type AuthMode = 'login' | 'register' | 'verify'
 type AuthResponse = { token?: string; requires_two_factor?: boolean; email?: string; user?: AuthUser }
 
-const props = withDefaults(defineProps<{ open: boolean; initialMode?: 'login' | 'register' }>(), { initialMode: 'login' })
+const props = withDefaults(defineProps<{ open: boolean; initialMode?: AuthMode; initialEmail?: string }>(), { initialMode: 'login', initialEmail: '' })
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 const auth = useAuthStore()
 const route = useRoute()
 const mode = ref<AuthMode>(props.initialMode)
 const name = ref('')
-const email = ref('')
+const email = ref(props.initialEmail)
 const password = ref('')
 const passwordConfirmation = ref('')
 const code = ref('')
@@ -19,10 +19,12 @@ const busy = ref(false)
 
 watch(() => props.open, (open) => { if (open) { mode.value = props.initialMode; error.value = '' } })
 watch(() => props.initialMode, value => { if (props.open) mode.value = value })
+watch(() => props.initialEmail, value => { email.value = value })
 
 function close() { if (!busy.value) emit('update:open', false) }
 
 async function submit() {
+  if (busy.value) return
   busy.value = true
   error.value = ''
   try {
@@ -31,11 +33,15 @@ async function submit() {
       ? { name: name.value, email: email.value, password: password.value, password_confirmation: passwordConfirmation.value }
       : mode.value === 'verify' ? { email: email.value, code: code.value } : { email: email.value, password: password.value }
     const response = await $fetch<AuthResponse>(endpoint, { method: 'POST', body })
-    if (response.requires_two_factor) { mode.value = 'verify'; email.value = response.email ?? email.value; return }
+    if (response.requires_two_factor) {
+      emit('update:open', false)
+      await navigateTo({ path: '/taydeez/login', query: { verify: '1', email: response.email ?? email.value } })
+      return
+    }
     if (!response.token) throw new Error('The server did not return an authentication token.')
     await auth.establishSession(response.token)
     emit('update:open', false)
-    await navigateTo(auth.isEmailVerified ? '/dashboard' : '/auth/verify-email')
+    await navigateTo(auth.isEmailVerified ? (auth.isAdmin ? '/taydeez' : '/dashboard') : '/auth/verify-email')
   } catch (failure: unknown) {
     const response = failure as { data?: { message?: string }; message?: string }
     error.value = response.data?.message ?? response.message ?? 'Authentication failed.'
@@ -60,6 +66,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', escape))
           <h2 id="auth-title" class="text-3xl font-semibold tracking-[-.04em] text-slate-900">{{ mode === 'register' ? 'Create your account' : mode === 'verify' ? 'Check your email' : 'Welcome back' }}</h2>
           <p class="mt-2 text-sm leading-6 text-slate-500">{{ mode === 'verify' ? 'Enter the six-digit administrator code we sent you.' : 'Save your recordings and keep every transcript within reach.' }}</p>
           <p v-if="route.query.passwordChanged === '1' && mode === 'login'" class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" role="status">Your password has been changed. Log in with your new password.</p>
+          <p v-if="route.query.sessionExpired === '1' && mode === 'login'" class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800" role="status">Your administrator session expired after five minutes of inactivity. Please sign in again.</p>
           <form class="mt-7 grid gap-4" @submit.prevent="submit">
             <input v-if="mode === 'register'" v-model="name" class="rounded-xl border border-slate-300 px-4 py-3 text-sm" required placeholder="Your name or organization name" autocomplete="name">
             <input v-model="email" class="rounded-xl border border-slate-300 px-4 py-3 text-sm" required type="email" placeholder="Email address" autocomplete="email">

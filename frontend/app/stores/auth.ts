@@ -7,6 +7,9 @@ export type AuthUser = {
   email_verified_at?: string | null
   email_verified?: boolean
   roles?: string[]
+  permissions?: string[]
+  is_admin?: boolean
+  must_change_password?: boolean
 }
 
 const tokenStorageKey = 'auth_token'
@@ -16,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const initialized = ref(false)
   const isAuthenticated = computed(() => token.value !== '' && user.value !== null)
+  const isAdmin = computed(() => user.value?.is_admin ?? user.value?.roles?.some(role => role === 'admin' || role === 'super_admin') ?? false)
   const isEmailVerified = computed(() => user.value?.email_verified ?? Boolean(user.value?.email_verified_at))
 
   function persistToken(value: string): void {
@@ -40,6 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     return await $fetch<AuthUser>('/api/auth/user', {
+      timeout: 20_000,
       headers: { Authorization: `Bearer ${token.value}` },
       retry: 0,
     })
@@ -108,6 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     initialized,
     isAuthenticated,
+    isAdmin,
     isEmailVerified,
     refreshUser,
     establishSession,

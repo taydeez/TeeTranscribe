@@ -7,6 +7,34 @@
   },
   "variable": [
     {
+      "key": "adminAccountId",
+      "value": ""
+    },
+    {
+      "key": "adminUsername",
+      "value": ""
+    },
+    {
+      "key": "initialAdminPassword",
+      "value": ""
+    },
+    {
+      "key": "newAdminPassword",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "roleId",
+      "value": ""
+    },
+    {
       "key": "baseUrl",
       "value": "http://127.0.0.1:8000/api/v1"
     },
@@ -149,16 +177,591 @@
   ],
   "item": [
     {
-      "name": "Privacy and retention",
-      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{sanctumToken}}", "type": "string" }] },
+      "name": "Administrator AI provider configuration",
+      "description": "Admin email 2FA session required. Read requires ViewAny_AIProvider; updates require Update_AIProvider. Credentials remain in backend environment. Rules match spoken language for transcription/subtitles and output language for translation/dubbing. Cleanup and summary use defaults only. New quotes snapshot provider and model; no automatic fallback. The history contains the latest 20 before/after changes. Model catalogs are stored per activity/provider in configuration.models with the same version check and atomic audit trail. Each model has id, label, enabled, languages, capabilities (speakers/timestamps), and pricing (unit, credits, provider_cost, provider_currency). Credits and provider costs are decimal strings or null. Media uses minute; text uses character or 1000_characters. Null credit pricing prevents paid quotes. GET returns compatible model choices and whether arbitrary API model IDs can be added. Existing quoted prices and selected models remain unchanged.",
       "item": [
-        { "name": "Read retention settings", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/settings", "description": "Per-account hours; null keeps files until manually deleted. Defaults are null for every category. Cleanup scans every 15 minutes." } },
-        { "name": "Update retention settings", "request": { "method": "PATCH", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/privacy/settings", "body": { "mode": "raw", "raw": "{\n  \"retention\": {\n    \"source_audio\": 24,\n    \"source_video\": 24,\n    \"recordings\": 24,\n    \"dubbed_audio\": null,\n    \"dubbed_video\": null,\n    \"pdf\": null,\n    \"txt\": null,\n    \"docx\": null,\n    \"subtitles\": null,\n    \"transcripts\": null,\n    \"translations\": null\n  }\n}" }, "description": "Partial updates accepted. Whole hours 1..87600 or null. Applies to existing and future items; overdue items are queued on the next cleanup. Transcript/translation expiry deletes the project and its generated files. Financial history is retained. Source removal waits for active processing." } },
-        { "name": "List saved source files", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/files?page=1&per_page=20", "description": "Ownership-checked source inventory with pagination; shared source paths appear once." } },
-        { "name": "Request project deletion", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/privacy/deletions", "body": { "mode": "raw", "raw": "{\n  \"resource_type\": \"transcription\",\n  \"resource_id\": \"{{transcriptionId}}\",\n  \"scope\": \"project\"\n}" }, "description": "202 accepted; hides the project immediately and queues permanent deletion. Types: transcription, translation, dubbing, folder. Folder supports project scope only and permanently deletes all owned contents and exclusively used owned source files. Sources shared with projects outside the folder are preserved. Scope source removes an uploaded source while retaining text/downloads; source-only types upload and quote are also supported. Scope generated with category pdf/txt/docx/subtitles/dubbed_audio/dubbed_video removes that format and prior revisions; omit category for all generated files. These controls cover workspace copies, not files retained by external providers." } },
-        { "name": "List recent deletions", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/deletions" } },
-        { "name": "Read deletion status", "request": { "method": "GET", "url": "{{baseUrl}}/privacy/deletions/{{privacyDeletionId}}", "description": "Statuses: pending, processing, completed, failed. Internal storage manifests are never returned." } },
-        { "name": "Retry failed deletion", "request": { "method": "POST", "url": "{{baseUrl}}/privacy/deletions/{{privacyDeletionId}}/retry", "description": "Retries the saved manifest idempotently. Only the owning account may retry." } }
+        {
+          "name": "List provider settings, model catalogs and audit history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/ai-providers"
+          }
+        },
+        {
+          "name": "Update transcription provider settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/ai-providers/transcription",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 0,\n  \"reason\": \"Configure transcription defaults and Nigerian language routing\",\n  \"configuration\": {\n    \"default_provider\": \"deepgram\",\n    \"providers\": {\n      \"deepgram\": {\n        \"enabled\": true,\n        \"model\": \"nova-2\",\n        \"languages\": []\n      },\n      \"intron\": {\n        \"enabled\": true,\n        \"model\": \"default\",\n        \"languages\": []\n      },\n      \"google\": {\n        \"enabled\": true,\n        \"model\": \"chirp_3\",\n        \"languages\": []\n      },\n      \"elevenlabs\": {\n        \"enabled\": true,\n        \"model\": \"scribe_v2\",\n        \"languages\": []\n      },\n      \"openai\": {\n        \"enabled\": true,\n        \"model\": \"gpt-4o-transcribe-diarize\",\n        \"languages\": []\n      }\n    },\n    \"language_rules\": {\n      \"en-ng\": {\n        \"provider\": \"intron\",\n        \"model\": \"default\"\n      },\n      \"yo\": \"intron\",\n      \"ig\": \"intron\",\n      \"ha\": \"intron\",\n      \"pcm\": \"intron\"\n    }\n  }\n}"
+            },
+            "description": "First GET settings and copy the activity configuration/version. Send the complete configuration, using catalog model options. A stale version returns 409. Activity values: transcription, translation, video_dubbing, audio_dubbing, subtitles, cleanup, summary. Disabling a default makes unmatched new requests unavailable. Missing credentials are shown without exposing secrets. Language rules also accept {\"provider\":\"deepgram\",\"model\":\"nova-3\"} to override both. To manage models, first GET and copy the full configuration.models object, edit its provider model lists, then PUT the complete configuration with version and reason. Omitting models preserves the saved catalog. Model IDs must be unique per provider and compatible with the existing API. Disable entries to retire models; existing jobs retain their saved model. Model capability flags describe outputs and do not enable provider features. Pricing changes apply only to new quotes. Provider cost currency is USD or NGN."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Administrator login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/admin/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}"
+        },
+        "description": "Dedicated administrator password check. The email field accepts an administrator username or email address. Requires admin or super_admin; ordinary users receive 401 without a token. Sends a six-digit code to the account email; complete POST /auth/admin/verify. Frontend login: /taydeez/login; dashboard: /taydeez. New administrators must use POST /admin/password after email verification before accessing other workspace endpoints. Both login steps are rate limited."
+      }
+    },
+    {
+      "name": "Administrator security and roles",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "List administrator accounts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/accounts",
+            "description": "Requires ViewAny_AdminAccount. Paginated active admin account records; excludes deleted accounts and customer accounts."
+          }
+        },
+        {
+          "name": "Create administrator account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Support Admin\",\n  \"username\": \"{{adminUsername}}\",\n  \"email\": \"support@example.com\",\n  \"password\": \"{{initialAdminPassword}}\",\n  \"role_id\": \"{{roleId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requires Create_AdminAccount. Initial password: 12+ characters with letters and numbers. Role must be an admin/custom role; base admin access is retained. Email 2FA and a first-login password change are mandatory."
+          }
+        },
+        {
+          "name": "Update administrator role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/accounts/{{adminAccountId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_id\": \"{{roleId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requires Update_AdminAccount. Role change revokes sessions. Cannot change your own role, remove the last super admin or grant permissions you do not hold."
+          }
+        },
+        {
+          "name": "Delete administrator account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/accounts/{{adminAccountId}}",
+            "description": "Requires Delete_AdminAccount. Revokes sessions and login codes and removes account from the admin list. Retains account for audit history. Self deletion and removal of the last super admin are forbidden."
+          }
+        },
+        {
+          "name": "Change initial administrator password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{initialAdminPassword}}\",\n  \"password\": \"{{newAdminPassword}}\",\n  \"password_confirmation\": \"{{newAdminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "After email 2FA, use adminToken to change initial password. Other workspace endpoints remain blocked until this succeeds. A different password (12+ characters, letters and numbers) is required. Revokes all sessions; log in again and complete email 2FA."
+          }
+        },
+        {
+          "name": "View customer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/customers/{{customerId}}",
+            "description": "Requires View_User. Returns customer details, approximate signup IP location, wallet balance and latest 50 admin actions. Administrator accounts are excluded."
+          }
+        },
+        {
+          "name": "Update customer access",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/customers/{{customerId}}/access",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"suspend\",\n  \"days\": 7,\n  \"reason\": \"Repeated abuse\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requires Update_User. action: suspend (days 1–3650), block (indefinite), restore. Reason required. Restricting revokes existing sessions."
+          }
+        },
+        {
+          "name": "Adjust customer credits",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/customers/{{customerId}}/credits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"add\",\n  \"credit_units\": 5000,\n  \"client_key\": \"{{$guid}}\",\n  \"reason\": \"Service compensation\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requires Create_CreditLedger. action: add or remove. 100 units = 1 credit. Reason required. Use a fresh UUID client_key for each intentional adjustment and reuse that same key for retries; do not generate a new key when retrying a lost response. Cannot remove reserved credits."
+          }
+        },
+        {
+          "name": "List customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/customers?page=1&per_page=20&sort=newest&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Lists non-admin registered customer accounts. Requires an email-code verified administrator token and ViewAny_User. Search names or emails; sort by newest, oldest, name_asc or name_desc. Returns paginated data and meta, never passwords or tokens."
+          }
+        },
+        {
+          "name": "Administrator profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/user",
+            "description": "Requires an admin or super_admin role and an email-code verified administrator token.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Record administrator activity",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/session/activity",
+            "description": "Call only after actual administrator interaction. Extends this verified session for five minutes. Background polling must not call this. Expired tokens return 401 and cannot be refreshed.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "List permissions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/permissions",
+            "description": "Requires ViewAny_Role. Returns web-guard permission names.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "List roles",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/roles?page=1&per_page=20",
+            "description": "Requires ViewAny_Role. Paginated, per_page maximum 100.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create role",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/roles",
+            "description": "Requires Create_Role. Creating a role does not grant admin access: administrators must also have admin or super_admin membership.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"support\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Show role",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/roles/{{roleId}}",
+            "description": "Requires View_Role.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update role",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/roles/{{roleId}}",
+            "description": "Requires Update_Role. System roles cannot be renamed.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"support_team\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sync role permissions",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/admin/roles/{{roleId}}/permissions",
+            "description": "Requires Update_Role. Only permissions held by the acting administrator may be granted. user and super_admin permissions cannot be changed here.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissions\": [\n    \"ViewAny_User\",\n    \"View_User\"\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete role",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/admin/roles/{{roleId}}",
+            "description": "Requires Delete_Role. System roles and roles still assigned to users cannot be deleted.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Privacy and retention",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{sanctumToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Read retention settings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/privacy/settings",
+            "description": "Per-account hours; null keeps files until manually deleted. Defaults are null for every category. Cleanup scans every 15 minutes."
+          }
+        },
+        {
+          "name": "Update retention settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/privacy/settings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"retention\": {\n    \"source_audio\": 24,\n    \"source_video\": 24,\n    \"recordings\": 24,\n    \"dubbed_audio\": null,\n    \"dubbed_video\": null,\n    \"pdf\": null,\n    \"txt\": null,\n    \"docx\": null,\n    \"subtitles\": null,\n    \"transcripts\": null,\n    \"translations\": null\n  }\n}"
+            },
+            "description": "Partial updates accepted. Whole hours 1..87600 or null. Applies to existing and future items; overdue items are queued on the next cleanup. Transcript/translation expiry deletes the project and its generated files. Financial history is retained. Source removal waits for active processing."
+          }
+        },
+        {
+          "name": "List saved source files",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/privacy/files?page=1&per_page=20",
+            "description": "Ownership-checked source inventory with pagination; shared source paths appear once."
+          }
+        },
+        {
+          "name": "Request project deletion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/privacy/deletions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_type\": \"transcription\",\n  \"resource_id\": \"{{transcriptionId}}\",\n  \"scope\": \"project\"\n}"
+            },
+            "description": "202 accepted; hides the project immediately and queues permanent deletion. Types: transcription, translation, dubbing, folder. Folder supports project scope only and permanently deletes all owned contents and exclusively used owned source files. Sources shared with projects outside the folder are preserved. Scope source removes an uploaded source while retaining text/downloads; source-only types upload and quote are also supported. Scope generated with category pdf/txt/docx/subtitles/dubbed_audio/dubbed_video removes that format and prior revisions; omit category for all generated files. These controls cover workspace copies, not files retained by external providers."
+          }
+        },
+        {
+          "name": "List recent deletions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/privacy/deletions"
+          }
+        },
+        {
+          "name": "Read deletion status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/privacy/deletions/{{privacyDeletionId}}",
+            "description": "Statuses: pending, processing, completed, failed. Internal storage manifests are never returned."
+          }
+        },
+        {
+          "name": "Retry failed deletion",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/privacy/deletions/{{privacyDeletionId}}/retry",
+            "description": "Retries the saved manifest idempotently. Only the owning account may retry."
+          }
+        }
       ]
     },
     {
@@ -365,7 +968,8 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"admin@example.com\",\n  \"code\": \"123456\"\n}"
         },
-        "url": "{{baseUrl}}/auth/admin/verify"
+        "url": "{{baseUrl}}/auth/admin/verify",
+        "description": "Verify the six-digit email code after password or Google login. Codes expire in 10 minutes, are single-use, and lock after five incorrect guesses. Save the token as adminToken. Administrator sessions expire after five minutes without activity; only real user interaction should call POST /admin/session/activity."
       }
     },
     {
