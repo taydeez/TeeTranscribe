@@ -1,0 +1,10 @@
+# Root Directory: /backend. All queues and the scheduler share this single staging instance.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.staging"
+
+[deploy]
+startCommand = "/usr/local/bin/start-service staging-workers"
+restartPolicyType = "ALWAYS"
+numReplicas = 1
+drainingSeconds = "7230"

@@ -1,0 +1,10 @@
+# Root Directory: /backend. Dedicated dubbing processing, including FFmpeg conversion and FFprobe verification.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.production"
+
+[deploy]
+startCommand = "/usr/local/bin/start-service dubbing"
+restartPolicyType = "ALWAYS"
+numReplicas = 1
+drainingSeconds = "5430"

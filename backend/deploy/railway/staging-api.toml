@@ -1,0 +1,13 @@
+# Root Directory: /backend. The API runs separately from staging's combined workers.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.staging"
+
+[deploy]
+startCommand = "/usr/local/bin/start-service api"
+preDeployCommand = ["php artisan migrate --force --no-interaction"]
+healthcheckPath = "/up"
+healthcheckTimeout = 120
+restartPolicyType = "ALWAYS"
+numReplicas = 1
+drainingSeconds = "30"

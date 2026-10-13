@@ -1,0 +1,10 @@
+# Root Directory: /backend. Keep exactly one scheduler replica per environment.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.production"
+
+[deploy]
+startCommand = "/usr/local/bin/start-service scheduler"
+restartPolicyType = "ALWAYS"
+numReplicas = 1
+drainingSeconds = "60"

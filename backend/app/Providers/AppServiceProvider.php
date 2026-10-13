@@ -136,7 +136,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AdminCodeMailerInterface::class, AdminCodeMailer::class);
         $this->app->bind(PrivacyRepositoryInterface::class, EloquentPrivacyRepository::class);
         $this->app->bind(PrivacyStorageInterface::class, R2PrivacyStorage::class);
-        $this->app->singleton(PrivacyCoordinatorInterface::class, LaravelPrivacyCoordinator::class);
+        $this->app->scoped(PrivacyCoordinatorInterface::class, LaravelPrivacyCoordinator::class);
         $this->app->bind(AccountSecurityGatewayInterface::class, LaravelAccountSecurityGateway::class);
         $this->app->bind(DubbingRepositoryInterface::class, EloquentDubbingRepository::class);
         $this->app->bind(DubbingGatewayResolverInterface::class, DubbingGatewayResolver::class);

@@ -1,0 +1,37 @@
+# Build context: backend/. All Railway PHP services use this image with different start commands.
+FROM php:8.3-cli-bookworm AS runtime
+
+COPY --from=ghcr.io/mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg fonts-noto-core fonts-noto-cjk fonts-noto-extra fontconfig supervisor tini unzip \
+    && install-php-extensions bcmath curl dom fileinfo gd intl mbstring opcache pcntl pdo_pgsql redis swoole xml xmlreader xmlwriter zip \
+    && fc-cache -f \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY docker/php.ini /usr/local/etc/php/conf.d/99-application.ini
+WORKDIR /var/www/html
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --no-autoloader
+COPY . .
+RUN mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/private \
+    && composer dump-autoload --no-dev --optimize --no-interaction \
+    && cp docker/start-service.sh /usr/local/bin/start-service \
+    && sed -i 's/\r$//' /usr/local/bin/start-service \
+    && chmod +x /usr/local/bin/start-service \
+    && useradd --uid 10001 --create-home app \
+    && chown -R app:app bootstrap/cache storage
+
+ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr LOG_LEVEL=info \
+    QUEUE_CONNECTION=redis CACHE_STORE=redis REDIS_CLIENT=phpredis \
+    OCTANE_SERVER=swoole OCTANE_HTTPS=true OCTANE_WORKERS=2 OCTANE_TASK_WORKERS=0 OCTANE_MAX_REQUESTS=500 \
+    GENERAL_WORKERS=1 WORKER_MEMORY=512 \
+    FFMPEG_BIN=/usr/bin/ffmpeg FFPROBE_BIN=/usr/bin/ffprobe \
+    DUBBING_SUBTITLE_FONT="Noto Sans"
+
+USER app
+EXPOSE 8080
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/usr/local/bin/start-service", "api"]
