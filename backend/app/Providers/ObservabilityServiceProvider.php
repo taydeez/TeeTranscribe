@@ -23,8 +23,8 @@ final class ObservabilityServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(OperationalLogger::class);
-        $this->app->singleton(ProviderHttpObserver::class);
+        $this->app->scoped(OperationalLogger::class);
+        $this->app->scoped(ProviderHttpObserver::class);
         $this->app->bind(OperationalLogRepositoryInterface::class,
             EloquentOperationalLogRepository::class);
     }

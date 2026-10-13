@@ -1,0 +1,10 @@
+# Root Directory: /backend. Consumes only default jobs: email, invoices, location, and privacy cleanup.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.production"
+
+[deploy]
+startCommand = "/usr/local/bin/start-service general"
+restartPolicyType = "ALWAYS"
+numReplicas = 1
+drainingSeconds = "930"
