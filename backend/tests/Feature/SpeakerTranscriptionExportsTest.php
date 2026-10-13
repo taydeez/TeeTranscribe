@@ -94,7 +94,7 @@ test('DOCX upload failure prevents completion and can be retried without duplica
     $outbox = app(OutboxService::class);
     $event = $outbox->record('test:'.$record->id, 'TranscriptionCompleted', $record->id, ['transcription_id' => $record->id]);
     expect(fn () => (new GenerateTranscriptionExports($record->id, $event->id))->handle($outbox))->toThrow(RuntimeException::class, 'Failed to upload DOCX');
-    expect($record->refresh()->status)->toBe('failed')->and($event->refresh()->published_at)->toBeNull();
+    expect($record->refresh()->status)->toBe('processing')->and($event->refresh()->published_at)->toBeNull();
     $disk->shouldReceive('put')->withArgs(fn ($path, $bytes, $options) => str_ends_with($path, '.docx'))->once()->andReturnUsing(fn ($path, $bytes, $options) => $originalDisk->put($path, $bytes, $options));
     (new GenerateTranscriptionExports($record->id, $event->id))->handle($outbox);
     expect($record->refresh()->status)->toBe('complete')->and($record->exports()->count())->toBe(3)->and($event->refresh()->published_at)->not->toBeNull();

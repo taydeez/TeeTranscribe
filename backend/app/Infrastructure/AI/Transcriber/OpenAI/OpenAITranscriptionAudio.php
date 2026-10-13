@@ -3,7 +3,7 @@
 namespace App\Infrastructure\AI\Transcriber\OpenAI;
 
 use App\Infrastructure\Billing\AudioDurationProbe;
-use Illuminate\Support\Facades\Process;
+use App\Infrastructure\Observability\TimedMediaProcess;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -44,12 +44,12 @@ final class OpenAITranscriptionAudio
                 || ($expectedDuration !== null && abs($duration - $expectedDuration) > max(2, $expectedDuration * 0.01))) {
                 throw new RuntimeException('The audio duration no longer matches its quote or exceeds the supported limit.');
             }
-            $conversion = Process::timeout((int) config('transcriber.openai.conversion_timeout', 180))->run([
+            $conversion = TimedMediaProcess::run([
                 (string) config('transcriber.openai.ffmpeg', 'ffmpeg'), '-nostdin', '-y', '-v', 'error',
                 '-protocol_whitelist', 'file,pipe', '-format_whitelist', 'mp3,wav,mov,ogg,flac,matroska,webm,aac',
                 '-i', $sourcePath, '-map', '0:a:0', '-vn', '-map_metadata', '-1',
                 '-ac', '1', '-ar', '16000', '-c:a', 'libmp3lame', '-b:a', '32k', '-f', 'mp3', $outputPath,
-            ]);
+            ], (int) config('transcriber.openai.conversion_timeout', 180));
             clearstatcache(true, $outputPath);
             $bytes = filesize($outputPath);
             if (! $conversion->successful() || $bytes === false || $bytes < 1

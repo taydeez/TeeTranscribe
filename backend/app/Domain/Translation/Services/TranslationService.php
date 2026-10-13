@@ -125,6 +125,7 @@ final readonly class TranslationService
                 return $record;
             }
             $revision = $record->exportRevision + ($changed ? 1 : 0);
+            $this->credits->assertConcurrency($userId, 'translation', $id);
             $updated = $this->translations->update($id, [
                 'translated_text' => $text, 'segments' => $updatedSegments, 'status' => 'processing',
                 'export_revision' => $revision, 'exports' => [], 'failure_reason' => null,

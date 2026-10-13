@@ -8,6 +8,8 @@ use App\Domain\Transcriber\Contracts\TranscriptionPollingDispatcherInterface;
 use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Infrastructure\AI\Transcriber\Google\GoogleSpeechAudioStorage;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Observability\ObserveJob;
+use App\Infrastructure\Observability\OperationalLogger;
 use App\Infrastructure\Outbox\OutboxService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -32,6 +34,7 @@ class SubmitTranscription implements ShouldBeUnique, ShouldQueue
         public ?string $outboxEventId = null,
         public ?string $quotedModel = null,
     ) {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('ingestion');
     }
 
@@ -79,6 +82,10 @@ class SubmitTranscription implements ShouldBeUnique, ShouldQueue
                 throw new RuntimeException('The configured transcription provider changed after submission.');
             }
 
+            app(OperationalLogger::class)->record('provider', 'info', 'Transcription submitted to provider.', [
+                'transcription_id' => $transcription->id, 'provider' => $transcription->provider,
+                'duration_seconds' => $transcription->duration, 'model' => $this->quotedModel,
+            ]);
             $providerRequestId = $gateway->transcribe(
                 $transcription->audioPath,
                 $this->languageCode,

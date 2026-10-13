@@ -173,9 +173,138 @@
     {
       "key": "privacyDeletionId",
       "value": ""
+    },
+    {
+      "key": "billingVersion",
+      "value": "0"
+    },
+    {
+      "key": "billingConfiguration",
+      "value": "{\"packages\":[{\"code\":\"starter\",\"name\":\"Starter\",\"credits\":\"5500\",\"price_ngn\":\"5000\",\"enabled\":true},{\"code\":\"regular\",\"name\":\"Regular\",\"credits\":\"15000\",\"price_ngn\":\"15000\",\"enabled\":true}],\"free_credits\":\"0\",\"fx\":{\"ngn_per_usd\":\"1500\",\"updated_at\":\"{{billingFxUpdatedAt}}\",\"max_age_hours\":24},\"quote_minutes\":45,\"checkout_minutes\":30,\"processing_timeout_hours\":26,\"minimum_checkout\":{\"NGN\":\"50\",\"USD\":\"2\"},\"enabled_currencies\":[\"NGN\",\"USD\"],\"gateways\":{\"paystack\":{\"enabled\":true,\"currencies\":[\"NGN\"]},\"flutterwave\":{\"enabled\":true,\"currencies\":[\"NGN\",\"USD\"]}},\"activities\":{\"transcription\":{\"mode\":\"model\",\"credits\":null},\"translation\":{\"mode\":\"model\",\"credits\":null},\"video_dubbing\":{\"mode\":\"model\",\"credits\":null},\"audio_dubbing\":{\"mode\":\"model\",\"credits\":null},\"subtitles\":{\"mode\":\"model\",\"credits\":null},\"cleanup\":{\"mode\":\"model\",\"credits\":null},\"summary\":{\"mode\":\"model\",\"credits\":null}}}"
+    },
+    {
+      "key": "billingFxUpdatedAt",
+      "value": ""
+    },
+    {
+      "key": "billingReportFrom",
+      "value": "2026-10-01"
+    },
+    {
+      "key": "billingReportTo",
+      "value": "2026-10-10"
+    },
+    {
+      "key": "operationalLogId",
+      "value": ""
     }
   ],
   "item": [
+    {
+      "name": "Administrator billing configuration",
+      "description": "Admin session required. Read settings: ViewAny_Pricing. Update settings: Update_Pricing. Reporting: ViewAny_Usage. GET settings saves billingVersion and the complete billingConfiguration as collection variables. PUT replaces the entire configuration; edit the saved billingConfiguration JSON variable first. Monetary values are decimal strings; 1 credit remains NGN 1 and internal credit units are hundredths of a credit. Packages may grant promotional credits independently of price_ngn. USD charges convert price_ngn using the saved NGN-per-USD rate; stale FX blocks new USD quotes. Existing purchase and usage quotes retain their original snapshots. Activity pricing mode model uses existing AI model prices; mode activity overrides customer credits per minute for media or per 1,000 input characters for text, retaining model provider costs. Gateway secrets and callback URLs stay in backend environment variables. Gateway switches control new purchases; stored purchases remain verifiable. Free credits are granted once on wallet access when a positive allowance is configured, including existing users without a previous welcome grant. Processing recovery has a 26-hour minimum to preserve the existing provider callback window. Reporting payment totals are grouped by currency and paid_at; usage is grouped by updated_at. Released credits are not cash refunds; estimated provider costs are not provider invoices.",
+      "item": [
+        {
+          "name": "Read billing settings and audit history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/billing/settings",
+            "description": " Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited. Stalled activity recovery runs every 10 minutes using processing_timeout_hours."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { const data = pm.response.json().data; pm.collectionVariables.set('billingVersion', String(data.version)); pm.collectionVariables.set('billingConfiguration', JSON.stringify(data.configuration)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update billing settings",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const timestamp = new Date().toISOString(); pm.collectionVariables.set('billingFxUpdatedAt', timestamp);",
+                  "const configuration = JSON.parse(pm.collectionVariables.get('billingConfiguration')); if (configuration.fx.updated_at === '{{billingFxUpdatedAt}}') configuration.fx.updated_at = timestamp; pm.variables.set('billingConfiguration', JSON.stringify(configuration));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { const data = pm.response.json().data; pm.collectionVariables.set('billingVersion', String(data.version)); pm.collectionVariables.set('billingConfiguration', JSON.stringify(data.configuration)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/billing/settings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": {{billingVersion}},\n  \"reason\": \"Update billing pricing and purchase settings\",\n  \"configuration\": {{billingConfiguration}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "GET current settings first, then edit collection variable billingConfiguration and PUT with its current billingVersion. Example complete configuration:\n{\n  \"packages\": [\n    {\n      \"code\": \"starter\",\n      \"name\": \"Starter\",\n      \"credits\": \"5500\",\n      \"price_ngn\": \"5000\",\n      \"enabled\": true\n    },\n    {\n      \"code\": \"regular\",\n      \"name\": \"Regular\",\n      \"credits\": \"15000\",\n      \"price_ngn\": \"15000\",\n      \"enabled\": true\n    }\n  ],\n  \"free_credits\": \"0\",\n  \"fx\": {\n    \"ngn_per_usd\": \"1500\",\n    \"updated_at\": \"{{billingFxUpdatedAt}}\",\n    \"max_age_hours\": 24\n  },\n  \"quote_minutes\": 45,\n  \"checkout_minutes\": 30,\n  \"processing_timeout_hours\": 26,\n  \"minimum_checkout\": {\n    \"NGN\": \"50\",\n    \"USD\": \"2\"\n  },\n  \"enabled_currencies\": [\n    \"NGN\",\n    \"USD\"\n  ],\n  \"gateways\": {\n    \"paystack\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\"\n      ]\n    },\n    \"flutterwave\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\",\n        \"USD\"\n      ]\n    }\n  },\n  \"activities\": {\n    \"transcription\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"translation\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"video_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"audio_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"subtitles\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"cleanup\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"summary\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    }\n  }\n} Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited. Stalled activity recovery runs every 10 minutes using processing_timeout_hours."
+          }
+        },
+        {
+          "name": "Billing report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/billing/report?from={{billingReportFrom}}&to={{billingReportTo}}",
+            "description": "Inclusive from/to dates in YYYY-MM-DD. Omitting both defaults to this month. Revenue and fees are in currency minor units, credits in hundredths, provider cost estimates in millionths of their stated currency. Usage rows include costed_jobs so unknown provider costs are not treated as zero."
+          }
+        }
+      ]
+    },
     {
       "name": "Administrator AI provider configuration",
       "description": "Admin email 2FA session required. Read requires ViewAny_AIProvider; updates require Update_AIProvider. Credentials remain in backend environment. Rules match spoken language for transcription/subtitles and output language for translation/dubbing. Cleanup and summary use defaults only. New quotes snapshot provider and model; no automatic fallback. The history contains the latest 20 before/after changes. Model catalogs are stored per activity/provider in configuration.models with the same version check and atomic audit trail. Each model has id, label, enabled, languages, capabilities (speakers/timestamps), and pricing (unit, credits, provider_cost, provider_currency). Credits and provider costs are decimal strings or null. Media uses minute; text uses character or 1000_characters. Null credit pricing prevents paid quotes. GET returns compatible model choices and whether arbitrary API model IDs can be added. Existing quoted prices and selected models remain unchanged.",
@@ -1090,7 +1219,7 @@
     {
       "name": "Confirm transcription in today’s folder",
       "request": {
-        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder. Optional name (up to 255 characters) sets the transcription title and PDF/TXT download names; omitted or blank uses the source filename.",
+        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder. Optional name (up to 255 characters) sets the transcription title and PDF/TXT download names; omitted or blank uses the source filename. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
         "method": "POST",
         "header": [
           {
@@ -1127,7 +1256,7 @@
     {
       "name": "Confirm transcription in selected folder",
       "request": {
-        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder. Optional name (up to 255 characters) sets the transcription title and PDF/TXT download names; omitted or blank uses the source filename.",
+        "description": "Requires authentication and a ready, unexpired owned billing quote. Reserves credits atomically and reuses the same transcription when retried. Set folder_id to an owned folder or null for today’s folder. Optional name (up to 255 characters) sets the transcription title and PDF/TXT download names; omitted or blank uses the source filename. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
         "method": "POST",
         "header": [
           {
@@ -2103,7 +2232,7 @@
               },
               "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\r\n  \"name\": \"Meeting translation\",\r\n  \"client_key\": \"{{$guid}}\",\r\n  \"source_language\": \"en\",\r\n  \"text\": \"Hello, welcome to our meeting.\",\r\n  \"target_language\": \"yo\"\r\n}"
             },
-            "description": "Check credits before confirming. Reuse client_key for retries of identical input. Optional transcription_id links an owned transcript; optional segments preserve speaker names and stored timestamps. Optional folder_id selects an owned folder. If omitted or null, confirmation uses the source transcript folder when available, otherwise the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Translation responses include folderId. The configured provider and model are saved on the quote and resulting translation, so later configuration changes do not redirect retries. OpenAI supports up to 50,000 characters and 4,000 speaker segments with bounded batches; existing Google limits remain unchanged.",
+            "description": "Check credits before confirming. Reuse client_key for retries of identical input. Optional transcription_id links an owned transcript; optional segments preserve speaker names and stored timestamps. Optional folder_id selects an owned folder. If omitted or null, confirmation uses the source transcript folder when available, otherwise the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Translation responses include folderId. The configured provider and model are saved on the quote and resulting translation, so later configuration changes do not redirect retries. OpenAI supports up to 50,000 characters and 4,000 speaker segments with bounded batches; existing Google limits remain unchanged. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "method": "POST",
             "auth": {
               "bearer": [
@@ -2141,7 +2270,7 @@
               },
               "raw": "{\r\n  \"quote_id\": \"{{translationQuoteId}}\"\r\n}"
             },
-            "description": "Idempotent confirmation reserves credits and queues processing. Poll the returned translation ID.",
+            "description": "Idempotent confirmation reserves credits and queues processing. Poll the returned translation ID. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "method": "POST",
             "auth": {
               "bearer": [
@@ -2229,7 +2358,7 @@
               },
               "raw": "{\r\n  \"translated_text\": \"Edited translation.\"\r\n}"
             },
-            "description": "Regenerates exports without translating or charging again. Include segments with text and speaker to preserve speaker exports. Repeated unchanged saves are ignored; failed exports can be retried.",
+            "description": "Regenerates exports without translating or charging again. Include segments with text and speaker to preserve speaker exports. Repeated unchanged saves are ignored; failed exports can be retried. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "method": "PATCH",
             "auth": {
               "bearer": [
@@ -2280,7 +2409,8 @@
                 }
               ]
             },
-            "url": "{{baseUrl}}/dubbings/languages"
+            "url": "{{baseUrl}}/dubbings/languages",
+            "description": "Returns video/audio dubbing catalogs and subtitlesOnly. Subtitle target languages use the live Google catalog, with built-in default languages when the catalog request fails, is empty, or is invalid. Yoruba, Igbo, and Hausa remain first. Spoken subtitle languages remain limited to timed transcription support. Defaults do not bypass missing credentials, disabled providers, or missing pricing: check subtitlesOnly.configured before submitting."
           }
         },
         {
@@ -2297,7 +2427,7 @@
               "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\r\n  \"operation\": \"dubbing\",\r\n  \"name\": \"Dubbed interview\",\r\n  \"video_storage_path\": \"{{videoStoragePath}}\",\r\n  \"target_language\": \"yo\",\r\n  \"source_language\": \"en\",\r\n  \"subtitles_enabled\": true,\r\n  \"subtitle_style\": \"classic\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}"
             },
             "url": "{{baseUrl}}/dubbings/quotes",
-            "description": "First upload an MP4 or WebM via multipart uploads using video/mp4 or video/webm. Set videoStoragePath to its returned audio_storage_path. Fetch dubbing languages and use a data[].code as target_language: yo for ElevenLabs or an exact name such as French for HeyGen. source_language uses sourceLanguages[].code, or null for automatic detection. Server measures duration before pricing and saves the provider, mode, options and credit rate with the quote. Poll until ready. Reuse client_key when retrying identical input. operation defaults to dubbing. Optional subtitles_enabled and subtitle_style request permanent subtitles (classic, boxed or contrast). For original audio with translated captions, use the separate subtitles-only example. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId.",
+            "description": "First upload an MP4 or WebM via multipart uploads using video/mp4 or video/webm. Set videoStoragePath to its returned audio_storage_path. Fetch dubbing languages and use a data[].code as target_language: yo for ElevenLabs or an exact name such as French for HeyGen. source_language uses sourceLanguages[].code, or null for automatic detection. Server measures duration before pricing and saves the provider, mode, options and credit rate with the quote. Poll until ready. Reuse client_key when retrying identical input. operation defaults to dubbing. Optional subtitles_enabled and subtitle_style request permanent subtitles (classic, boxed or contrast). For original audio with translated captions, use the separate subtitles-only example. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "header": [
               {
                 "key": "Accept",
@@ -2346,7 +2476,7 @@
               "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\n  \"operation\": \"subtitles\",\n  \"name\": \"Spanish subtitles\",\n  \"video_storage_path\": \"{{videoStoragePath}}\",\n  \"source_language\": \"en\",\n  \"target_language\": \"es\",\n  \"subtitle_style\": \"classic\",\n  \"client_key\": \"{{$guid}}\"\n}"
             },
             "url": "{{baseUrl}}/dubbings/quotes",
-            "description": "Keeps the original audio and adds translated subtitles. Use subtitlesOnly.sourceLanguages for the spoken language and subtitlesOnly.data for target_language. Same-language requests skip translation. Pricing is a separately configured per-minute rate covering transcription, translation and rendering. Reuse client_key only for identical input. Confirm with the returned quote_id using the existing dubbings endpoint. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId.",
+            "description": "Keeps the original audio and adds translated subtitles. Use subtitlesOnly.sourceLanguages for the spoken language and subtitlesOnly.data for target_language. Same-language requests skip translation. Pricing is a separately configured per-minute rate covering transcription, translation and rendering. Reuse client_key only for identical input. Confirm with the returned quote_id using the existing dubbings endpoint. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "header": [
               {
                 "key": "Accept",
@@ -2395,7 +2525,7 @@
               "raw": "{\r\n  \"folder_id\": \"{{folderId}}\",\n  \"media_type\": \"audio\",\n  \"operation\": \"dubbing\",\n  \"name\": \"Spanish interview\",\n  \"audio_storage_path\": \"{{audioStoragePath}}\",\n  \"source_language\": \"en\",\n  \"target_language\": \"es\",\n  \"client_key\": \"{{$guid}}\"\n}"
             },
             "url": "{{baseUrl}}/dubbings/quotes",
-            "description": "Upload audio through the resumable upload endpoints and save its returned audio_storage_path in audioStoragePath. Uses the independently configured audio provider and existing dubbing credit rate. Poll the quote, then confirm it using the same endpoint as video dubbing. Audio supports dubbing only; omit subtitle options. Completed records contain mediaType audio, audioUrl for MP3 playback, audioMp3DownloadUrl and audioDownloadUrl for FLAC. Video and subtitle links are null. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId.",
+            "description": "Upload audio through the resumable upload endpoints and save its returned audio_storage_path in audioStoragePath. Uses the independently configured audio provider and existing dubbing credit rate. Poll the quote, then confirm it using the same endpoint as video dubbing. Audio supports dubbing only; omit subtitle options. Completed records contain mediaType audio, audioUrl for MP3 playback, audioMp3DownloadUrl and audioDownloadUrl for FLAC. Video and subtitle links are null. Optional folder_id selects an owned folder; omitted or null uses the current human-readable date folder. The folder choice is saved with the quote and rechecked on confirmation; changing it requires a new client_key. Audio, video and subtitles-only responses include folderId. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "header": [
               {
                 "key": "Accept",
@@ -2469,7 +2599,7 @@
               "raw": "{\r\n  \"quote_id\": \"{{dubbingQuoteId}}\"\r\n}"
             },
             "url": "{{baseUrl}}/dubbings",
-            "description": "Idempotent confirmation reserves credits and records an outbox event. The scheduler and dedicated dubbing worker perform processing.",
+            "description": "Idempotent confirmation reserves credits and records an outbox event. The scheduler and dedicated dubbing worker perform processing. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "header": [
               {
                 "key": "Accept",
@@ -2558,7 +2688,7 @@
           "name": "Retry dubbing downloads",
           "response": [],
           "request": {
-            "description": "Retries failed output preparation or subtitle rendering when provider generation already completed. Reuses saved video, the same provider project and charge, without starting another paid dub.",
+            "description": "Retries failed output preparation or subtitle rendering when provider generation already completed. Reuses saved video, the same provider project and charge, without starting another paid dub. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available.",
             "method": "POST",
             "header": [
               {
@@ -2680,7 +2810,7 @@
               "raw": "{\r\n  \"operation\": \"{{transcriptToolOperation}}\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}",
               "mode": "raw"
             },
-            "description": "Set transcriptToolOperation to cleanup or summary. Prices use the saved transcript length; this endpoint does not reserve credits or call the AI provider. Save editor changes first. Reuse client_key only for the same source revision and operation. Supports up to 50,000 characters and 2,500 speaker segments. Requires OPENAI_API_KEY and positive activity rates in backend environment. Cleanup is split into UTF-8-safe bounded batches (maximum 15 requests), with successful batch results saved for retry recovery. Inputs requiring more batches are rejected before a quote or reservation."
+            "description": "Set transcriptToolOperation to cleanup or summary. Prices use the saved transcript length; this endpoint does not reserve credits or call the AI provider. Save editor changes first. Reuse client_key only for the same source revision and operation. Supports up to 50,000 characters and 2,500 speaker segments. Requires OPENAI_API_KEY and positive activity rates in backend environment. Cleanup is split into UTF-8-safe bounded batches (maximum 15 requests), with successful batch results saved for retry recovery. Inputs requiring more batches are rejected before a quote or reservation. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available."
           },
           "event": [
             {
@@ -2728,7 +2858,7 @@
               "raw": "{\r\n  \"quote_id\": \"{{transcriptToolQuoteId}}\"\r\n}",
               "mode": "raw"
             },
-            "description": "After reviewing the quoted credits, confirm processing. Returns 202 for pending/processing or 200 for a cached complete result. Identical source/operation submissions reuse one record and credit reservation, including across different quotes. Changed or expired quotes must be refreshed. Processing uses the model saved on the quote; failed requests refund reserved credits. Poll the returned tool ID."
+            "description": "After reviewing the quoted credits, confirm processing. Returns 202 for pending/processing or 200 for a cached complete result. Identical source/operation submissions reuse one record and credit reservation, including across different quotes. Changed or expired quotes must be refreshed. Processing uses the model saved on the quote; failed requests refund reserved credits. Poll the returned tool ID. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available."
           },
           "event": [
             {
@@ -2768,6 +2898,179 @@
             ],
             "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools/{{transcriptToolId}}",
             "description": "Poll while pending/processing. Cleanup result contains text and original speaker segments with cleaned text; timestamps, speaker labels and confidence are preserved. Applying cleanup is a frontend preview: use the existing PATCH transcription endpoint to save and regenerate exports. Summary result contains summary, keyPoints and actionItems and does not modify the transcript. Never apply a stale result to a new transcript revision."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin operational logs",
+      "item": [
+        {
+          "name": "List operational logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/logs?per_page=25&page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "25"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "level",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "provider",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "operation_type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "operation_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "provider_request_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "job_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "oldest",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Admin session and ViewAny_OperationalLog required. Filter categories: application, exception, job, provider, lifecycle, media. Dates are inclusive UTC YYYY-MM-DD. Sort oldest for an operation timeline."
+          }
+        },
+        {
+          "name": "Show operational log detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/logs/{{operationalLogId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "logs",
+                "{{operationalLogId}}"
+              ]
+            },
+            "description": "Admin session and View_OperationalLog required. Returns sanitized context, exception causes and timings."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin dashboard analytics",
+      "item": [
+        {
+          "name": "Show dashboard analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard?environment=live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "environment",
+                  "value": "live"
+                },
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-10",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Requires an active admin session and View_Dashboard permission. Defaults to the latest 30 UTC dates, up to 366 days. Revenue and credits bought filter by live/test/all payment environment; customer sign-ins, account creation, consumed credits and accepted feature requests cover all activity in the period. Sign-in history starts when the new tracking is deployed. Location distribution counts IP-based sign-ins; unknown countries are included. Revenue is gross and separated by currency."
           }
         }
       ]

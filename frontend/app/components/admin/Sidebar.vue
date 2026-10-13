@@ -15,7 +15,9 @@ const auth = useAuthStore()
       <NuxtLink v-if="auth.user?.permissions?.includes('ViewAny_AdminAccount')" to="/taydeez/accounts" class="nav-item" active-class="nav-active" @click="emit('close')"><UiAppIcon name="users" />Admin accounts</NuxtLink>
       <NuxtLink v-if="auth.user?.permissions?.includes('ViewAny_Role')" to="/taydeez/roles" class="nav-item" active-class="nav-active" @click="emit('close')"><UiAppIcon name="settings" />Roles and permissions</NuxtLink>
       <NuxtLink v-if="auth.user?.permissions?.includes('ViewAny_AIProvider')" to="/taydeez/providers" class="nav-item" active-class="nav-active" @click="emit('close')"><UiAppIcon name="settings" />AI providers</NuxtLink>
+      <NuxtLink v-if="auth.user?.permissions?.some(permission => ['ViewAny_Pricing', 'ViewAny_Usage'].includes(permission))" to="/taydeez/billing" class="nav-item" active-class="nav-active" @click="emit('close')"><UiAppIcon name="billing" />Credits &amp; billing</NuxtLink>
     </nav>
+    <NuxtLink v-if="auth.user?.permissions?.includes('ViewAny_OperationalLog')" to="/taydeez/logs" class="nav-item" active-class="nav-active" @click="emit('close')"><UiAppIcon name="usage" />Operational logs</NuxtLink>
     <div class="mt-auto pt-8">
       <div class="rounded-xl border border-[var(--line)] bg-[var(--page)] p-4"><p class="text-sm font-semibold">Secure admin session</p><p class="mt-2 text-xs leading-5 text-[var(--muted)]">You’ll be signed out after 5 minutes of inactivity.</p></div>
       <div class="mt-5 flex items-center gap-3 border-t border-[var(--line)] pt-5">

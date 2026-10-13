@@ -3,7 +3,7 @@
 namespace App\Infrastructure\Billing;
 
 use App\Domain\Billing\Exceptions\BillingException;
-use Illuminate\Support\Facades\Process;
+use App\Infrastructure\Observability\TimedMediaProcess;
 use Throwable;
 
 final class AudioDurationProbe
@@ -16,7 +16,7 @@ final class AudioDurationProbe
         }
         array_push($command, '-select_streams', 'a:0', '-show_entries', 'format=duration,format_name:stream=index', '-of', 'json', $input);
         try {
-            $process = Process::timeout($remote ? 20 : 120)->run($command);
+            $process = TimedMediaProcess::run($command, $remote ? 20 : 120);
         } catch (Throwable) {
             if ($remote) {
                 return null;
@@ -53,13 +53,13 @@ final class AudioDurationProbe
         }
         $stream = null;
         try {
-            $process = Process::timeout(120)->run([
+            $process = TimedMediaProcess::run([
                 (string) config('billing.ffprobe', 'ffprobe'), '-v', 'error',
                 '-protocol_whitelist', 'file,pipe',
                 '-format_whitelist', 'mp3,wav,mov,ogg,flac,matroska,webm,aac',
                 '-select_streams', 'a:0', '-show_entries', 'packet=pts_time,duration_time',
                 '-of', 'compact=p=0', '-o', $outputPath, $input,
-            ]);
+            ], 120);
             if (! $process->successful()) {
                 throw new BillingException('The media duration could not be measured.', 422);
             }

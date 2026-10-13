@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Transcriber\Services\ProcessTranscriptTool as ToolProcessor;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,6 +22,7 @@ class ProcessTranscriptTool implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $toolId, public string $outboxEventId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('transcriptions');
     }
 

@@ -41,6 +41,7 @@ final class FfprobeMediaDurationInspector implements MediaDurationInspectorInter
                         'audio_storage_path' => $upload->storage_path,
                         'audio_url' => $url,
                         'file_name' => $upload->filename,
+                        'source_size_bytes' => $bytes,
                     ];
                 }
             }
@@ -104,6 +105,7 @@ final class FfprobeMediaDurationInspector implements MediaDurationInspectorInter
 
             return [
                 'duration_ms' => (int) ceil((float) $seconds * 1000),
+                'source_size_bytes' => $bytes,
                 'audio_storage_path' => $storagePath,
                 'audio_url' => Storage::disk('r2')->temporaryUrl($storagePath, now()->addHours(6)),
                 'file_name' => empty($source['audio_storage_path']) ? (pathinfo($filename, PATHINFO_FILENAME) ?: 'recording') : $filename,

@@ -148,7 +148,7 @@ class PublishOutboxEvents extends Command
                         $transcriptions->selectRaw('1')
                             ->from('transcriptions')
                             ->whereColumn('transcriptions.id', 'outbox_events.aggregate_id')
-                            ->whereIn('transcriptions.status', ['processing', 'failed']);
+                            ->where('transcriptions.status', 'processing');
                     });
             })
             ->where(function ($query): void {
@@ -161,7 +161,11 @@ class PublishOutboxEvents extends Command
                     DB::transaction(function () use ($event): void {
                         $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
                         $transcription = Transcription::query()->find($locked->aggregate_id);
-                        if ($transcription === null || $transcription->status === 'complete') {
+                        if ($transcription === null || in_array($transcription->status, ['complete', 'failed'], true)) {
+                            if ($locked->published_at === null) {
+                                $locked->update(['published_at' => now()]);
+                            }
+
                             return;
                         }
 

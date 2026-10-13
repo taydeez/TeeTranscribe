@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'concurrency_store' => env('ACTIVITY_CONCURRENCY_STORE', 'redis'),
     'free_credits' => env('BILLING_FREE_CREDITS', '0'),
     'quote_minutes' => 45,
     'checkout_minutes' => 30,

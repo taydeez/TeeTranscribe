@@ -8,6 +8,7 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Billing\Services\CreditService;
 use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Entities\Transcription;
 use App\Domain\Transcriber\Entities\TranscriptionEditResult;
@@ -97,6 +98,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
                 return new TranscriptionEditResult($this->mapper->toDomain($transcription), false);
             }
             $revision = $transcription->export_revision + 1;
+            app(CreditService::class)->assertConcurrency($userId, 'transcription', $id);
             $transcription->update([
                 'privacy_deleted_files' => [],
                 'transcript' => $transcript,
@@ -143,6 +145,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
                 }
             }
             if ($needed) {
+                app(CreditService::class)->assertConcurrency($userId, 'transcription', $id);
                 $record->update(['status' => 'processing']);
             }
 

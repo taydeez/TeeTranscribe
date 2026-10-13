@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Infrastructure\Exports\TranscriptionExportGenerator;
+use App\Infrastructure\Observability\ObserveJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
@@ -17,6 +18,7 @@ class GeneratePdfExport implements ShouldQueue
 
     public function __construct(public string $transcriptionId, public int $revision = 0)
     {
+        $this->through([new ObserveJob]);
         $this->onQueue('exports');
     }
 

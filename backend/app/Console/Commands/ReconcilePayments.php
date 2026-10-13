@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Billing\Contracts\BillingConfigurationInterface;
 use App\Domain\Billing\Services\CreditService;
 use App\Domain\Dubbing\Services\ProcessDubbing;
 use App\Domain\Payment\Contracts\PaymentRepositoryInterface;
@@ -40,7 +41,7 @@ class ReconcilePayments extends Command
         }
 
         UsageCharge::where('status', 'reserved')
-            ->where('created_at', '<=', now()->subHours(config('billing.processing_timeout_hours', 26)))
+            ->where('created_at', '<=', now()->subHours(app(BillingConfigurationInterface::class)->current()['processing_timeout_hours']))
             ->chunkById(100, function ($charges): void {
                 foreach ($charges as $charge) {
                     if ($charge->transcript_tool_id !== null) {

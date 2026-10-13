@@ -6,6 +6,7 @@ use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Services\FinalizeTranscriptionExports;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Exports\TranscriptionExportGenerator;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptionExport;
@@ -30,6 +31,7 @@ class GenerateTranscriptionExports implements ShouldBeUnique, ShouldQueue
         public string $transcriptionId,
         public ?string $outboxEventId = null,
     ) {
+        $this->through([new ObserveJob]);
         $this->revision = Transcription::find($transcriptionId)?->export_revision ?? 0;
         $this->onConnection('redis');
         $this->onQueue('exports');
@@ -59,13 +61,13 @@ class GenerateTranscriptionExports implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        if ($transcription->status === 'complete') {
+        if (in_array($transcription->status, ['complete', 'failed'], true)) {
             $this->markOutboxPublished($outbox);
 
             return;
         }
 
-        if (! in_array($transcription->status, ['processing', 'failed'], true)) {
+        if ($transcription->status !== 'processing') {
             throw new RuntimeException('Transcription is not ready for export.');
         }
 

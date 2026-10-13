@@ -2,6 +2,7 @@
 
 use App\Domain\Admin\Customer\Contracts\CustomerRepositoryInterface;
 use App\Domain\Admin\Customer\Services\CustomerService;
+use App\Domain\Billing\Contracts\ActivityConcurrencyInterface;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Entities\Wallet;
@@ -23,7 +24,7 @@ test('customer credit removal cannot spend reserved units even when total wallet
     $billing->shouldNotReceive('saveWallet');
     $billing->shouldNotReceive('appendEntry');
     $settings->shouldReceive('freeCreditUnits')->once()->andReturn(0);
-    $service = new CustomerService($customers, $billing, new CreditService($billing, $settings));
+    $service = new CustomerService($customers, $billing, new CreditService($billing, $settings, Mockery::mock(ActivityConcurrencyInterface::class)));
     expect(fn () => $service->adjustCredits(12, 1, ['action' => 'remove', 'credit_units' => 101, 'client_key' => 'key', 'reason' => 'Correction']))
         ->toThrow(BillingException::class, 'Reserved credits cannot be removed.');
     expect($wallet->available)->toBe(100);

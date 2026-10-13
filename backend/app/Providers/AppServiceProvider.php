@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Domain\Admin\Account\Contracts\AdminAccountRepositoryInterface;
 use App\Domain\Admin\Auth\Contracts\AdminSessionGatewayInterface;
 use App\Domain\Admin\Auth\Services\AdminAccess;
+use App\Domain\Admin\Billing\Contracts\BillingConfigurationRepositoryInterface;
 use App\Domain\Admin\Customer\Contracts\CustomerRepositoryInterface;
+use App\Domain\Admin\Dashboard\Contracts\DashboardRepositoryInterface;
 use App\Domain\Admin\Role\Contracts\AdminRoleRepositoryInterface;
 use App\Domain\Admin\TwoFactor\Contracts\AdminCodeMailerInterface;
 use App\Domain\Admin\TwoFactor\Contracts\AdminCodeRepositoryInterface;
@@ -14,6 +16,8 @@ use App\Domain\AI\Contracts\ProviderConfigurationRepositoryInterface;
 use App\Domain\Auth\Contracts\AccountSecurityGatewayInterface;
 use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Domain\Auth\Contracts\SocialAuthGatewayInterface;
+use App\Domain\Billing\Contracts\ActivityConcurrencyInterface;
+use App\Domain\Billing\Contracts\BillingConfigurationInterface;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Contracts\MediaDurationInspectorInterface;
@@ -69,8 +73,10 @@ use App\Infrastructure\Auth\AdminCodeMailer;
 use App\Infrastructure\Auth\AdminSessionGateway;
 use App\Infrastructure\Auth\GoogleSocialAuthGateway;
 use App\Infrastructure\Auth\LaravelAccountSecurityGateway;
+use App\Infrastructure\Billing\ConfigBillingConfiguration;
 use App\Infrastructure\Billing\ConfigBillingSettings;
 use App\Infrastructure\Billing\FfprobeMediaDurationInspector;
+use App\Infrastructure\Billing\RedisActivityConcurrency;
 use App\Infrastructure\Notifications\SendTranscriptionOutcomeEmail;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
 use App\Infrastructure\Payment\ConfigPaymentSettings;
@@ -83,8 +89,10 @@ use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminAccountRep
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminCodeRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAdminRoleRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAuthRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentBillingConfigurationRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentBillingRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentCustomerRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentDashboardRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentDubbingRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentFolderRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentMethodRepository;
@@ -118,6 +126,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(DashboardRepositoryInterface::class, EloquentDashboardRepository::class);
         $this->app->bind(ProviderConfigurationRepositoryInterface::class, EloquentProviderConfigurationRepository::class);
         $this->app->bind(ProviderCatalogInterface::class, ConfigProviderCatalog::class);
         $this->app->bind(AdminAccountRepositoryInterface::class, EloquentAdminAccountRepository::class);
@@ -146,10 +155,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TranscriptToolRepositoryInterface::class, EloquentTranscriptToolRepository::class);
         $this->app->bind(TranscriptToolGatewayInterface::class, TranscriptToolGateway::class);
         $this->app->bind(TranslationExportStorageInterface::class, R2TranslationExportStorage::class);
+        $this->app->bind(ActivityConcurrencyInterface::class, RedisActivityConcurrency::class);
         $this->app->bind(BillingRepositoryInterface::class, EloquentBillingRepository::class);
         $this->app->bind(PaymentRepositoryInterface::class, EloquentPaymentRepository::class);
         $this->app->bind(PaymentMethodRepositoryInterface::class, EloquentPaymentMethodRepository::class);
         $this->app->bind(PaymentSettingsInterface::class, ConfigPaymentSettings::class);
+        $this->app->bind(BillingConfigurationRepositoryInterface::class, EloquentBillingConfigurationRepository::class);
+        $this->app->bind(BillingConfigurationInterface::class, ConfigBillingConfiguration::class);
         $this->app->bind(BillingSettingsInterface::class, ConfigBillingSettings::class);
         $this->app->bind(PaymentGatewayResolverInterface::class, PaymentGatewayResolver::class);
         $this->app->bind(PaymentInvoiceStorageInterface::class, R2PaymentInvoiceStorage::class);

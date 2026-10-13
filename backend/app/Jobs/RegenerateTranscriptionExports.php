@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Exports\TranscriptionExportGenerator;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,6 +26,7 @@ class RegenerateTranscriptionExports implements ShouldBeUniqueUntilProcessing, S
 
     public function __construct(public string $transcriptionId)
     {
+        $this->through([new ObserveJob]);
         $this->revision = Transcription::find($transcriptionId)?->export_revision;
         $this->onConnection('redis');
         $this->onQueue('exports');

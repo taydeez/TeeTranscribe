@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Privacy\Services\ProcessPrivacyDeletion as DeletionProcessor;
+use App\Infrastructure\Observability\ObserveJob;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +24,7 @@ class ProcessPrivacyDeletion implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $deletionId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('default');
     }
 

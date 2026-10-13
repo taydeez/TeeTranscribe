@@ -36,7 +36,7 @@ final readonly class ProcessTranslation
         return $this->billing->exclusive('translation:processing:'.$id, function () use ($id): ?int {
             $record = $this->billing->transaction(function () use ($id) {
                 $record = $this->translations->find($id, lock: true);
-                if ($record === null || $record->status === 'complete' || ($record->status === 'failed' && $record->translatedText === null)) {
+                if ($record === null || in_array($record->status, ['complete', 'failed'], true)) {
                     return $record;
                 }
 
@@ -45,7 +45,7 @@ final readonly class ProcessTranslation
             if ($record === null) {
                 return 0;
             }
-            if ($record->status === 'complete' || ($record->status === 'failed' && $record->translatedText === null)) {
+            if (in_array($record->status, ['complete', 'failed'], true)) {
                 return $record->exportRevision;
             }
             $revision = $record->exportRevision;

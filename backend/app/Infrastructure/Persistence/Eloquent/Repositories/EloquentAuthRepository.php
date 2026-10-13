@@ -5,6 +5,7 @@ namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 use App\Domain\Admin\Auth\Services\AdminAccess;
 use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Domain\Auth\Entities\AuthenticatedUser;
+use App\Infrastructure\Analytics\CustomerSignInRecorder;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
@@ -64,7 +65,10 @@ class EloquentAuthRepository implements AuthRepositoryInterface
             return $user->createToken('admin', [AdminAccess::TOKEN_ABILITY], now()->addMinutes(AdminAccess::IDLE_MINUTES))->plainTextToken;
         }
 
-        return $user->createToken($name)->plainTextToken;
+        $token = $user->createToken($name)->plainTextToken;
+        app(CustomerSignInRecorder::class)->record($user, $name);
+
+        return $token;
     }
 
     public function upsertGoogle(string $googleId, string $name, string $email): AuthenticatedUser

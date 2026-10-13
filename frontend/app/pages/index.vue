@@ -39,7 +39,7 @@ onMounted(async () => {
       <section class="pb-16"><TranscriptionForm heading="Try your next recording" eyebrow="TRANSCRIBE" /></section>
     </main>
     <AuthModal v-model:open="authOpen" :initial-mode="authMode" />
-    <footer class="flex flex-wrap justify-between gap-4 border-t border-slate-200 py-6 text-xs text-slate-500"><span>Your voice. More possibilities.</span><span>TeeTranscribe © {{ new Date().getFullYear() }}</span></footer>
+    <PublicSiteFooter />
   </div>
 </template>
 <style scoped>

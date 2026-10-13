@@ -6,9 +6,9 @@ use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Dubbing\Contracts\DubbingMediaInterface;
 use App\Domain\Dubbing\Entities\Dubbing;
 use App\Infrastructure\Billing\SafeAudioUrl;
+use App\Infrastructure\Observability\TimedMediaProcess;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -56,7 +56,7 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
             $input = $this->probe($source);
             $codec = collect($input['streams'] ?? [])->firstWhere('codec_type', 'video')['codec_name'] ?? null;
             $base = [(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error'];
-            $converted = Process::timeout(600)->run([...$base, '-protocol_whitelist', 'file,pipe', '-i', $audio, '-map', '0:a:0', '-c:a', 'flac', '-f', 'flac', $flac]);
+            $converted = TimedMediaProcess::run([...$base, '-protocol_whitelist', 'file,pipe', '-i', $audio, '-map', '0:a:0', '-c:a', 'flac', '-f', 'flac', $flac], 600);
             if (! $converted->successful()) {
                 Log::warning('Dubbing audio conversion failed.', [
                     'dubbing_id' => $record->id,
@@ -73,7 +73,7 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
             }
             array_push($command, '-c:a', 'aac', '-b:a', '192k', '-af', 'apad', '-t', (string) ($record->durationMs / 1000),
                 '-map_metadata', '-1', '-movflags', '+faststart', '-f', 'mp4', $video);
-            if (! Process::timeout(2400)->run($command)->successful()) {
+            if (! TimedMediaProcess::run($command, 2400)->successful()) {
                 throw new RuntimeException('The dubbed video could not be generated.');
             }
             $output = $this->probe($video);
@@ -127,7 +127,7 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
             }
             $base = [(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe',
                 '-format_whitelist', 'mov,matroska,webm', '-i', $download];
-            if (! Process::timeout(600)->run([...$base, '-map', '0:a:0', '-c:a', 'flac', '-f', 'flac', $flac])->successful()) {
+            if (! TimedMediaProcess::run([...$base, '-map', '0:a:0', '-c:a', 'flac', '-f', 'flac', $flac], 600)->successful()) {
                 throw new RuntimeException('The dubbed audio could not be decoded.');
             }
             $codec = collect($input['streams'])->firstWhere('codec_type', 'video')['codec_name'] ?? null;
@@ -141,7 +141,7 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
                 array_push($command, '-b:a', '192k');
             }
             array_push($command, '-map_metadata', '-1', '-movflags', '+faststart', '-f', 'mp4', $video);
-            if (! Process::timeout(2400)->run($command)->successful()) {
+            if (! TimedMediaProcess::run($command, 2400)->successful()) {
                 throw new RuntimeException('The dubbed video could not be prepared.');
             }
             $output = $this->probe($video);
@@ -194,8 +194,8 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
 
     private function probe(string $path): array
     {
-        $result = Process::timeout(120)->run([(string) config('billing.ffprobe'), '-v', 'error', '-protocol_whitelist', 'file,pipe',
-            '-format_whitelist', 'mov,matroska,webm,flac,wav', '-show_entries', 'format=duration:stream=codec_type,codec_name', '-of', 'json', $path]);
+        $result = TimedMediaProcess::run([(string) config('billing.ffprobe'), '-v', 'error', '-protocol_whitelist', 'file,pipe',
+            '-format_whitelist', 'mov,matroska,webm,flac,wav', '-show_entries', 'format=duration:stream=codec_type,codec_name', '-of', 'json', $path], 120);
         $data = json_decode($result->output(), true);
         if (! $result->successful() || ! is_array($data)) {
             throw new BillingException('The video could not be inspected.', 422);

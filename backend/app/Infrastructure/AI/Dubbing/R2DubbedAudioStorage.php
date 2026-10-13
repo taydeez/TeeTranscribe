@@ -6,9 +6,9 @@ use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Dubbing\Contracts\AudioDubbingMediaInterface;
 use App\Domain\Dubbing\Entities\Dubbing;
 use App\Infrastructure\Billing\SafeAudioUrl;
+use App\Infrastructure\Observability\TimedMediaProcess;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -65,7 +65,7 @@ final readonly class R2DubbedAudioStorage implements AudioDubbingMediaInterface
                 if ($format === 'mp3') {
                     array_push($command, '-b:a', '192k');
                 }
-                $result = Process::timeout(600)->run([...$command, '-f', $format, $output]);
+                $result = TimedMediaProcess::run([...$command, '-f', $format, $output], 600);
                 if (! $result->successful()) {
                     Log::warning('Audio dubbing conversion failed.', ['dubbing_id' => $record->id, 'format' => $format,
                         'exit_code' => $result->exitCode(), 'error' => substr(str_replace([$download, $output],
@@ -93,8 +93,8 @@ final readonly class R2DubbedAudioStorage implements AudioDubbingMediaInterface
 
     private function duration(string $path, float $maximum): float
     {
-        $result = Process::timeout(120)->run([(string) config('billing.ffprobe'), '-v', 'error', '-protocol_whitelist', 'file,pipe',
-            '-format_whitelist', self::FORMATS, '-show_entries', 'format=duration:stream=codec_type:stream_disposition=attached_pic', '-of', 'json', $path]);
+        $result = TimedMediaProcess::run([(string) config('billing.ffprobe'), '-v', 'error', '-protocol_whitelist', 'file,pipe',
+            '-format_whitelist', self::FORMATS, '-show_entries', 'format=duration:stream=codec_type:stream_disposition=attached_pic', '-of', 'json', $path], 120);
         $data = json_decode($result->output(), true);
         if (! $result->successful()) {
             Log::warning('Audio dubbing inspection failed.', ['exit_code' => $result->exitCode(),

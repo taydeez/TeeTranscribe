@@ -11,6 +11,8 @@ node_modules
 
 # Logs
 logs
+!server/api/taydeez/logs/
+!server/api/taydeez/logs/*.ts
 *.log
 
 # Misc

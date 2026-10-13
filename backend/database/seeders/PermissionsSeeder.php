@@ -12,7 +12,7 @@ class PermissionsSeeder extends Seeder
     public const MODELS = [
         'AdminAccount', 'Role', 'User', 'Folder', 'Transcription', 'TranscriptionExport', 'Translation',
         'Dubbing', 'CreditPackage', 'CreditLedger', 'Usage', 'PaymentMethod', 'PaymentTransaction',
-        'Invoice', 'AIProvider', 'Pricing', 'Setting', 'PrivacyDeletion', 'OutboxEvent', 'Dashboard',
+        'Invoice', 'AIProvider', 'Pricing', 'Setting', 'PrivacyDeletion', 'OutboxEvent', 'Dashboard', 'OperationalLog',
     ];
 
     public const ACTIONS = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'Restore'];

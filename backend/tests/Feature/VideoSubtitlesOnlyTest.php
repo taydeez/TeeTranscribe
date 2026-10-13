@@ -18,6 +18,7 @@ use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentDubbingReposito
 use App\Jobs\RenderDubbingSubtitles;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
@@ -49,12 +50,24 @@ beforeEach(function () {
         $mock->shouldReceive('url')->andReturnUsing(fn ($path) => $path === null ? null : 'https://r2.example/'.$path);
     });
     $this->translationFails = false;
+    $this->languageCatalogFailure = null;
     Http::fake(function ($request) {
         if (str_contains($request->url(), 'api.deepgram.com')) {
             return Http::response(['results' => ['channels' => [['detected_language' => 'en']], 'utterances' => [
                 ['start' => 1.0, 'end' => 3.0, 'transcript' => 'Hello, welcome.'], ['start' => 5.0, 'end' => 8.0, 'transcript' => 'Thank you.']]]]);
         }
         if ($request->method() === 'GET') {
+            if ($this->languageCatalogFailure === 'connection') {
+                throw new ConnectionException('Connection timed out.');
+            }
+            if ($this->languageCatalogFailure !== null) {
+                return match ($this->languageCatalogFailure) {
+                    'unavailable' => Http::response(['error' => ['status' => 'UNAVAILABLE']], 503),
+                    'empty' => Http::response(['data' => ['languages' => []]]),
+                    'malformed' => Http::response(['data' => ['languages' => [['language' => 12, 'name' => null]]]]),
+                };
+            }
+
             return Http::response(['data' => ['languages' => [['language' => 'en', 'name' => 'English'], ['language' => 'es', 'name' => 'Spanish'],
                 ['language' => 'yo', 'name' => 'Yoruba'], ['language' => 'ig', 'name' => 'Igbo'], ['language' => 'ha', 'name' => 'Hausa']]]]);
         }
@@ -83,6 +96,26 @@ test('subtitle languages and pricing work independently of dubbing credentials',
     expect(array_column($catalog['data'], 'code'))->toContain('es')->and(array_slice(array_column($catalog['data'], 'code'), 0, 3))->toBe(['yo', 'ig', 'ha']);
     $record = confirmSubtitlesOnly($this);
     expect(UsageCharge::sole()->credit_units)->toBe(400)->and($record->provider)->toBe('deepgram')->and($record->model)->toBe('nova-2');
+});
+
+test('subtitle dropdown uses default languages when the remote catalog is unavailable', function (string $failure) {
+    $this->languageCatalogFailure = $failure;
+    $catalog = $this->getJson('/api/v1/dubbings/languages')->assertOk()
+        ->assertJsonPath('subtitlesOnly.configured', true)->json('subtitlesOnly');
+
+    $codes = array_column($catalog['data'], 'code');
+    expect(count($codes))->toBeGreaterThan(75)
+        ->and($codes)->toContain('en', 'es', 'fr', 'de', 'zh-CN', 'ar', 'yo', 'ig', 'ha')
+        ->and(array_slice($codes, 0, 3))->toBe(['yo', 'ig', 'ha'])
+        ->and(array_column($catalog['sourceLanguages'], 'code'))->toContain('en')->not->toContain('yo');
+})->with(['unavailable', 'empty', 'malformed', 'connection']);
+
+test('default subtitle languages do not bypass missing credentials', function () {
+    config(['translation.google.key' => null]);
+
+    $this->getJson('/api/v1/dubbings/languages')->assertOk()->assertJsonPath('subtitlesOnly.configured', false);
+    $this->postJson('/api/v1/dubbings/quotes', $this->input)->assertStatus(503);
+    expect(UsageCharge::count())->toBe(0);
 });
 
 test('English video receives timed Spanish subtitles without dubbing its original audio', function () {

@@ -8,6 +8,8 @@ use App\Infrastructure\AI\Transcriber\Google\GoogleSpeechAudioStorage;
 use App\Infrastructure\AI\Transcriber\Google\GoogleSpeechClient;
 use App\Infrastructure\AI\Transcriber\TranscriptionCompletion;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Observability\ObserveJob;
+use App\Infrastructure\Observability\OperationalLogger;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
@@ -29,6 +31,7 @@ class PollGoogleTranscription implements ShouldQueue
 
     public function __construct(public string $transcriptionId)
     {
+        $this->through([new ObserveJob]);
         $this->pollingDeadline = CarbonImmutable::now()->addMinutes(config('transcriber.google.poll_timeout_minutes', 120));
         $this->onConnection('redis')->onQueue('transcriptions');
     }
@@ -89,6 +92,10 @@ class PollGoogleTranscription implements ShouldQueue
         }
         $file = array_values($files)[0];
         if (isset($file['error'])) {
+            app(OperationalLogger::class)->record('provider', 'error', 'Google reported transcription failure.', [
+                'transcription_id' => $record->id, 'provider' => 'google', 'provider_request_id' => $record->provider_request_id,
+                'provider_message' => $file['error'],
+            ]);
             app(TranscriptionOutcomePublisher::class)->failed($record->id, pendingOnly: true);
             $this->cleanup($audio);
 

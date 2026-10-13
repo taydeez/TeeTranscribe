@@ -5,19 +5,22 @@ namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 use App\Domain\AI\Contracts\ProviderCatalogInterface;
 use App\Domain\AI\Contracts\ProviderConfigurationRepositoryInterface;
 use App\Domain\Billing\Exceptions\BillingException;
+use App\Infrastructure\Cache\ReadCache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 final class EloquentProviderConfigurationRepository implements ProviderConfigurationRepositoryInterface
 {
-    public function __construct(private readonly ProviderCatalogInterface $catalog) {}
+    public function __construct(private readonly ProviderCatalogInterface $catalog, private readonly ReadCache $cache) {}
 
     public function find(string $activity): ?array
     {
-        $row = DB::table('ai_provider_configurations')->where('activity', $activity)->first();
+        return $this->cache->remember('ai:configuration:'.$activity, config('read_cache.settings_seconds'), function () use ($activity): ?array {
+            $row = DB::table('ai_provider_configurations')->where('activity', $activity)->first();
 
-        return $row === null ? null : ['activity' => $activity, 'configuration' => json_decode($row->configuration, true, 512, JSON_THROW_ON_ERROR),
-            'version' => (int) $row->version, 'updatedAt' => $row->updated_at];
+            return $row === null ? null : ['activity' => $activity, 'configuration' => json_decode($row->configuration, true, 512, JSON_THROW_ON_ERROR),
+                'version' => (int) $row->version, 'updatedAt' => $row->updated_at];
+        }, committedOnly: true);
     }
 
     public function save(string $activity, array $configuration, int $version, int $actorId, string $reason): array
@@ -35,6 +38,7 @@ final class EloquentProviderConfigurationRepository implements ProviderConfigura
             DB::table('ai_provider_configuration_changes')->insert(['id' => (string) Str::ulid(), 'configuration_id' => $row->id,
                 'actor_id' => $actorId, 'before' => $version === 0 ? json_encode($this->catalog->defaults($activity), JSON_THROW_ON_ERROR) : $row->configuration,
                 'after' => $json, 'reason' => $reason, 'created_at' => now()]);
+            DB::afterCommit(fn () => $this->cache->invalidate('ai:configuration:'.$activity));
 
             return $this->find($activity);
         });

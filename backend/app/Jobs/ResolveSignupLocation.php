@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Infrastructure\Observability\ObserveJob;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,6 +19,7 @@ final class ResolveSignupLocation implements ShouldQueue
 
     public function __construct(public int $userId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('default');
     }
 

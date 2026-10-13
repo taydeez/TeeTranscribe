@@ -14,6 +14,16 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
+test('publishing acknowledges terminal failures without restarting exports or reclaiming capacity', function () {
+    Queue::fake();
+    $record = Transcription::factory()->create(['status' => 'failed', 'transcript' => 'Saved result']);
+    $event = OutboxEvent::factory()->create(['aggregate_id' => $record->id, 'event_type' => 'TranscriptionCompleted', 'attempts' => 0, 'published_at' => null]);
+    $this->artisan('outbox:publish')->assertSuccessful();
+    $this->artisan('outbox:publish')->assertSuccessful();
+    expect($record->refresh()->status)->toBe('failed')->and($event->refresh()->published_at)->not->toBeNull()->and($event->attempts)->toBe(0);
+    Queue::assertNotPushed(GenerateTranscriptionExports::class);
+});
+
 test('the coordinator uploads both formats before acknowledging the outbox event', function () {
     Storage::fake('r2');
     $transcription = Transcription::factory()->create([

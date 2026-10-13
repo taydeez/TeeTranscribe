@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\UsageQuoteService;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +24,7 @@ class MeasureBillingQuote implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $quoteId, public string $outboxEventId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('ingestion');
     }
 
