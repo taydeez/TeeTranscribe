@@ -10,7 +10,7 @@ onMounted(() => { void auth.initialize() })
   <div class="public-site">
     <a href="#page-content" class="sr-only focus:not-sr-only focus:block focus:p-4">Skip to content</a>
     <header class="public-header">
-      <NuxtLink class="brand" to="/"><span class="brand-mark"><UiAppIcon name="audio" /></span>TeeTranscribe</NuxtLink>
+      <NuxtLink class="brand" to="/"><UiBrandLogo /></NuxtLink>
       <div class="flex items-center gap-2"><UiThemeToggle /><NuxtLink class="button-primary" :to="workspaceUrl">Open workspace</NuxtLink></div>
     </header>
     <nav class="flex flex-wrap gap-x-7 gap-y-3 border-b border-slate-200 py-4 text-sm text-slate-500" aria-label="Information pages">

@@ -50,7 +50,6 @@ button:disabled { cursor: not-allowed; }
 .icon-button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--muted); }
 .icon-button:hover { background: #64748b10; }
 .brand { display: flex; gap: 10px; align-items: center; font-family: var(--font-heading); font-weight: 800; letter-spacing: -.035em; font-size: 19px; }
-.brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg,#4f46e5,#8b5cf6,#22d3ee); color: white; }
 .workspace-layout { display: flex; min-height: 100dvh; }
 .sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; display: flex; flex-direction: column; width: 252px; background: var(--surface); border-right: 1px solid var(--line); padding: 28px 20px 20px; transform: translateX(-100%); transition: transform .2s; }
 .sidebar-open { transform: translateX(0); }
