@@ -5,12 +5,12 @@ namespace App\Infrastructure\AI\Dubbing\HeyGen;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Dubbing\Contracts\DubbingGatewayInterface;
 use App\Domain\Dubbing\Entities\Dubbing;
-use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\ReadCache;
 use Illuminate\Support\Facades\Log;
 
 final readonly class HeyGenDubbingGateway implements DubbingGatewayInterface
 {
-    public function __construct(private HeyGenClient $client) {}
+    public function __construct(private HeyGenClient $client, private ReadCache $cache) {}
 
     public function create(Dubbing $record, string $sourceUrl): array
     {
@@ -81,7 +81,7 @@ final readonly class HeyGenDubbingGateway implements DubbingGatewayInterface
 
     public function languages(): array
     {
-        return Cache::remember('heygen:dubbing:languages:'.hash('sha256', (string) config('dubbing.heygen.key')), 3600, function (): array {
+        return $this->cache->remember('languages:heygen:'.hash('sha256', (string) config('dubbing.heygen.key')), config('read_cache.languages_seconds'), function (): array {
             $languages = $this->client->request('GET', '/languages')['data']['languages'] ?? null;
             if (! is_array($languages) || $languages === []) {
                 throw new BillingException('Dubbing languages are temporarily unavailable.', 503);

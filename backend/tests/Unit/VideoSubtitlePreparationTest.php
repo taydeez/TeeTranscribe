@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Billing\Contracts\ActivityConcurrencyInterface;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Services\CreditService;
@@ -34,6 +35,6 @@ test('saved translated subtitles resume original media preparation without any p
     $media->shouldReceive('prepareOriginal')->once()->with($record)->andReturn(['video_storage_path' => 'english.mp4', 'audio_storage_path' => 'english.flac']);
     $media->shouldNotReceive('store', 'storeVideo', 'sourceUrl');
     $billing->shouldNotReceive('charge', 'lockWallet');
-    $credits = new CreditService($billing, Mockery::mock(BillingSettingsInterface::class));
+    $credits = new CreditService($billing, Mockery::mock(BillingSettingsInterface::class), Mockery::mock(ActivityConcurrencyInterface::class));
     (new PrepareVideoSubtitles($records, $billing, $transcriber, $translator, $media, $credits, new SubtitleDocument))->handle($record);
 });

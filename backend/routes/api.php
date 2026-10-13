@@ -10,10 +10,16 @@ use App\Http\Controllers\Admin\AIProvider\UpdateAIProviderConfigurationControlle
 use App\Http\Controllers\Admin\Auth\ChangeInitialPasswordController;
 use App\Http\Controllers\Admin\Auth\LoginAdminController;
 use App\Http\Controllers\Admin\Auth\RecordAdminActivityController;
+use App\Http\Controllers\Admin\Billing\ShowBillingConfigurationController;
+use App\Http\Controllers\Admin\Billing\ShowBillingReportController;
+use App\Http\Controllers\Admin\Billing\UpdateBillingConfigurationController;
 use App\Http\Controllers\Admin\Customer\AdjustCustomerCreditsController;
 use App\Http\Controllers\Admin\Customer\ListCustomerController;
 use App\Http\Controllers\Admin\Customer\ShowCustomerController;
 use App\Http\Controllers\Admin\Customer\UpdateCustomerAccessController;
+use App\Http\Controllers\Admin\Dashboard\ShowDashboardController;
+use App\Http\Controllers\Admin\Log\ListOperationalLogController;
+use App\Http\Controllers\Admin\Log\ShowOperationalLogController;
 use App\Http\Controllers\Admin\Role\DeleteRoleController;
 use App\Http\Controllers\Admin\Role\ListPermissionsController;
 use App\Http\Controllers\Admin\Role\ListRoleController;
@@ -105,7 +111,13 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/auth/logout', LogoutController::class)->middleware('auth:sanctum');
     Route::prefix('admin')->middleware(['auth:sanctum', 'verified', 'role:admin|super_admin', 'admin.session', 'throttle:billing'])->group(function (): void {
         Route::get('/user', AdminUserController::class);
+        Route::get('/dashboard', ShowDashboardController::class)->middleware('permission:View_Dashboard');
+        Route::get('/logs', ListOperationalLogController::class)->middleware('permission:ViewAny_OperationalLog');
+        Route::get('/logs/{log}', ShowOperationalLogController::class)->whereUlid('log')->middleware('permission:View_OperationalLog');
         Route::get('/ai-providers', ListAIProviderConfigurationController::class)->middleware('permission:ViewAny_AIProvider');
+        Route::get('/billing/settings', ShowBillingConfigurationController::class)->middleware('permission:ViewAny_Pricing');
+        Route::put('/billing/settings', UpdateBillingConfigurationController::class)->middleware('permission:Update_Pricing');
+        Route::get('/billing/report', ShowBillingReportController::class)->middleware('permission:ViewAny_Usage');
         Route::put('/ai-providers/{activity}', UpdateAIProviderConfigurationController::class)->middleware('permission:Update_AIProvider');
         Route::post('/password', ChangeInitialPasswordController::class)->middleware('throttle:account-password');
         Route::get('/accounts', ListAdminAccountController::class)->middleware('permission:ViewAny_AdminAccount');

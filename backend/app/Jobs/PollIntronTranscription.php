@@ -6,6 +6,8 @@ use App\Domain\Billing\Services\CreditService;
 use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Infrastructure\AI\Transcriber\Intron\IntronClient;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Observability\ObserveJob;
+use App\Infrastructure\Observability\OperationalLogger;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Carbon\CarbonImmutable;
@@ -32,6 +34,7 @@ class PollIntronTranscription implements ShouldQueue
 
     public function __construct(public string $transcriptionId, ?DateTimeInterface $pollingDeadline = null)
     {
+        $this->through([new ObserveJob]);
         $this->pollingDeadline = $pollingDeadline === null
             ? CarbonImmutable::now()->addMinutes((int) config('transcriber.intron.poll_timeout_minutes', 60))
             : CarbonImmutable::instance($pollingDeadline);
@@ -92,6 +95,10 @@ class PollIntronTranscription implements ShouldQueue
         }
 
         if ($status === 'FILE_PROCESSING_FAILED') {
+            app(OperationalLogger::class)->record('provider', 'error', 'Intron reported transcription failure.', [
+                'transcription_id' => $transcription->id, 'provider' => 'intron', 'provider_request_id' => $transcription->provider_request_id,
+                'provider_message' => data_get($response, 'message'), 'status' => $status,
+            ]);
             app(TranscriptionOutcomePublisher::class)->failed($transcription->id, pendingOnly: true);
 
             return;
@@ -113,6 +120,10 @@ class PollIntronTranscription implements ShouldQueue
             }
 
             $duration = data_get($response, 'data.processed_audio_duration_in_seconds');
+            app(OperationalLogger::class)->record('provider', 'info', 'Provider transcription result received.', [
+                'transcription_id' => $record->id, 'provider' => 'intron', 'provider_request_id' => $record->provider_request_id,
+                'duration_seconds' => $duration,
+            ], app(OperationalLogger::class)->elapsedSinceSubmission($record->id));
             $record->update([
                 'status' => 'processing',
                 'transcript' => trim($transcript),

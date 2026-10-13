@@ -2,6 +2,7 @@
 
 namespace App\Domain\Billing\Services;
 
+use App\Domain\Billing\Contracts\ActivityConcurrencyInterface;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Entities\Wallet;
@@ -12,6 +13,7 @@ final class CreditService
     public function __construct(
         private readonly BillingRepositoryInterface $repository,
         private readonly BillingSettingsInterface $settings,
+        private readonly ActivityConcurrencyInterface $concurrency,
     ) {}
 
     public function balance(int $userId): array
@@ -42,7 +44,19 @@ final class CreditService
 
     public function reserve(int $userId, array $quote, string $transcriptionId): void
     {
+        $this->repository->transaction(fn () => $this->reserveCredits($userId, $quote, $transcriptionId));
+    }
+
+    public function assertConcurrency(int $userId, string $activity, string $subjectId): void
+    {
+        $this->repository->lockWallet($userId);
+        $this->concurrency->assertAvailable($userId, $activity, $subjectId);
+    }
+
+    private function reserveCredits(int $userId, array $quote, string $transcriptionId): void
+    {
         $wallet = $this->wallet($userId);
+        $this->concurrency->assertAvailable($userId, $quote['activity'], $transcriptionId);
         $units = (int) $quote['credit_units'];
         if ($wallet->available < $units) {
             throw new BillingException('You do not have enough credits. Add credits before processing.', 402);
@@ -121,7 +135,7 @@ final class CreditService
             $rate = $charge['rate'];
             $quantity = $actualDurationMs ?? (int) $charge['quantity'];
             $cost = isset($rate['provider_cost_micros'])
-                ? CreditMath::prorate((int) $rate['provider_cost_micros'], $quantity, (int) $rate['unit_length'])
+                ? CreditMath::prorate((int) $rate['provider_cost_micros'], $quantity, (int) ($rate['provider_unit_length'] ?? $rate['unit_length']))
                 : null;
             $this->repository->saveWallet($wallet);
             $this->repository->updateCharge($charge['id'], [

@@ -67,7 +67,7 @@ final class DeepGramClient
                 ])->throw();
         } catch (\Exception $e) {
             Log::warning('Deepgram API request failed', ['transcription_id' => $transcription_id, 'exception_type' => $e::class]);
-            throw new RuntimeException('Deepgram API request failed.');
+            throw new RuntimeException('Deepgram API request failed.', previous: $e);
         }
         Log::info('Deepgram API request successful', ['transcription_id' => $transcription_id, 'http_status' => $response->status(), 'request_id' => $response->json('request_id')]);
 

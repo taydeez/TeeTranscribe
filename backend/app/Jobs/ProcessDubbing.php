@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Dubbing\Contracts\DubbingRepositoryInterface;
 use App\Domain\Dubbing\Services\ProcessDubbing as Processor;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,6 +23,7 @@ class ProcessDubbing implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $dubbingId, public string $outboxEventId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('dubbing')->onQueue('dubbing');
     }
 

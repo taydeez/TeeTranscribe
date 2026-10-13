@@ -13,14 +13,12 @@ class FinalizeTranscriptionExports
     {
         DB::transaction(function () use ($transcriptionId): void {
             $transcription = Transcription::query()->lockForUpdate()->find($transcriptionId);
-            if ($transcription === null || $transcription->status === 'complete') {
+            if ($transcription === null || in_array($transcription->status, ['complete', 'failed'], true)) {
                 return;
             }
             $exports = $transcription->exports()->where('export_revision', $transcription->export_revision)->lockForUpdate()->get()->keyBy(fn ($export) => $export->format.':'.$export->variant);
 
             if ($exports->contains(fn ($export): bool => $export->status === 'failed')) {
-                $transcription->update(['status' => 'failed']);
-
                 return;
             }
 

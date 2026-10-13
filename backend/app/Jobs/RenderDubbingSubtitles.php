@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Dubbing\Services\ProcessDubbingSubtitles;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,6 +22,7 @@ class RenderDubbingSubtitles implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $dubbingId, public string $outboxEventId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('subtitle_rendering')->onQueue('subtitle-rendering');
     }
 

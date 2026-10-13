@@ -6,9 +6,9 @@ use App\Domain\Dubbing\Contracts\DubbingSubtitleRendererInterface;
 use App\Domain\Dubbing\Entities\Dubbing;
 use App\Domain\Dubbing\Services\SubtitleDocument;
 use App\Infrastructure\Billing\SafeAudioUrl;
+use App\Infrastructure\Observability\TimedMediaProcess;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -58,11 +58,11 @@ final readonly class R2DubbingSubtitleRenderer implements DubbingSubtitleRendere
                 $filter .= ':fontsdir=fonts';
             }
             $filter .= ',pad=ceil(iw/2)*2:ceil(ih/2)*2';
-            $result = Process::path($directory)->timeout(6600)->run([(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error',
+            $result = TimedMediaProcess::run([(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error',
                 '-protocol_whitelist', 'file,pipe', '-format_whitelist', 'mov', '-i', 'input.mp4', '-map', '0:v:0', '-map', '0:a:0',
                 '-vf', $filter, '-c:v', 'libx264', '-preset', 'fast', '-crf', '20', '-pix_fmt', 'yuv420p',
                 '-threads', (string) max(1, min(16, config('dubbing.subtitles.threads'))), '-c:a', 'copy',
-                '-map_metadata', '-1', '-movflags', '+faststart', '-f', 'mp4', 'captioned.mp4']);
+                '-map_metadata', '-1', '-movflags', '+faststart', '-f', 'mp4', 'captioned.mp4'], 6600, $directory);
             if (! $result->successful()) {
                 Log::warning('Dubbing subtitle render failed.', ['dubbing_id' => $record->id, 'exit_code' => $result->exitCode(),
                     'error' => substr(str_replace($directory, '[temporary media]', $result->errorOutput()), 0, 4000)]);
@@ -150,8 +150,8 @@ final readonly class R2DubbingSubtitleRenderer implements DubbingSubtitleRendere
 
     private function probe(string $path): array
     {
-        $result = Process::timeout(120)->run([(string) config('billing.ffprobe'), '-v', 'error', '-protocol_whitelist', 'file,pipe',
-            '-format_whitelist', 'mov', '-show_entries', 'format=duration:stream=codec_type,width,height', '-of', 'json', $path]);
+        $result = TimedMediaProcess::run([(string) config('billing.ffprobe'), '-v', 'error', '-protocol_whitelist', 'file,pipe',
+            '-format_whitelist', 'mov', '-show_entries', 'format=duration:stream=codec_type,width,height', '-of', 'json', $path], 120);
         $data = json_decode($result->output(), true);
         if (! $result->successful() || ! is_array($data)) {
             throw new RuntimeException('The dubbing video could not be inspected.');

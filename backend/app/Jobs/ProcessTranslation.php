@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Translation\Contracts\TranslationRepositoryInterface;
 use App\Domain\Translation\Services\ProcessTranslation as TranslationProcessor;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\OutboxEvent;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -23,6 +24,7 @@ class ProcessTranslation implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $translationId, public string $outboxEventId, public int $revision = 0)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('transcriptions');
     }
 

@@ -5,6 +5,7 @@ namespace App\Infrastructure\AI\Transcriber\DeepGram;
 use App\Domain\Billing\Services\CreditService;
 use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Observability\OperationalLogger;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -42,8 +43,17 @@ final class DeepgramWebhookHandler
                     ->firstOrFail();
 
                 if ($record->status !== 'pending') {
+                    app(OperationalLogger::class)->record('provider', 'info', 'Duplicate Deepgram callback ignored.', [
+                        'transcription_id' => $record->id, 'provider' => 'deepgram', 'provider_request_id' => $record->provider_request_id,
+                    ]);
+
                     return;
                 }
+
+                app(OperationalLogger::class)->record('provider', 'info', 'Verified Deepgram callback received.', [
+                    'transcription_id' => $record->id, 'provider' => 'deepgram', 'provider_request_id' => $record->provider_request_id,
+                    'duration_seconds' => $data['metadata']['duration'] ?? $record->duration,
+                ], app(OperationalLogger::class)->elapsedSinceSubmission($record->id));
 
                 $record->status = 'processing';
                 $record->transcript = $data['results']['channels'][0]['alternatives'][0]['transcript'] ?? '';
@@ -64,6 +74,9 @@ final class DeepgramWebhookHandler
                 }
 
                 if (trim($record->transcript) === '') {
+                    app(OperationalLogger::class)->record('provider', 'error', 'Deepgram returned an empty transcript.', [
+                        'transcription_id' => $record->id, 'provider' => 'deepgram', 'provider_request_id' => $record->provider_request_id,
+                    ]);
                     app(TranscriptionOutcomePublisher::class)->failed($record->id);
 
                     return;

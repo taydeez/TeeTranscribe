@@ -5,15 +5,29 @@ namespace App\Infrastructure\AI\Translation\Gateways;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Translation\Contracts\TranslationGatewayInterface;
 use App\Infrastructure\AI\Translation\Google\GoogleTranslationClient;
-use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\AI\Translation\GoogleTranslationLanguages;
+use App\Infrastructure\Cache\ReadCache;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Log;
 
 final class GoogleTranslationGateway implements TranslationGatewayInterface
 {
-    public function __construct(private readonly GoogleTranslationClient $client) {}
+    public function __construct(private readonly GoogleTranslationClient $client, private readonly ReadCache $cache) {}
 
     public function languages(): array
     {
-        return Cache::remember('translation:google:nmt:languages:en', 86400, function (): array {
+        try {
+            return $this->providerLanguages();
+        } catch (BillingException|ConnectionException $exception) {
+            Log::warning('Translation language catalog unavailable; using built-in defaults.', ['exception_type' => $exception::class]);
+
+            return GoogleTranslationLanguages::all();
+        }
+    }
+
+    private function providerLanguages(): array
+    {
+        return $this->cache->remember('languages:google:nmt:en:'.hash('sha256', (string) config('translation.google.key')), config('read_cache.languages_seconds'), function (): array {
             $items = $this->client->languages()['languages'] ?? null;
             if (! is_array($items) || $items === []) {
                 throw new BillingException('Supported languages are temporarily unavailable.', 503);

@@ -2,9 +2,11 @@
 
 namespace App\Domain\Payment\Services;
 
+use App\Domain\Billing\Contracts\BillingConfigurationInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\CreditMath;
+use App\Domain\Billing\Services\CreditPackagePrice;
 use App\Domain\Billing\Services\CreditService;
 use App\Domain\Payment\Contracts\PaymentGatewayResolverInterface;
 use App\Domain\Payment\Contracts\PaymentRepositoryInterface;
@@ -18,6 +20,7 @@ final class PaymentService
         private readonly PaymentGatewayResolverInterface $gateways,
         private readonly CreditService $credits,
         private readonly PaymentMethodService $methods,
+        private readonly BillingConfigurationInterface $configuration,
     ) {}
 
     public function packagePrices(string $currency): array
@@ -25,16 +28,13 @@ final class PaymentService
         if (! in_array($currency, ['NGN', 'USD'], true)) {
             throw new BillingException('Choose NGN or USD.', 422);
         }
+        if (! in_array($currency, $this->configuration->current()['enabled_currencies'], true)) {
+            throw new BillingException('Purchases in this currency are currently unavailable.', 422);
+        }
         $fx = $currency === 'USD' ? $this->settings->fx() : null;
         $packages = [];
         foreach ($this->settings->packages() as $key => $package) {
-            $units = CreditMath::decimal($package['credits']);
-            $amount = $currency === 'NGN' ? $units : CreditMath::usdCents($units, $fx['ngn_per_usd_micros']);
-            $packages[] = [
-                'id' => $key, 'name' => $package['name'], 'credit_units' => $units,
-                'amount_minor' => $amount, 'currency' => $currency,
-                'fx_ngn_per_usd_micros' => $fx['ngn_per_usd_micros'] ?? null,
-            ];
+            $packages[] = ['id' => $key] + CreditPackagePrice::calculate($package, $currency, $fx);
         }
 
         return $packages;
@@ -61,7 +61,7 @@ final class PaymentService
             if ($package === null) {
                 throw new BillingException('Credit package not found.', 404);
             }
-            if ($package['amount_minor'] < ($currency === 'USD' ? 200 : 5000)) {
+            if ($package['amount_minor'] < CreditMath::decimal($this->configuration->current()['minimum_checkout'][$currency])) {
                 throw new BillingException('This package is below the minimum checkout amount.', 422);
             }
 

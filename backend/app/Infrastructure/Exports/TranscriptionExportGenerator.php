@@ -34,10 +34,10 @@ final class TranscriptionExportGenerator
         }
         $snapshot = DB::transaction(function () use ($id, $format, $revision, $variant): ?Transcription {
             $record = Transcription::query()->lockForUpdate()->findOrFail($id);
-            if ($record->export_revision !== $revision || $record->status === 'complete') {
+            if ($record->export_revision !== $revision || in_array($record->status, ['complete', 'failed'], true)) {
                 return null;
             }
-            if (! in_array($record->status, ['processing', 'failed'], true) || ! is_string($record->transcript)) {
+            if ($record->status !== 'processing' || ! is_string($record->transcript)) {
                 throw new RuntimeException('Transcription is not ready for export.');
             }
             if ($variant === 'speakers' && ! TranscriptionExportOptions::hasSpeakers($record->segments ?? [])) {
@@ -96,7 +96,6 @@ final class TranscriptionExportGenerator
                 }
                 $record->exports()->where('format', $format)->where('variant', $variant)->where('export_revision', $revision)
                     ->update(['status' => 'failed', 'failure_reason' => mb_substr($exception->getMessage(), 0, 1000)]);
-                $record->update(['status' => 'failed']);
 
                 return true;
             });

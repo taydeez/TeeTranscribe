@@ -161,6 +161,7 @@ final readonly class ProcessDubbing
             if ($record->status !== 'failed' || $record->providerCompletedAt === null) {
                 return;
             }
+            $this->credits->assertConcurrency($userId, 'dubbing', $id);
             $this->records->update($id, ['status' => 'processing', 'failure_reason' => null]);
             if ($record->subtitlesEnabled && $record->videoStoragePath !== null && $record->audioStoragePath !== null) {
                 $this->records->update($id, ['subtitle_status' => 'pending']);

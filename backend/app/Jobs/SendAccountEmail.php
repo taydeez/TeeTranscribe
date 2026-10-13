@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Persistence\Eloquent\Models\CreditTransaction;
 use App\Infrastructure\Persistence\Eloquent\Models\OutboxEvent;
 use App\Models\User;
@@ -22,6 +23,7 @@ final class SendAccountEmail implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $outboxEventId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('default');
     }
 

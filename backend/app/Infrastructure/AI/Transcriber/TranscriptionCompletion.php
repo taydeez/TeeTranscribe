@@ -5,6 +5,7 @@ namespace App\Infrastructure\AI\Transcriber;
 use App\Domain\Billing\Services\CreditService;
 use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Observability\OperationalLogger;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,10 @@ final class TranscriptionCompletion
             if ($record->status !== 'pending') {
                 return;
             }
+            app(OperationalLogger::class)->record('provider', trim($text) === '' ? 'error' : 'info',
+                trim($text) === '' ? 'Provider returned an empty transcript.' : 'Provider transcription result received.',
+                ['transcription_id' => $id, 'provider' => $provider, 'provider_request_id' => $requestId],
+                app(OperationalLogger::class)->elapsedSinceSubmission($id));
             if (trim($text) === '') {
                 $this->outcomes->failed($id, pendingOnly: true);
 

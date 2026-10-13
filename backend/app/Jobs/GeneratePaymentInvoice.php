@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Payment\Services\PaymentInvoiceService;
+use App\Infrastructure\Observability\ObserveJob;
 use App\Infrastructure\Outbox\OutboxService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,6 +21,7 @@ class GeneratePaymentInvoice implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public string $paymentId, public string $outboxEventId)
     {
+        $this->through([new ObserveJob]);
         $this->onConnection('redis')->onQueue('default');
     }
 

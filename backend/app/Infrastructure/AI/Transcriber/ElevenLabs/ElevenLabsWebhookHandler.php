@@ -6,6 +6,7 @@ use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
 use App\Domain\Transcriber\Services\TimedTranscriptSegments;
 use App\Infrastructure\AI\Transcriber\TranscriptionCompletion;
 use App\Infrastructure\Notifications\TranscriptionOutcomePublisher;
+use App\Infrastructure\Observability\OperationalLogger;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use Illuminate\Support\Facades\DB;
 
@@ -58,6 +59,10 @@ final class ElevenLabsWebhookHandler
         DB::transaction(function () use ($id, $data): void {
             $record = Transcription::where('provider', 'elevenlabs')->lockForUpdate()->findOrFail($id);
             abort_if($record->provider_request_id !== null && $record->provider_request_id !== $data['request_id'], 404);
+            app(OperationalLogger::class)->record('provider', 'error', 'ElevenLabs reported transcription failure.', [
+                'transcription_id' => $id, 'provider' => 'elevenlabs', 'provider_request_id' => $data['request_id'],
+                'provider_message' => $data['error'] ?? $data['message'] ?? null,
+            ]);
             app(TranscriptionOutcomePublisher::class)->failed($id, pendingOnly: true);
         });
 
