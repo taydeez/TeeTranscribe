@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Privacy;
 
 use App\Domain\Privacy\Contracts\PrivacyStorageInterface;
+use App\Infrastructure\AI\Dubbing\Google\GoogleDubbingGateway;
 use App\Infrastructure\AI\Transcriber\Google\GoogleSpeechAudioStorage;
 use Aws\S3\Exception\S3Exception;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +28,10 @@ final class R2PrivacyStorage implements PrivacyStorageInterface
         $paths = array_merge($manifest['paths'] ?? [], $manifest['source_paths'] ?? []);
         foreach ($manifest['prefixes'] ?? [] as $prefix) {
             $this->validPrefix($prefix);
+            if (preg_match('~^dubbings/([A-Za-z0-9]{26})/$~', $prefix, $matches)
+                && $disk->exists($prefix.'google/state.json')) {
+                app(GoogleDubbingGateway::class)->cleanup($matches[1]);
+            }
             array_push($paths, ...$disk->allFiles(rtrim($prefix, '/')));
         }
         foreach ($manifest['format_prefixes'] ?? [] as $selection) {

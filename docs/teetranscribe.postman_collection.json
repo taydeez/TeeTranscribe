@@ -2410,7 +2410,7 @@
               ]
             },
             "url": "{{baseUrl}}/dubbings/languages",
-            "description": "Returns video/audio dubbing catalogs and subtitlesOnly. Subtitle target languages use the live Google catalog, with built-in default languages when the catalog request fails, is empty, or is invalid. Yoruba, Igbo, and Hausa remain first. Spoken subtitle languages remain limited to timed transcription support. Defaults do not bypass missing credentials, disabled providers, or missing pricing: check subtitlesOnly.configured before submitting."
+            "description": "Returns video/audio dubbing catalogs and subtitlesOnly. Google can be configured for audio and video dubbing using chirp3-hd. Google dubbing targets come from the live supported voice catalog; a spoken source_language is required. Enable Cloud Text-to-Speech alongside Speech-to-Text and Translation and configure Google dubbing pricing. Longer Google sources are recognized in chunks of at most 20 minutes before translation, synthetic speech generation and timed assembly. Google dubbing supports translated subtitles, without voice cloning or lip sync. Subtitle-only target languages use the live Google translation catalog, with built-in defaults when that catalog fails. Yoruba, Igbo, and Hausa remain first where supported. Defaults do not bypass missing credentials, disabled providers, or missing pricing."
           }
         },
         {

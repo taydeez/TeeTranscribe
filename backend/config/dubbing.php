@@ -3,6 +3,9 @@
 return [
     'provider' => env('DUBBING_PROVIDER', 'elevenlabs'),
     'audio_provider' => env('DUBBING_AUDIO_PROVIDER', 'elevenlabs'),
+    'google' => [
+        'voice' => env('GOOGLE_DUBBING_VOICE', 'Aoede'),
+    ],
     'heygen' => [
         'key' => env('HEYGEN_API_KEY'),
         'mode' => env('HEYGEN_DUBBING_MODE', 'precision'),
