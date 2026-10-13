@@ -11,7 +11,7 @@ final class GoogleSpeechClient
 {
     public function __construct(private readonly GoogleSpeechCredentials $credentials) {}
 
-    public function transcribe(string $uri, string $language, ?string $model = null): string
+    public function transcribe(string $uri, string $language, ?string $model = null, bool $requireTimestamps = false): string
     {
         $project = config('transcriber.google.project');
         $location = config('transcriber.google.location', 'us');
@@ -19,7 +19,7 @@ final class GoogleSpeechClient
             throw new RuntimeException('Google Speech project and supported region must be configured.');
         }
         $features = [];
-        if (config('transcriber.google.word_timestamps', true)) {
+        if ($requireTimestamps || config('transcriber.google.word_timestamps', true)) {
             $features['enableWordTimeOffsets'] = true;
         }
         if (config('transcriber.google.diarization', true) && GoogleTranscriptionCapabilities::speakers($language)) {

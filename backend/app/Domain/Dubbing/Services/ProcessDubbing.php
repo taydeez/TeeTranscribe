@@ -6,6 +6,7 @@ use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\CreditService;
 use App\Domain\Dubbing\Contracts\AudioDubbingMediaInterface;
+use App\Domain\Dubbing\Contracts\DubbingCleanupInterface;
 use App\Domain\Dubbing\Contracts\DubbingGatewayResolverInterface;
 use App\Domain\Dubbing\Contracts\DubbingMediaInterface;
 use App\Domain\Dubbing\Contracts\DubbingRepositoryInterface;
@@ -152,6 +153,13 @@ final readonly class ProcessDubbing
                 $this->credits->releaseDubbing($id);
             }
         });
+        $record = $this->records->find($id);
+        if ($record !== null && $record->status === 'failed') {
+            $gateway = $this->providers->resolve($record->provider);
+            if ($gateway instanceof DubbingCleanupInterface) {
+                $gateway->cleanup($id);
+            }
+        }
     }
 
     public function retryExports(string $id, int $userId): void

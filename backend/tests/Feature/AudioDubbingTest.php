@@ -31,7 +31,7 @@ beforeEach(function () {
     Queue::fake();
     Storage::fake('r2');
     config(['dubbing.audio_provider' => 'elevenlabs', 'dubbing.provider' => 'heygen', 'dubbing.heygen.key' => null,
-        'dubbing.key' => 'test-key', 'billing.free_credits' => '0', 'billing.rates.dubbing.elevenlabs.dubbing_v2.credits' => '10']);
+        'dubbing.key' => 'test-key', 'billing.free_credits' => '0', 'billing.rates.dubbing.elevenlabs.dubbing_v2.credits' => '10', 'transcriber.deepgram.key' => null]);
     $this->user = User::factory()->create();
     Sanctum::actingAs($this->user);
     app(CreditService::class)->purchase($this->user->id, 10000, 'test-funding');

@@ -14,6 +14,7 @@ use App\Domain\Dubbing\Contracts\DubbingRepositoryInterface;
 use App\Domain\Dubbing\Entities\Dubbing;
 use App\Domain\Folder\Services\FolderService;
 use App\Domain\Privacy\Contracts\PrivacyCoordinatorInterface;
+use App\Domain\Transcriber\Services\GoogleTranscriptionCapabilities;
 
 final readonly class DubbingService
 {
@@ -47,6 +48,16 @@ final readonly class DubbingService
                 : $this->providers->definition($audioOnly ? 'audio' : 'video', $source['target_language']);
             if (! $definition['configured']) {
                 throw new BillingException('Dubbing is not configured yet.', 503);
+            }
+            if ($definition['provider'] === 'google') {
+                if (empty($source['source_language'])) {
+                    throw new BillingException('Select the spoken language for this dubbing request.', 422);
+                }
+                try {
+                    GoogleTranscriptionCapabilities::locale($source['source_language']);
+                } catch (\InvalidArgumentException) {
+                    throw new BillingException('The selected spoken language is not supported for this dubbing request.', 422);
+                }
             }
             if (! $subtitleOnly) {
                 $this->languages->validate($source['source_language'] ?? null, $source['target_language'], $audioOnly ? 'audio' : 'video');

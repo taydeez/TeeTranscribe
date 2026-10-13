@@ -56,7 +56,25 @@ final readonly class R2DubbedAudioStorage implements AudioDubbingMediaInterface
         $flac = $this->temporary();
         $mp3 = $this->temporary();
         try {
-            $this->download($audioUrl, $download);
+            if ($record->provider === 'google' && $audioUrl === 'r2://dubbings/'.$record->id.'/google/audio.flac') {
+                $stream = Storage::disk('r2')->readStream(substr($audioUrl, 5));
+                $destination = fopen($download, 'wb');
+                try {
+                    if (! is_resource($stream) || $destination === false
+                        || stream_copy_to_stream($stream, $destination, config('dubbing.max_bytes') + 1) !== Storage::disk('r2')->size(substr($audioUrl, 5))) {
+                        throw new RuntimeException('The generated audio could not be read.');
+                    }
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                    if (is_resource($destination)) {
+                        fclose($destination);
+                    }
+                }
+            } else {
+                $this->download($audioUrl, $download);
+            }
             $duration = $this->duration($download, config('dubbing.max_duration_ms') / 500);
             $base = [(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe',
                 '-format_whitelist', self::FORMATS, '-i', $download, '-map', '0:a:0', '-vn', '-map_metadata', '-1'];

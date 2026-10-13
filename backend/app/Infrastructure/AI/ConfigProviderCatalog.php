@@ -16,8 +16,8 @@ final class ConfigProviderCatalog implements ProviderCatalogInterface
     {
         $names = match ($activity) {
             'transcription' => ['deepgram', 'intron', 'google', 'elevenlabs', 'openai'],
-            'translation' => ['google', 'openai'], 'video_dubbing' => ['elevenlabs', 'heygen'],
-            'audio_dubbing' => ['elevenlabs'], 'subtitles' => ['deepgram'], default => ['openai'],
+            'translation' => ['google', 'openai'], 'video_dubbing' => ['elevenlabs', 'heygen', 'google'],
+            'audio_dubbing' => ['elevenlabs', 'google'], 'subtitles' => ['deepgram'], default => ['openai'],
         };
         $items = [];
         foreach ($names as $provider) {
@@ -27,10 +27,11 @@ final class ConfigProviderCatalog implements ProviderCatalogInterface
             $items[$provider] = ['name' => ['deepgram' => 'Deepgram', 'intron' => 'Intron', 'google' => 'Google', 'elevenlabs' => 'ElevenLabs', 'openai' => 'OpenAI', 'heygen' => 'HeyGen'][$provider],
                 'model' => $model, 'models' => $models, 'configured' => $this->configured($activity, $provider),
                 'model_catalog' => array_map(fn (string $id): array => $this->modelEntry($activity, $provider, $id), $models),
-                'custom_models' => ! ($provider === 'intron' || $provider === 'heygen' || ($provider === 'google' && $activity === 'translation') || ($provider === 'elevenlabs' && str_ends_with($activity, '_dubbing')) || ($provider === 'openai' && $activity === 'transcription')),
+                'custom_models' => ! ($provider === 'intron' || $provider === 'heygen' || ($provider === 'google' && ($activity === 'translation' || str_ends_with($activity, '_dubbing'))) || ($provider === 'elevenlabs' && str_ends_with($activity, '_dubbing')) || ($provider === 'openai' && $activity === 'transcription')),
                 'allowed_model_ids' => match (true) {
                     $provider === 'intron' => ['default'],
                     $provider === 'google' && $activity === 'translation' => ['nmt'],
+                    $provider === 'google' && str_ends_with($activity, '_dubbing') => ['chirp3-hd'],
                     $provider === 'heygen' => ['precision', 'speed'],
                     $provider === 'elevenlabs' && str_ends_with($activity, '_dubbing') => ['dubbing_v2'],
                     $provider === 'openai' && $activity === 'transcription' => ['gpt-4o-transcribe-diarize', 'whisper-1', 'gpt-transcribe', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-mini-transcribe-2025-12-15'],
@@ -54,8 +55,8 @@ final class ConfigProviderCatalog implements ProviderCatalogInterface
             'capabilities' => ['speakers' => $activity === 'transcription' && ($provider === 'openai' ? $id === 'gpt-4o-transcribe-diarize' : $provider !== 'intron'),
                 'timestamps' => $activity === 'subtitles' || ($activity === 'transcription' && $timed)],
             'pricing' => ['unit' => $rate['unit'] ?? (in_array($activity, ['translation', 'cleanup', 'summary'], true) ? '1000_characters' : 'minute'),
-                'credits' => isset($rate['credits']) ? (string) $rate['credits'] : null,
-                'provider_cost' => isset($rate['provider_cost']) ? (string) $rate['provider_cost'] : null,
+                'credits' => filled($rate['credits'] ?? null) ? (string) $rate['credits'] : null,
+                'provider_cost' => filled($rate['provider_cost'] ?? null) ? (string) $rate['provider_cost'] : null,
                 'provider_currency' => $rate['provider_currency'] ?? 'USD']];
     }
 
@@ -88,7 +89,9 @@ final class ConfigProviderCatalog implements ProviderCatalogInterface
         return match ($activity) {
             'transcription' => (string) config("transcriber.{$provider}.model", 'default'),
             'translation' => $provider === 'google' ? 'nmt' : (string) config('translation.openai.model', 'gpt-4.1-mini'),
-            'video_dubbing', 'audio_dubbing' => $provider === 'heygen' ? (string) config('dubbing.heygen.mode', 'precision') : 'dubbing_v2',
+            'video_dubbing', 'audio_dubbing' => match ($provider) {
+                'heygen' => (string) config('dubbing.heygen.mode', 'precision'), 'google' => 'chirp3-hd', default => 'dubbing_v2',
+            },
             'subtitles' => 'nova-2', default => (string) config('openai.text_model', 'gpt-4.1-mini'),
         };
     }
@@ -106,7 +109,10 @@ final class ConfigProviderCatalog implements ProviderCatalogInterface
 
         return match ($activity) {
             'translation' => filled(config($provider === 'google' ? 'translation.google.key' : 'openai.key')),
-            'video_dubbing', 'audio_dubbing' => filled(config($provider === 'heygen' ? 'dubbing.heygen.key' : 'dubbing.key')),
+            'video_dubbing', 'audio_dubbing' => $provider === 'google'
+                ? filled(config('transcriber.google.project')) && filled(config('transcriber.google.credentials'))
+                    && filled(config('transcriber.google.bucket')) && filled(config('translation.google.key'))
+                : filled(config($provider === 'heygen' ? 'dubbing.heygen.key' : 'dubbing.key')),
             'subtitles' => filled(config('transcriber.deepgram.key')) && filled(config('translation.google.key')),
             default => filled(config('openai.key')),
         };

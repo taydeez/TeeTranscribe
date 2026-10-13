@@ -32,7 +32,7 @@ beforeEach(function () {
     Cache::flush();
     Storage::fake('r2');
     config(['dubbing.provider' => 'heygen', 'dubbing.heygen.key' => 'heygen-test-key', 'dubbing.heygen.mode' => 'precision',
-        'billing.free_credits' => '0', 'billing.rates.dubbing.heygen.precision.credits' => '20']);
+        'billing.free_credits' => '0', 'billing.rates.dubbing.heygen.precision.credits' => '20', 'transcriber.deepgram.key' => null]);
     $this->user = User::factory()->create();
     Sanctum::actingAs($this->user);
     app(CreditService::class)->purchase($this->user->id, 10000, 'test-funding');

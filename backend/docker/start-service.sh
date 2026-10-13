@@ -11,6 +11,12 @@ esac
 : "${APP_KEY:?Set the shared Laravel APP_KEY in Railway variables.}"
 mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/private
 
+if [ -n "${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}" ]; then
+    export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-/var/www/html/storage/app/private/google-service-account.json}"
+    php docker/write-google-credentials.php
+    unset GOOGLE_APPLICATION_CREDENTIALS_JSON
+fi
+
 # Runtime variables are injected by Railway, so never cache configuration during image builds.
 php artisan config:cache --no-interaction
 

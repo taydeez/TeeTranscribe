@@ -26,6 +26,7 @@ final readonly class AIProviderConfigurationService
         $record = $this->routing->configuration($activity);
         $catalog = $this->catalog->providers($activity);
         foreach ($catalog as $provider => &$definition) {
+            $record['configuration']['providers'][$provider] ??= ['enabled' => false, 'model' => $definition['model'], 'languages' => []];
             $entries = $record['configuration']['models'][$provider] ?? $definition['model_catalog'];
             $record['configuration']['models'][$provider] = $entries;
             $definition['model_catalog'] = $entries;

@@ -52,7 +52,11 @@ final readonly class R2DubbingMedia implements DubbingMediaInterface
         $video = $this->temporary();
         try {
             $this->copySource($record->sourceStoragePath, $source);
-            $this->download($audioUrl, $audio);
+            if ($record->provider === 'google' && $audioUrl === 'r2://dubbings/'.$record->id.'/google/audio.flac') {
+                $this->copySource(substr($audioUrl, 5), $audio);
+            } else {
+                $this->download($audioUrl, $audio);
+            }
             $input = $this->probe($source);
             $codec = collect($input['streams'] ?? [])->firstWhere('codec_type', 'video')['codec_name'] ?? null;
             $base = [(string) config('dubbing.ffmpeg'), '-nostdin', '-y', '-v', 'error'];

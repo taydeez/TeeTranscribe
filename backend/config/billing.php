@@ -79,7 +79,10 @@ return [
             'provider_cost' => env('BILLING_OPENAI_SUMMARY_USD_PER_1000_CHARACTERS'),
             'provider_currency' => 'USD',
         ]]],
-        'dubbing' => ['heygen' => [
+        'dubbing' => ['google' => ['chirp3-hd' => [
+            'unit' => 'minute', 'credits' => env('BILLING_GOOGLE_DUBBING_CREDITS_PER_MINUTE'),
+            'provider_cost' => env('BILLING_GOOGLE_DUBBING_USD_PER_MINUTE'), 'provider_currency' => 'USD',
+        ]], 'heygen' => [
             'precision' => ['unit' => 'minute', 'credits' => env('BILLING_HEYGEN_PRECISION_CREDITS_PER_MINUTE'),
                 'provider_cost' => env('BILLING_HEYGEN_PRECISION_USD_PER_MINUTE'), 'provider_currency' => 'USD'],
             'speed' => ['unit' => 'minute', 'credits' => env('BILLING_HEYGEN_SPEED_CREDITS_PER_MINUTE'),
