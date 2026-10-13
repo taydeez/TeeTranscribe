@@ -1,0 +1,105 @@
+name: Railway staging infrastructure
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - '.railway/**'
+      - '.github/workflows/railway-staging.yml'
+  push:
+    branches: [staging]
+    paths:
+      - '.railway/**'
+      - '.github/workflows/railway-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-staging-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Validate and plan staging
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: .railway
+    steps:
+      - name: Check out configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: .railway/package-lock.json
+
+      - name: Install pinned infrastructure tooling
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check configuration
+        run: npm run check
+
+      - name: Plan staging changes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo '::error::Add RAILWAY_STAGING_TOKEN as a GitHub Actions secret using a Railway project token scoped to staging.'
+            exit 1
+          fi
+          npm run plan:staging -- --out railway-plan.json
+
+      - name: Save staging deployment plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: railway-staging-plan-${{ github.sha }}
+          path: .railway/railway-plan.json
+          if-no-files-found: error
+          retention-days: 7
+
+  apply:
+    name: Apply staging infrastructure
+    needs: plan
+    if: github.ref == 'refs/heads/staging' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    defaults:
+      run:
+        working-directory: .railway
+    steps:
+      - name: Check out the planned commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: .railway/package-lock.json
+
+      - name: Install pinned infrastructure tooling
+        run: npm ci --no-audit --no-fund
+
+      - name: Retrieve the plan for this commit
+        uses: actions/download-artifact@v4
+        with:
+          name: railway-staging-plan-${{ github.sha }}
+          path: .railway
+
+      - name: Apply the saved staging plan
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+        run: npm run apply:staging -- --plan railway-plan.json --yes
