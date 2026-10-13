@@ -52,7 +52,7 @@ export default defineRailway((ctx) => {
     throw new Error('Each backend role must have a different Railway service name.');
   }
 
-  return project(ctx.projectName ?? 'TeeTranscribe', {
+  const definition = project(ctx.projectName ?? 'TeeTranscribe', {
     resources: Object.entries(profile.services).map(([role, name]) => service(name, {
       source: github('taydeez/TeeTranscribe', {
         branch: profile.branch,
@@ -77,4 +77,10 @@ export default defineRailway((ctx) => {
       },
     })),
   });
+
+  return {
+    ...definition,
+    // Railway CLI handles this project-level policy; variables remain dashboard-managed.
+    variables: { managed: false },
+  };
 });
