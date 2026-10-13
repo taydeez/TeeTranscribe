@@ -16,7 +16,7 @@ const accountItems = [
 </script>
 <template>
   <aside class="sidebar" :class="{ 'sidebar-open': open }">
-    <NuxtLink class="brand" to="/" @click="emit('close')"><span class="brand-mark"><UiAppIcon name="audio" /></span>TeeTranscribe</NuxtLink>
+    <NuxtLink class="brand" to="/" @click="emit('close')"><UiBrandLogo /></NuxtLink>
     <p class="nav-label">Workspace</p>
     <nav class="space-y-1" aria-label="Workspace navigation">
       <NuxtLink v-for="item in items" :key="item.to" :to="item.to" class="nav-item" :active-class="item.exact ? '' : 'nav-active'" exact-active-class="nav-active" @click="emit('close')"><UiAppIcon :name="item.icon" />{{ item.label }}</NuxtLink>

@@ -6,7 +6,7 @@ const auth = useAuthStore()
 
 <template>
   <aside class="sidebar" :class="{ 'sidebar-open': open }">
-    <NuxtLink class="brand" to="/taydeez" @click="emit('close')"><span class="brand-mark"><UiAppIcon name="audio" /></span>TeeTranscribe</NuxtLink>
+    <NuxtLink class="brand" to="/taydeez" @click="emit('close')"><UiBrandLogo /></NuxtLink>
     <div class="mt-4 flex items-center gap-2 text-xs font-semibold tracking-widest text-indigo-600 uppercase"><span class="size-1.5 rounded-full bg-indigo-500" />Administration</div>
     <p class="nav-label mt-9">Manage</p>
     <nav class="space-y-1" aria-label="Administrator navigation">

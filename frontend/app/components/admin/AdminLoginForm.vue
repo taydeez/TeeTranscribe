@@ -33,7 +33,7 @@ function requestNewCode() {
   <main class="grid min-h-dvh place-items-center bg-slate-50 px-5 py-12">
     <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/40 sm:p-10" aria-labelledby="admin-login-title">
       <div class="mb-8 flex items-center justify-between">
-        <NuxtLink class="flex items-center gap-2 text-lg font-bold text-slate-900" to="/"><span class="grid size-10 place-items-center rounded-xl bg-indigo-600 text-white">t.</span>TeeTranscribe</NuxtLink>
+        <NuxtLink class="brand" to="/"><UiBrandLogo /></NuxtLink>
         <UiThemeToggle />
       </div>
       <p class="mb-3 text-xs font-semibold uppercase tracking-[.18em] text-indigo-600">Administration</p>
