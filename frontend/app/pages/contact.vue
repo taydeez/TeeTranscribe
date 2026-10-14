@@ -2,12 +2,11 @@
 import { contactEmails } from '~/config/publicPages'
 
 definePageMeta({ layout: 'public' })
-useSeoMeta({ title: 'Contact · TeeTranscribe', description: 'Get help with your workspace, ask a privacy question, or talk to us about your organisation.' })
 </script>
 
 <template>
   <div>
-    <section class="public-intro"><p class="eyebrow">LET’S TALK</p><h1>What can we<br><span class="text-indigo-600">help you with?</span></h1><p class="intro-copy">A question, a snag, or an idea for making TeeTranscribe better? We’d like to hear it.</p></section>
+    <section class="public-intro"><p class="eyebrow">LET’S TALK</p><h1>What can we<br><span class="text-indigo-600">help you with?</span></h1><p class="intro-copy">A question, a snag, or an idea for making TeeScriber better? We’d like to hear it.</p></section>
     <p class="mb-6 rounded-xl border border-slate-200 px-5 py-4 text-sm text-slate-500">Contact details are being set up. The addresses below are placeholders and are not monitored.</p>
     <div class="grid gap-4 md:grid-cols-3">
       <article class="surface p-7"><p class="eyebrow">01 / SUPPORT</p><h2 class="section-heading">Need a hand?</h2><p class="body-copy mt-3 text-sm">Help with uploads, project results, your account, or a payment.</p><p class="mt-6 break-all font-semibold text-indigo-600">{{ contactEmails.support }}</p><span class="status-badge mt-3">Placeholder email</span></article>

@@ -16,9 +16,9 @@ export const faqGroups = [
   {
     title: 'Getting started',
     items: [
-      { question: 'What can I do with TeeTranscribe?', answer: 'Turn recordings into editable transcripts, translate text, and dub audio or video into another language. Keep your projects together in folders and download the results when they are ready.' },
+      { question: 'What can I do with TeeScriber?', answer: 'Turn recordings into editable transcripts, translate text, and dub audio or video into another language. Keep your projects together in folders and download the results when they are ready.' },
       { question: 'How do I start a transcription?', answer: 'Sign in, open your workspace, and upload an audio file, record directly in the app, or paste an accessible audio URL. Choose the spoken language and a folder, review the credit quote, and submit.' },
-      { question: 'Can I use TeeTranscribe on my phone?', answer: 'Yes. The workspace adapts to smaller screens, and you can record using your browser when microphone access is available. Keep the recording page open until you finish and save your audio.' },
+      { question: 'Can I use TeeScriber on my phone?', answer: 'Yes. The workspace adapts to smaller screens, and you can record using your browser when microphone access is available. Keep the recording page open until you finish and save your audio.' },
       { question: 'Which languages are available?', answer: 'The language choices depend on the activity and the configuration available in your workspace. Nigerian languages, including Yoruba, Igbo, Hausa, and Pidgin, are a focus alongside international languages. Check the language selector for the current options; accuracy varies with the language and recording.' },
     ],
   },

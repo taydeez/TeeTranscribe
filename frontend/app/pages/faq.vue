@@ -2,7 +2,6 @@
 import { faqGroups } from '~/config/publicPages'
 
 definePageMeta({ layout: 'public' })
-useSeoMeta({ title: 'FAQ · TeeTranscribe', description: 'Answers about uploads, transcription, translations, downloads, credits, and file privacy.' })
 </script>
 
 <template>

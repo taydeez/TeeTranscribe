@@ -13,14 +13,15 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'TeeTranscribe · Audio to words',
+      title: 'TeeScriber | Audio Transcription & Video Dubbing',
+      htmlAttrs: { lang: 'en' },
       link: [
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap' },
       ],
-      meta: [{ name: 'description', content: 'Upload your audio and send it for transcription.' }],
+      meta: [{ name: 'description', content: 'Transcribe audio, dub videos, and translate text with TeeScriber. Sign up for 10 free credits and keep your projects together in one workspace.' }],
     },
   },
 })

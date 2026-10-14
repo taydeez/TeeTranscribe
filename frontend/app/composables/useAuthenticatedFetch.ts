@@ -11,7 +11,8 @@ export async function useAuthenticatedFetch<T>(request: string, options: FetchOp
     throw createError({ statusCode: 401, message: 'Authentication is required.' })
   }
 
-  headers.set('Authorization', `Bearer ${auth.token}`)
+  const requestToken = auth.token
+  headers.set('Authorization', `Bearer ${requestToken}`)
   headers.set('Accept', 'application/json')
 
   try {
@@ -19,12 +20,12 @@ export async function useAuthenticatedFetch<T>(request: string, options: FetchOp
   } catch (error: unknown) {
     const failure = error as { statusCode?: number; status?: number; response?: { status?: number }; data?: { message?: string } }
     const status = failure.statusCode ?? failure.status ?? failure.response?.status
-    if (status === 401) {
+    if (status === 401 && auth.token === requestToken) {
       const loginUrl = auth.isAdmin ? '/taydeez/login?sessionExpired=1' : '/'
       auth.clearSession()
       await navigateTo(loginUrl)
     }
-    if (status === 403 && failure.data?.message?.includes('email address is not verified')) {
+    if (status === 403 && auth.token === requestToken && failure.data?.message?.includes('email address is not verified')) {
       await auth.refreshUser()
       await navigateTo('/auth/verify-email')
     }

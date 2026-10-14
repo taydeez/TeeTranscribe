@@ -1,18 +1,17 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'public' })
-useSeoMeta({ title: 'About · TeeTranscribe', description: 'A workspace for transcription, translation, and dubbing, with Nigerian languages in focus and audiences everywhere in mind.' })
 </script>
 
 <template>
   <div>
     <section class="public-intro">
-      <p class="eyebrow">ABOUT TEETRANSCRIBE</p>
+      <p class="eyebrow">ABOUT TEESCRIBER</p>
       <h1>Good conversations<br><span class="text-indigo-600">deserve to go further.</span></h1>
       <p class="intro-copy">An interview becomes an article. A voice note becomes a written record. A video finds an audience in another language. We’re building a simpler way to get there.</p>
     </section>
     <section class="grid gap-8 border-y border-slate-200 py-10 md:grid-cols-2">
       <h2 class="section-heading max-w-sm">Less time typing.<br>More time with the ideas.</h2>
-      <div class="body-copy space-y-4"><p>TeeTranscribe brings transcription, translation, and dubbing into one workspace. Upload a file or record an idea, work with the result, and keep the pieces together in folders.</p><p>It’s for the journalist reviewing an interview, the student revisiting a lecture, the creator reaching a new audience, and anyone who would rather listen than type every word.</p></div>
+      <div class="body-copy space-y-4"><p>TeeScriber brings transcription, translation, and dubbing into one workspace. Upload a file or record an idea, work with the result, and keep the pieces together in folders.</p><p>It’s for the journalist reviewing an interview, the student revisiting a lecture, the creator reaching a new audience, and anyone who would rather listen than type every word.</p></div>
     </section>
     <section class="py-12">
       <p class="eyebrow">ROOTED HERE. USEFUL EVERYWHERE.</p>

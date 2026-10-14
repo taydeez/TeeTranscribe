@@ -39,7 +39,7 @@ export function useAccountSecurity() {
       verified.value = true
       if (auth.isAuthenticated) {
         try { await auth.refreshUser() }
-        catch { auth.clearSession() }
+        catch { /* Keep the saved session when profile refresh is temporarily unavailable. */ }
       }
     }
     return success

@@ -3,8 +3,14 @@ const auth = useAuthStore()
 const route = useRoute()
 const authOpen = ref(false)
 const authMode = ref<'login' | 'register'>('login')
+const workspace = computed(() => auth.isAdmin ? '/taydeez' : '/dashboard')
 
 function openAuth(mode: 'login' | 'register') { authMode.value = mode; authOpen.value = true }
+async function start(activity: 'transcription' | 'dubbing') {
+  if (!auth.isAuthenticated) { openAuth('register'); return }
+  if (!auth.isEmailVerified) { await navigateTo('/auth/verify-email'); return }
+  await navigateTo(auth.isAdmin ? '/taydeez' : activity === 'dubbing' ? '/dashboard/dubbing' : '/dashboard#new-transcription')
+}
 async function signOut() { await auth.logout() }
 
 onMounted(async () => {
@@ -16,42 +22,76 @@ onMounted(async () => {
   const hashToken = new URLSearchParams(window.location.hash.slice(1)).get('token')
   if (hashToken) {
     history.replaceState(null, '', window.location.pathname)
-    try { await auth.establishSession(hashToken); await navigateTo(auth.isAdmin ? '/taydeez' : '/dashboard') }
+    try { await auth.establishSession(hashToken); await navigateTo(auth.isEmailVerified ? workspace.value : '/auth/verify-email') }
     catch { authOpen.value = true }
     return
   }
   await auth.initialize()
 })
 </script>
+
 <template>
   <div class="marketing">
-    <header class="marketing-header"><NuxtLink class="brand" to="/"><UiBrandLogo /></NuxtLink><div class="flex items-center gap-2"><UiThemeToggle /><template v-if="auth.isAuthenticated"><NuxtLink class="button-primary" to="/dashboard">Open workspace</NuxtLink><button class="icon-button" type="button" aria-label="Sign out" @click="signOut"><UiAppIcon name="logout" /></button></template><template v-else><button class="button-secondary hidden sm:inline-flex" type="button" @click="openAuth('login')">Log in</button><button class="button-primary" type="button" @click="openAuth('register')">Get started</button></template></div></header>
-    <main>
-      <section class="marketing-hero">
-        <div><p class="eyebrow mb-6 flex items-center gap-2"><span class="size-2 rounded-full bg-emerald-500" />A workspace for every word</p><h1>Speak once.<br><span>Reach everyone.</span></h1><p class="hero-copy">Turn audio and video into clear, editable text. A workspace built for transcription today, with translation and dubbing on the way.</p><div class="mt-8 flex flex-wrap gap-3"><NuxtLink v-if="auth.isAuthenticated" class="button-primary" to="/dashboard#new-transcription">Transcribe a recording <UiAppIcon name="arrow" :size="18" /></NuxtLink><button v-else class="button-primary" type="button" @click="openAuth('register')">Start transcribing <UiAppIcon name="arrow" :size="18" /></button><a class="button-secondary" href="#how-it-works">See how it works</a></div><p class="mt-5 text-xs text-slate-500">For interviews, meetings, voice notes, and the ideas in between.</p></div>
-        <div class="product-preview surface" aria-label="Illustrative transcript preview">
-          <div class="flex items-center justify-between border-b border-slate-200 p-5"><span class="flex items-center gap-2 text-sm font-semibold"><UiAppIcon name="transcript" class="text-indigo-600" />Interview transcript</span><span class="status-badge">Example</span></div>
-          <div class="p-6"><div class="mb-6 flex items-center gap-3 rounded-xl bg-slate-50 p-4"><span class="feature-icon" data-accent="cyan"><UiAppIcon name="audio" /></span><div><p class="text-sm font-medium">A conversation worth keeping</p><p class="mt-1 text-xs text-slate-500">Audio → editable transcript</p></div></div><div class="preview-segment"><span class="timestamp text-xs text-slate-500">00:00:04</span><span class="ml-3 rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-600">Speaker 1</span><p>Every good idea starts with a conversation.</p></div><div class="preview-segment mt-6"><span class="timestamp text-xs text-slate-500">00:00:12</span><span class="ml-3 rounded-full bg-cyan-50 px-2.5 py-1 text-xs text-cyan-700">Speaker 2</span><p>Let's make sure this one reaches the right people.</p></div></div>
-          <div class="flex items-center justify-between border-t border-slate-200 p-5 text-xs text-slate-500"><span>Transcribe. Edit. Share.</span><span class="flex gap-2"><span class="rounded border border-slate-200 px-2 py-1">PDF</span><span class="rounded border border-slate-200 px-2 py-1">TXT</span></span></div>
+    <header class="marketing-header">
+      <NuxtLink class="brand" to="/"><UiBrandLogo /></NuxtLink>
+      <nav class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex" aria-label="Homepage">
+        <a href="#tools">What you can do</a><a href="#how-it-works">How it works</a><a href="#questions">Questions</a>
+      </nav>
+      <div class="flex items-center gap-2">
+        <UiThemeToggle />
+        <template v-if="auth.isAuthenticated">
+          <NuxtLink class="button-primary" :to="workspace">Open workspace</NuxtLink>
+          <button class="icon-button" type="button" aria-label="Sign out" @click="signOut"><UiAppIcon name="logout" /></button>
+        </template>
+        <template v-else>
+          <button class="button-secondary" type="button" @click="openAuth('login')">Log in</button>
+          <button class="button-primary hidden sm:inline-flex" type="button" @click="openAuth('register')">Get 10 free credits</button>
+        </template>
+      </div>
+    </header>
+    <main id="main-content">
+      <section class="marketing-hero" aria-labelledby="hero-title">
+        <div>
+          <p class="hero-label"><span /> AUDIO TRANSCRIPTION &amp; VIDEO DUBBING</p>
+          <h1 id="hero-title">Transcribe audio.<br>Dub your videos.<br><span>Reach further.</span></h1>
+          <p class="hero-copy">Turn conversations into text you can use. Give your videos a voice in another language. Bring it all together in one workspace.</p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <button class="button-primary" type="button" @click="start('transcription')">Transcribe audio <UiAppIcon name="arrow" :size="18" /></button>
+            <button class="button-secondary" type="button" @click="start('dubbing')"><UiAppIcon name="video" :size="18" /> Dub a video</button>
+          </div>
+          <p class="signup-note"><UiAppIcon name="check" :size="16" /><span>New accounts get <strong>10 free credits.</strong> Sign in to get started.</span></p>
         </div>
+        <MarketingProductPreview />
       </section>
-      <section id="how-it-works" class="marketing-features"><div class="mb-8"><p class="eyebrow">Less busywork. More understanding.</p><h2 class="text-3xl font-bold tracking-tight">Your content, in more forms.</h2></div><div class="grid gap-4 md:grid-cols-3"><article class="feature-card"><span class="feature-icon"><UiAppIcon name="transcript" /></span><h2>Transcribe</h2><p>Upload or record, choose your language, and turn speech into text you can edit and export.</p><span class="feature-link">Available now <UiAppIcon name="check" :size="16" /></span></article><article class="feature-card" data-accent="violet"><span class="feature-icon"><UiAppIcon name="translate" /></span><h2>Translate</h2><p>Bring transcripts into another language while keeping their meaning and context.</p><span class="status-badge mt-5">Coming soon</span></article><article class="feature-card" data-accent="cyan"><span class="feature-icon"><UiAppIcon name="audio" /></span><h2>Dub</h2><p>Prepare audio and video for new audiences with natural voices in another language.</p><span class="status-badge mt-5">Coming soon</span></article></div></section>
-      <section class="pb-16"><TranscriptionForm heading="Try your next recording" eyebrow="TRANSCRIBE" /></section>
+      <MarketingHomeDetails @start="start" />
+      <section class="signup-panel" aria-labelledby="signup-title">
+        <div><p class="eyebrow">START WITH SOMETHING YOU’VE ALREADY RECORDED</p><h2 id="signup-title">Your next conversation has somewhere to go.</h2><p>Try audio transcription or video dubbing with 10 free credits when you create an account.</p></div>
+        <NuxtLink v-if="auth.isAuthenticated" class="button-primary shrink-0" :to="workspace">Go to workspace <UiAppIcon name="arrow" :size="18" /></NuxtLink>
+        <button v-else class="button-primary shrink-0" type="button" @click="openAuth('register')">Create your free account <UiAppIcon name="arrow" :size="18" /></button>
+      </section>
     </main>
     <AuthModal v-model:open="authOpen" :initial-mode="authMode" />
     <PublicSiteFooter />
   </div>
 </template>
+
 <style scoped>
-.marketing { max-width: 1280px; padding: 0 40px; margin: auto; }
-.marketing-header { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap:16px; border-bottom:1px solid var(--line); }
-.marketing-hero { display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; padding:88px 0; }
-.marketing-hero h1 { font-size:clamp(44px,5vw,64px); line-height:1.1; letter-spacing:-.05em; font-weight:800; }
-.marketing-hero h1 span { color:#4f46e5; }
-.hero-copy { max-width:480px; font-size:16px; line-height:1.8; color:var(--muted); margin-top:24px; }
-.product-preview { overflow:hidden; box-shadow:0 8px 32px #0f172a08; }
-.preview-segment p { margin-top:16px; font-size:16px; line-height:1.65; }
-.marketing-features { padding:0 0 64px; }
-@media(max-width:900px) { .marketing-hero { grid-template-columns:1fr; gap:40px; padding:48px 0; } .marketing{padding:0 24px;} }
-@media(max-width:520px) { .marketing{padding:0 16px;} .brand{font-size:16px;} .marketing-header .button-primary{padding:10px 12px;} }
+.marketing { max-width:1280px; padding:0 40px; margin:auto; }
+.marketing-header { min-height:96px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--line); }
+.marketing-header nav a { padding:12px 0; transition:color .2s; }
+.marketing-header nav a:hover { color:#6366f1; }
+.marketing-hero { display:grid; grid-template-columns:1.05fr 1fr; gap:64px; align-items:center; padding:96px 0 88px; }
+.hero-label { display:flex; align-items:center; gap:9px; font-size:11px; font-weight:600; letter-spacing:.1em; color:var(--muted); margin-bottom:24px; }
+.hero-label span { width:7px; height:7px; border-radius:50%; background:#6366f1; flex-shrink:0; }
+.marketing-hero h1 { font-size:clamp(40px,4.7vw,62px); line-height:1.12; letter-spacing:-.055em; font-weight:800; }
+.marketing-hero h1 span { color:#6366f1; }
+.hero-copy { max-width:475px; font-size:17px; line-height:1.8; color:var(--muted); margin-top:24px; }
+.signup-note { display:flex; align-items:flex-start; gap:7px; margin-top:20px; font-size:12px; line-height:1.8; color:var(--muted); }
+.signup-note svg { margin-top:3px; color:#6366f1; flex-shrink:0; }
+.signup-panel { display:flex; align-items:center; justify-content:space-between; gap:32px; margin:0 0 72px; padding:40px; border:1px solid var(--line); border-radius:24px; background:linear-gradient(120deg,#6366f110,#06b6d408); }
+.signup-panel h2 { max-width:600px; font-size:clamp(24px,3vw,32px); font-weight:700; line-height:1.3; letter-spacing:-.04em; }
+.signup-panel p:last-child { max-width:580px; margin-top:16px; color:var(--muted); font-size:14px; line-height:1.8; }
+@media(max-width:1000px) { .marketing-hero { gap:32px; } }
+@media(max-width:800px) { .marketing-hero { grid-template-columns:1fr; gap:48px; padding:56px 0; } .marketing{padding:0 24px;} .signup-panel { align-items:flex-start; flex-direction:column; padding:28px; } }
+@media(max-width:520px) { .marketing{padding:0 16px;} .marketing-header { min-height:80px; gap:8px; } .marketing-header .button-primary{padding:10px 12px;} .hero-copy { font-size:16px; } }
 </style>
