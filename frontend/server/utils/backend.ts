@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { $fetch as ofetch } from 'ofetch'
 import { clientIp } from './clientIp'
+import { describeBackendFailure } from './backendFailure'
 
 export async function forwardToBackend(event: H3Event, path: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE' = 'POST') {
   const config = useRuntimeConfig(event)
@@ -18,16 +19,11 @@ export async function forwardToBackend(event: H3Event, path: string, method: 'PO
       retry: 0,
     })
   } catch (error: unknown) {
-    const failure = error as { statusCode?: number; cause?: { name?: string }; data?: { message?: string } }
-    const timedOut = failure.cause?.name === 'TimeoutError' || failure.cause?.name === 'AbortError'
-    const status = failure.statusCode ?? (timedOut ? 504 : 502)
+    const failure = describeBackendFailure(error, config.apiBase, path)
+    if (failure.shouldLog) console.error('Backend request failed', failure.diagnostics)
     throw createError({
-      statusCode: status,
-      message: adminSignIn && status >= 500
-        ? 'Administrator sign-in is temporarily unavailable. Please try again shortly.'
-        : status >= 500
-        ? 'The transcription server is unavailable. Please try again shortly.'
-        : failure.data?.message ?? 'Your request could not be processed.',
+      statusCode: failure.status,
+      message: failure.message,
     })
   }
 }

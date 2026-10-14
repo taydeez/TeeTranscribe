@@ -37,16 +37,16 @@ onMounted(async () => {
       <nav class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex" aria-label="Homepage">
         <a href="#tools">What you can do</a><a href="#how-it-works">How it works</a><a href="#questions">Questions</a>
       </nav>
-      <div class="flex items-center gap-2">
-        <UiThemeToggle />
-        <template v-if="auth.isAuthenticated">
+      <div class="marketing-actions">
+        <div class="header-theme"><UiThemeToggle /></div>
+        <div v-if="auth.isAuthenticated" class="header-auth-actions">
           <NuxtLink class="button-primary" :to="workspace">Open workspace</NuxtLink>
           <button class="icon-button" type="button" aria-label="Sign out" @click="signOut"><UiAppIcon name="logout" /></button>
-        </template>
-        <template v-else>
+        </div>
+        <div v-else class="header-auth-actions">
           <button class="button-secondary" type="button" @click="openAuth('login')">Log in</button>
-          <button class="button-primary hidden sm:inline-flex" type="button" @click="openAuth('register')">Get 10 free credits</button>
-        </template>
+          <button class="button-primary" type="button" @click="openAuth('register')">Get 10 free credits</button>
+        </div>
       </div>
     </header>
     <main id="main-content">
@@ -78,6 +78,8 @@ onMounted(async () => {
 <style scoped>
 .marketing { max-width:1280px; padding:0 40px; margin:auto; }
 .marketing-header { min-height:96px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--line); }
+.marketing-actions,.header-auth-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.header-auth-actions :is(a,button) { white-space:nowrap; flex-shrink:0; }
 .marketing-header nav a { padding:12px 0; transition:color .2s; }
 .marketing-header nav a:hover { color:#6366f1; }
 .marketing-hero { display:grid; grid-template-columns:1.05fr 1fr; gap:64px; align-items:center; padding:96px 0 88px; }
@@ -93,5 +95,13 @@ onMounted(async () => {
 .signup-panel p:last-child { max-width:580px; margin-top:16px; color:var(--muted); font-size:14px; line-height:1.8; }
 @media(max-width:1000px) { .marketing-hero { gap:32px; } }
 @media(max-width:800px) { .marketing-hero { grid-template-columns:1fr; gap:48px; padding:56px 0; } .marketing{padding:0 24px;} .signup-panel { align-items:flex-start; flex-direction:column; padding:28px; } }
-@media(max-width:520px) { .marketing{padding:0 16px;} .marketing-header { min-height:80px; gap:8px; } .marketing-header .button-primary{padding:10px 12px;} .hero-copy { font-size:16px; } }
+@media(max-width:639px) {
+  .marketing-header { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:16px 0; }
+  .marketing-actions { display:contents; }
+  .header-theme { grid-column:2; grid-row:1; }
+  .header-auth-actions { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:100%; }
+  .header-auth-actions :is(.button-primary,.button-secondary) { width:100%; min-height:44px; padding:10px 12px; font-size:13px; }
+  .header-auth-actions > .icon-button { justify-self:end; }
+}
+@media(max-width:520px) { .marketing{padding:0 16px;} .hero-copy { font-size:16px; } }
 </style>

@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\UserSeeder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -43,6 +44,12 @@ test('seeds model action permissions idempotently without elevating ordinary use
     $this->seed(UserSeeder::class);
     expect(User::where('email', 'admin@example.com')->firstOrFail()->hasRole('super_admin'))->toBeTrue();
     expect(User::where('email', 'user@example.com')->firstOrFail()->hasRole('super_admin'))->toBeFalse();
+    $admin = User::where('email', 'tayodemi@gmail.com')->firstOrFail();
+    expect($admin->hasRole('super_admin'))->toBeTrue();
+    expect($admin->hasVerifiedEmail())->toBeTrue();
+    expect(Hash::check('password', $admin->password))->toBeTrue();
+    $this->seed(UserSeeder::class);
+    expect(User::where('email', 'tayodemi@gmail.com')->count())->toBe(1);
 });
 
 test('email verification is required for both administrator roles and sends a usable hashed code', function (string $role) {

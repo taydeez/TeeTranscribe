@@ -16,5 +16,6 @@ class UserSeeder extends Seeder
         User::query()->updateOrCreate(['email' => 'user@example.com'], ['name' => 'Example User', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([$userRole]);
         User::query()->updateOrCreate(['email' => 'demioyewusi@gmail.com'], ['name' => 'Demilade Oyewusi', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([$userRole]);
         User::query()->updateOrCreate(['email' => 'admin@example.com'], ['name' => 'Example Admin', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([$adminRole, Role::findOrCreate('super_admin', 'web')]);
+        User::query()->updateOrCreate(['email' => 'tayodemi@gmail.com'], ['name' => 'Tayodemi', 'password' => 'password', 'email_verified_at' => now()])->syncRoles([Role::findOrCreate('super_admin', 'web')]);
     }
 }
