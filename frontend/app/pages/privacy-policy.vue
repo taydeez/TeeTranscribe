@@ -2,7 +2,6 @@
 import { privacySections } from '~/config/publicPages'
 
 definePageMeta({ layout: 'public' })
-useSeoMeta({ title: 'Privacy Policy · TeeTranscribe', description: 'How TeeTranscribe handles account information, uploaded content, payments, and your retention and deletion choices.' })
 </script>
 
 <template>
