@@ -20,8 +20,9 @@ test('round trips guest ownership through the domain and writable attributes', f
     expect($attributes)->toBe([
         'user_id' => null,
         'guest_session_id' => $model->guest_session_id,
-        'audio_path' => $model->audio_path, 'file_name' => $model->file_name, 'name' => $model->name, 'folder_name' => $model->folder_name,
+        'audio_path' => $model->audio_path, 'audio_storage_path' => null, 'file_name' => $model->file_name, 'name' => $model->name, 'folder_name' => $model->folder_name,
         'duration' => null,
+        'provider' => 'deepgram',
         'status' => 'pending',
         'provider_request_id' => null,
         'transcript' => null,
@@ -32,7 +33,7 @@ test('round trips guest ownership through the domain and writable attributes', f
 test('maps persisted Eloquent records into independent domain entities', function () {
     $this->freezeTime();
     $model = Transcription::factory()->create([
-        'status' => 'completed', 'provider_request_id' => 'request-42', 'transcript' => 'Sample transcript.', 'duration' => 123.456,
+        'status' => 'complete', 'provider_request_id' => 'request-42', 'transcript' => 'Sample transcript.', 'duration' => 123.456,
     ]);
     $mapper = app(TranscriptionMapperInterface::class);
 
@@ -44,9 +45,10 @@ test('maps persisted Eloquent records into independent domain entities', functio
         'id' => $model->id,
         'user_id' => $model->user_id,
         'guest_session_id' => null,
-        'audio_path' => $model->audio_path, 'file_name' => $model->file_name, 'name' => $model->name, 'folder_name' => $model->folder_name,
+        'audio_path' => $model->audio_path, 'audio_storage_path' => null, 'file_name' => $model->file_name, 'name' => $model->name, 'folder_name' => $model->folder_name,
         'duration' => 123.456,
-        'status' => 'completed',
+        'provider' => 'deepgram',
+        'status' => 'complete',
         'provider_request_id' => 'request-42',
         'transcript' => 'Sample transcript.',
         'created_at' => $model->created_at->format('Y-m-d\\TH:i:s.uP'),
@@ -66,8 +68,9 @@ test('maps only writable attributes and retains explicit null values', function 
     expect($attributes)->toBe([
         'user_id' => 7,
         'guest_session_id' => null,
-        'audio_path' => 'audio/sample.mp3', 'file_name' => 'sample.mp3', 'name' => 'sample', 'folder_name' => null,
+        'audio_path' => 'audio/sample.mp3', 'audio_storage_path' => null, 'file_name' => 'sample.mp3', 'name' => 'sample', 'folder_name' => null,
         'duration' => null,
+        'provider' => 'deepgram',
         'status' => 'pending',
         'provider_request_id' => null,
         'transcript' => null,

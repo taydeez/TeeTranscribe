@@ -44,6 +44,7 @@ class ConfigureR2Cors extends Command
                     $headers = array_map('strtolower', $rule['AllowedHeaders'] ?? []);
                     if ((in_array($origin, $allowed, true) || in_array('*', $allowed, true))
                         && in_array('PUT', $rule['AllowedMethods'] ?? [], true)
+                        && in_array('etag', array_map('strtolower', $rule['ExposeHeaders'] ?? []), true)
                         && (in_array('*', $headers, true) || in_array('content-type', $headers, true))) {
                         return false;
                     }

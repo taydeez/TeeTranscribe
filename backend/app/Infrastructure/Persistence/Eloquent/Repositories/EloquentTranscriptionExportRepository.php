@@ -69,6 +69,7 @@ class EloquentTranscriptionExportRepository implements TranscriptionExportReposi
             id: $model->id,
             transcriptionId: $model->transcription_id,
             format: $model->format,
+            variant: $model->variant,
             status: $model->status,
             storagePath: $model->storage_path,
             failureReason: $model->failure_reason,

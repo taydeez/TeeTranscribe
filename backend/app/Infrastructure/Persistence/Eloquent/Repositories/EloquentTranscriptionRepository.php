@@ -8,11 +8,17 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Billing\Services\CreditService;
 use App\Domain\Transcriber\Contracts\TranscriptionRepositoryInterface;
 use App\Domain\Transcriber\Entities\Transcription;
+use App\Domain\Transcriber\Entities\TranscriptionEditResult;
 use App\Domain\Transcriber\Exceptions\TranscriptionNotFoundException;
+use App\Domain\Transcriber\Services\TranscriptionExportOptions;
 use App\Infrastructure\Persistence\Eloquent\Contracts\TranscriptionMapperInterface;
+use App\Infrastructure\Persistence\Eloquent\Models\PrivacyDeletion;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription as TranscriptionModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class EloquentTranscriptionRepository implements TranscriptionRepositoryInterface
 {
@@ -36,11 +42,11 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
     }
 
     /**
-     * @param  array{audio_path: string, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
+     * @param  array{audio_path: string, audio_storage_path?: string|null, file_name: string, name: string, folder_name?: string|null, duration?: float|int|null, user_id?: int|null, guest_session_id?: string|null, provider?: string, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
      */
     public function create(array $data): Transcription
     {
-        $model = new TranscriptionModel($data);
+        $model = new TranscriptionModel($data + ['activity_started_at' => now()]);
 
         if (! $model->save()) {
             throw new \RuntimeException('The transcription could not be created.');
@@ -50,17 +56,75 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
     }
 
     /**
-     * @param  array{user_id?: int|null, guest_session_id?: string|null, audio_path?: string, file_name?: string, name?: string, folder_name?: string|null, duration?: float|int|null, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
+     * @param  array{user_id?: int|null, guest_session_id?: string|null, audio_path?: string, audio_storage_path?: string|null, file_name?: string, name?: string, folder_name?: string|null, duration?: float|int|null, status?: string, provider_request_id?: string|null, transcript?: string|null}  $data
      */
     public function update(string $id, array $data): Transcription
     {
-        $transcription = $this->findModelOrFail($id);
+        return DB::transaction(function () use ($id, $data): Transcription {
+            $transcription = TranscriptionModel::query()->lockForUpdate()->findOrFail($id);
+            if ($transcription->status === 'failed') {
+                return $this->mapper->toDomain($transcription);
+            }
 
-        if (! $transcription->update($data)) {
-            throw new \RuntimeException('The transcription could not be updated.');
-        }
+            if (! $transcription->update($data)) {
+                throw new \RuntimeException('The transcription could not be updated.');
+            }
 
-        return $this->mapper->toDomain($transcription->refresh());
+            return $this->mapper->toDomain($transcription->refresh());
+        });
+    }
+
+    public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): TranscriptionEditResult
+    {
+        return DB::transaction(function () use ($id, $userId, $transcript, $segments): TranscriptionEditResult {
+            $transcription = TranscriptionModel::query()
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->find($id)
+                ?? throw new TranscriptionNotFoundException($id);
+
+            $storedSegments = $transcription->segments ?? [];
+            $this->assertCleanupFinished($id);
+            if ($segments !== null) {
+                if (count($segments) !== count($storedSegments) || $storedSegments === []) {
+                    throw ValidationException::withMessages(['segments' => 'Timed segments must match the existing transcript.']);
+                }
+                foreach ($storedSegments as $index => &$segment) {
+                    $segment['text'] = trim($segments[$index]['text']);
+                    $segment['speaker'] = $segments[$index]['speaker'] ?? null;
+                }
+                unset($segment);
+                $transcript = implode("\n", array_column($storedSegments, 'text'));
+            } else {
+                $storedSegments = [];
+            }
+
+            if ($transcription->transcript === $transcript && ($transcription->segments ?? []) === $storedSegments) {
+                return new TranscriptionEditResult($this->mapper->toDomain($transcription), false);
+            }
+            $revision = $transcription->export_revision + 1;
+            app(CreditService::class)->assertConcurrency($userId, 'transcription', $id);
+            $transcription->update([
+                'privacy_deleted_files' => [],
+                'activity_started_at' => now(), 'cancelled_at' => null, 'failure_reason' => null,
+                'transcript' => $transcript,
+                'segments' => $storedSegments,
+                'status' => 'processing',
+                'export_revision' => $revision,
+            ]);
+            $transcription->exports()->update([
+                'status' => 'pending',
+                'failure_reason' => null,
+                'processing_started_at' => null,
+                'export_revision' => $revision,
+                'storage_path' => null,
+            ]);
+            if (! TranscriptionExportOptions::hasSpeakers($storedSegments)) {
+                $transcription->exports()->where('variant', 'speakers')->delete();
+            }
+
+            return new TranscriptionEditResult($this->mapper->toDomain($transcription->refresh()), true);
+        });
     }
 
     public function delete(string $id): bool
@@ -68,9 +132,44 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
         return (bool) $this->findModelOrFail($id)->delete();
     }
 
+    public function prepareExportsForUser(string $id, int $userId): TranscriptionEditResult
+    {
+        return DB::transaction(function () use ($id, $userId): TranscriptionEditResult {
+            $record = TranscriptionModel::query()->where('user_id', $userId)->lockForUpdate()->find($id)
+                ?? throw new TranscriptionNotFoundException($id);
+            if (! is_string($record->transcript) || ! in_array($record->status, ['complete', 'processing', 'failed'], true)) {
+                throw ValidationException::withMessages(['transcription' => 'This transcript is not ready for export.']);
+            }
+            $needed = false;
+            $this->assertCleanupFinished($id);
+            $record->forceFill(['privacy_deleted_files' => []])->save();
+            foreach (TranscriptionExportOptions::required($record->segments ?? []) as $option) {
+                $export = $record->exports()->firstOrCreate($option, ['status' => 'pending', 'export_revision' => $record->export_revision]);
+                if ($export->export_revision !== $record->export_revision || $export->status !== 'completed' || blank($export->storage_path)) {
+                    $export->update(['status' => 'pending', 'export_revision' => $record->export_revision, 'storage_path' => null, 'failure_reason' => null]);
+                    $needed = true;
+                }
+            }
+            if ($needed) {
+                app(CreditService::class)->assertConcurrency($userId, 'transcription', $id);
+                $record->update(['status' => 'processing', 'activity_started_at' => now(), 'cancelled_at' => null, 'failure_reason' => null]);
+            }
+
+            return new TranscriptionEditResult($this->mapper->toDomain($record->refresh()), $needed);
+        });
+    }
+
     private function findModelOrFail(string $id): TranscriptionModel
     {
         return TranscriptionModel::query()->find($id)
             ?? throw new TranscriptionNotFoundException($id);
+    }
+
+    private function assertCleanupFinished(string $id): void
+    {
+        if (PrivacyDeletion::query()->where('resource_type', 'transcription')->where('resource_id', $id)
+            ->where('scope', 'generated')->whereIn('status', ['pending', 'processing', 'failed'])->exists()) {
+            throw ValidationException::withMessages(['transcription' => 'Wait for file cleanup to finish before regenerating downloads.']);
+        }
     }
 }

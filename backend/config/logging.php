@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -51,6 +52,14 @@ return [
     */
 
     'channels' => [
+
+        'operational' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/operational.log'),
+            'level' => 'info',
+            'days' => max(1, (int) env('OPERATIONAL_LOGS_RETENTION_DAYS', 30)),
+            'formatter' => JsonFormatter::class,
+        ],
 
         'stack' => [
             'driver' => 'stack',

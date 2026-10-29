@@ -1,29 +1,20 @@
 <?php
 
-/*
- * © 2026 Demilade Oyewusi
- * Licensed under the MIT License.
- * See the LICENSE file for details.
- */
-
 namespace App\Http\Controllers\Transcription;
 
-use App\Domain\Transcriber\Services\TranscribeService;
+use App\Domain\Billing\Services\PaidTranscriptionService;
 use App\Http\Requests\Transcription\TranscribeAudioRequest;
+use App\Http\Responses\Transcription\TranscriptionResponse;
 use Illuminate\Http\JsonResponse;
 
-class CreateTranscriptionController
+final class CreateTranscriptionController
 {
-    public function __construct(private readonly TranscribeService $transcribeService) {}
-
-    public function __invoke(TranscribeAudioRequest $request): JsonResponse
+    public function __invoke(TranscribeAudioRequest $request, PaidTranscriptionService $service, TranscriptionResponse $response): JsonResponse
     {
 
         $data = $request->validated();
+        $transcription = $service->submit((int) $request->user()->getAuthIdentifier(), $data['quote_id'], $data['folder_id'] ?? null, $data['name'] ?? null);
 
-        $this->transcribeService->startNewTranscription($data);
-
-        return response()->json("file has been sent for transcription");
-
+        return $response->created($transcription);
     }
 }

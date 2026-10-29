@@ -64,11 +64,27 @@ return [
             'after_commit' => false,
         ],
 
+        'dubbing' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'dubbing',
+            'retry_after' => 6000,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+        'subtitle_rendering' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'subtitle-rendering',
+            'retry_after' => 7500,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
         'redis' => [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 960),
             'block_for' => null,
             'after_commit' => false,
         ],

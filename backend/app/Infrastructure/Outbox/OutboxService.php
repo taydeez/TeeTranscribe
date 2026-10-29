@@ -46,4 +46,12 @@ class OutboxService
 
         return $event->refresh();
     }
+
+    public function findCompletionEventId(string $transcriptionId): ?string
+    {
+        return OutboxEvent::query()
+            ->where('event_type', 'TranscriptionCompleted')
+            ->where('aggregate_id', $transcriptionId)
+            ->value('id');
+    }
 }

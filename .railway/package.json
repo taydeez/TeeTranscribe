@@ -1,0 +1,24 @@
+{
+  "name": "teetranscribe-infrastructure",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "login": "railway login",
+    "link": "railway link --project 52cdb407-7aeb-4402-8530-3a92c583b4a3",
+    "plan": "railway config plan",
+    "plan:staging": "railway config plan --environment staging",
+    "plan:production": "railway config plan --environment production",
+    "apply": "railway config apply",
+    "apply:staging": "railway config apply --environment staging",
+    "apply:production": "railway config apply --environment production"
+  },
+  "devDependencies": {
+    "@railway/cli": "5.67.1",
+    "railway": "3.15.0",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,11 @@
+export type CreditBalance = { available_units: number; reserved_units: number; units_per_credit: number }
+export type BillingCurrency = 'NGN' | 'USD'
+export type CreditPackage = { id: string; name: string; credit_units: number; amount_minor: number; currency: BillingCurrency; fx_ngn_per_usd_micros: number | null }
+export type PaymentMethod = { id: string; code: string; name: string; description: string | null }
+export type PackageCatalog = { data: CreditPackage[]; payment_methods: PaymentMethod[]; payments_enabled: boolean; usd_enabled: boolean }
+export type UsageQuote = { id: string; status: 'measuring' | 'ready' | 'failed' | 'submitted'; provider: string; model: string; quantity: number | null; credit_units: number | null; expires_at: string; failure_reason: string | null; transcription_id: string | null; available_units: number; enough_credits: boolean; file_name: string | null }
+export type PurchaseQuote = { id: string; reference: string; gateway: string; payment_method_id: string; package_name: string; credit_units: number; amount_minor: number; currency: BillingCurrency; fx_ngn_per_usd_micros: number | null; expires_at: string; status: string; checkout_url: string | null; paid_at: string | null }
+export type BillingHistoryType = 'payments' | 'usage' | 'ledger'
+export type BillingHistoryEntry = { id: string; created_at: string; status?: string; invoice_ready?: boolean; invoice_number?: string | null; reference?: string; package_name?: string; credit_units?: number; amount_minor?: number; currency?: BillingCurrency; activity?: string; provider?: string; quantity?: number; transcription_id?: string; kind?: string; amount_units?: number; available_after?: number; reserved_after?: number }
+export type BillingHistoryPage = { data: BillingHistoryEntry[]; meta: { current_page: number; last_page: number; per_page: number; total: number } }
+export type InvoiceDownload = { url: string; expires_at: string }

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['transcription_id', 'format', 'status', 'storage_path', 'failure_reason', 'processing_started_at'])]
+#[Fillable(['variant', 'export_revision', 'transcription_id', 'format', 'status', 'storage_path', 'failure_reason', 'processing_started_at'])]
 #[UseFactory(TranscriptionExportFactory::class)]
 class TranscriptionExport extends Model
 {
@@ -22,7 +22,7 @@ class TranscriptionExport extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['processing_started_at' => 'immutable_datetime'];
+        return ['export_revision' => 'integer', 'processing_started_at' => 'immutable_datetime'];
     }
 
     /** @return BelongsTo<Transcription, $this> */

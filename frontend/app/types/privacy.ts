@@ -1,0 +1,9 @@
+export type PrivacyCategory = 'source_audio' | 'source_video' | 'recordings' | 'dubbed_audio' | 'dubbed_video' | 'pdf' | 'txt' | 'docx' | 'subtitles' | 'transcripts' | 'translations'
+export type PrivacyResource = 'upload' | 'quote' | 'folder' | 'transcription' | 'translation' | 'dubbing'
+export type PrivacyScope = 'project' | 'source' | 'generated'
+export type RetentionPolicy = Record<PrivacyCategory, number | null>
+export type PrivacySettings = { retention: RetentionPolicy; cleanupIntervalMinutes: number }
+export type PrivacyDeletionTarget = { resource_type: PrivacyResource; resource_id: string; scope: PrivacyScope; category?: PrivacyCategory }
+export type PrivacyDeletion = { id: string; resourceType: PrivacyResource; resourceId: string; scope: PrivacyScope; category: string | null; status: 'pending' | 'processing' | 'completed' | 'failed'; failureReason: string | null; createdAt: string; completedAt: string | null }
+export type PrivacyFile = { id: string; resourceType: Exclude<PrivacyResource, 'translation' | 'folder'>; name: string; category: 'source_audio' | 'source_video' | 'recordings'; size: number | null; createdAt: string }
+export type PrivacyFilePage = { data: PrivacyFile[]; meta: { currentPage: number; lastPage: number; perPage: number; total: number } }

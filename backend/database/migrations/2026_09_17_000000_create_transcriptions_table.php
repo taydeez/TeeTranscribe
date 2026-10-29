@@ -40,7 +40,7 @@ return new class extends Migration
                 ->nullable()
                 ->unique();
 
-            $table->string('status')->default('pending');
+            $table->enum('status', ['pending', 'processing', 'failed', 'complete'])->default('pending');
 
             $table->longText('transcript')->nullable();
 

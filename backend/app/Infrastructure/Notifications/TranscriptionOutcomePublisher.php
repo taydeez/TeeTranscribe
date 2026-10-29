@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Infrastructure\Notifications;
+
+use App\Domain\Billing\Services\CreditService;
+use App\Domain\Transcriber\Contracts\TranscriptionOutcomePublisherInterface;
+use App\Domain\Transcriber\Events\TranscriptionCompleted;
+use App\Domain\Transcriber\Events\TranscriptionFailed;
+use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+
+final class TranscriptionOutcomePublisher implements TranscriptionOutcomePublisherInterface
+{
+    public function completed(string $id): void
+    {
+        DB::afterCommit(fn () => Event::dispatch(new TranscriptionCompleted($id)));
+    }
+
+    public function failed(string $id, bool $pendingOnly = false): void
+    {
+        DB::transaction(function () use ($id, $pendingOnly): void {
+            $record = Transcription::query()->lockForUpdate()->find($id);
+            if ($record === null) {
+                app(CreditService::class)->release($id);
+
+                return;
+            }
+            if ($record->status === 'complete' || ($pendingOnly && $record->status !== 'pending')) {
+                return;
+            }
+            if ($record->status === 'failed') {
+                app(CreditService::class)->release($id);
+
+                return;
+            }
+            $record->forceFill(['status' => 'failed', 'failure_reason' => 'Transcription failed. Any credits still reserved have been returned.'])->save();
+            app(CreditService::class)->release($id);
+            DB::afterCommit(fn () => Event::dispatch(new TranscriptionFailed($id)));
+        });
+    }
+}
