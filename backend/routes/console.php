@@ -12,7 +12,7 @@ Artisan::command('inspire', function () {
 Schedule::command('outbox:publish')->everyMinute()->withoutOverlapping(5);
 Schedule::command('uploads:cleanup')->hourly()->withoutOverlapping();
 Schedule::command('billing:reconcile')->everyTenMinutes()->withoutOverlapping();
-Schedule::command('activities:recover')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('activities:recover')->everyMinute()->withoutOverlapping(5);
 Schedule::command('privacy:cleanup')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('logs:prune')->daily()->withoutOverlapping();
 

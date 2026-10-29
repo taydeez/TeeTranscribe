@@ -33,12 +33,17 @@ final readonly class GoogleTextToSpeechClient
 
     public function voice(string $language): array
     {
+        return $this->findVoice($language, $this->voices());
+    }
+
+    private function findVoice(string $language, array $voices): array
+    {
         $language = match ($language) {
             'en' => 'en-US', 'es' => 'es-ES', 'fr' => 'fr-FR', 'pt' => 'pt-BR', 'zh', 'cmn' => 'cmn-CN',
             'no' => 'nb-NO', 'he' => 'he-IL', default => $language,
         };
         foreach ([true, false] as $exact) {
-            foreach ($this->voices() as $voice) {
+            foreach ($voices as $voice) {
                 foreach ($voice['languageCodes'] as $locale) {
                     $matches = $exact ? strcasecmp($locale, $language) === 0 : explode('-', $locale)[0] === explode('-', $language)[0];
                     if ($matches && str_ends_with($voice['name'], '-'.config('dubbing.google.voice', 'Aoede'))) {
@@ -52,10 +57,11 @@ final readonly class GoogleTextToSpeechClient
 
     public function languages(): array
     {
+        $voices = $this->voices();
         $items = [];
         foreach ((new DubbingLanguages)->sourceLanguages() as $language) {
             try {
-                $this->voice($language['code']);
+                $this->findVoice($language['code'], $voices);
                 $items[] = $language;
             } catch (BillingException) {
                 continue;

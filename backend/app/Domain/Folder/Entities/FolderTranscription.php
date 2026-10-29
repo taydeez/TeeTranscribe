@@ -20,5 +20,7 @@ final readonly class FolderTranscription
         public string $provider = 'deepgram',
         public array $segments = [],
         public ?string $audioUrl = null,
+        public ?string $cancelledAt = null,
+        public ?string $failureReason = null,
     ) {}
 }

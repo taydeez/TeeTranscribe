@@ -8,6 +8,7 @@ export interface BillingConfiguration {
   quote_minutes: number
   checkout_minutes: number
   processing_timeout_hours: number
+  task_deadlines: Record<BillingActivity, Record<string, { base_minutes: number; duration_multiplier: number; max_minutes: number }>>
   concurrency: { overall: number; transcription: number; translation: number; dubbing: number; transcript_tools: number }
   minimum_checkout: Record<BillingCurrency, string>
   enabled_currencies: BillingCurrency[]

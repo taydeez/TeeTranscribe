@@ -37,10 +37,16 @@ final class DeepgramWebhookHandler
             DB::transaction(function () use ($data, $transcription): void {
                 $record = Transcription::query()
                     ->whereKey($transcription)
-                    ->where('provider_request_id', $data['metadata']['request_id'])
                     ->where('provider', 'deepgram')
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                if ($record->status === 'failed' && $record->provider_request_id === null) {
+                    return;
+                }
+                if ($record->provider_request_id !== $data['metadata']['request_id']) {
+                    throw (new ModelNotFoundException)->setModel(Transcription::class, [$transcription]);
+                }
 
                 if ($record->status !== 'pending') {
                     app(OperationalLogger::class)->record('provider', 'info', 'Duplicate Deepgram callback ignored.', [

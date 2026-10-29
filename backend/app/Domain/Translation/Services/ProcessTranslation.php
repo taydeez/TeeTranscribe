@@ -53,7 +53,7 @@ final readonly class ProcessTranslation
                 $source = $record->sourceSegments;
                 $texts = $source === [] ? [$record->sourceText] : array_column($source, 'text');
                 $result = $this->gateways->resolve($record->provider, $record->model)->translate($texts, $record->sourceLanguage, $record->targetLanguage);
-                if ($this->privacy->projectDeleted('translation', $id)) {
+                if ($this->privacy->projectDeleted('translation', $id) || $this->translations->find($id)?->status === 'failed') {
                     return 0;
                 }
                 $segments = $source;
@@ -62,7 +62,10 @@ final readonly class ProcessTranslation
                 }
                 unset($segment);
                 $record = $this->billing->transaction(function () use ($id, $result, $segments) {
-                    $this->translations->find($id, lock: true);
+                    $current = $this->translations->find($id, lock: true);
+                    if ($current === null || $current->status === 'failed') {
+                        return $current;
+                    }
                     $record = $this->translations->update($id, [
                         'translated_text' => implode("\n", $result['texts']), 'segments' => $segments,
                         'detected_language' => $result['detected_language'],
@@ -72,7 +75,7 @@ final readonly class ProcessTranslation
                     return $record;
                 });
             }
-            if ($this->privacy->projectDeleted('translation', $id)) {
+            if ($this->privacy->projectDeleted('translation', $id) || $record === null || $record->status === 'failed') {
                 return 0;
             }
             try {
@@ -86,7 +89,7 @@ final readonly class ProcessTranslation
 
             return $this->billing->transaction(function () use ($id, $revision, $exports): ?int {
                 $current = $this->translations->find($id, lock: true);
-                if ($this->privacy->projectDeleted('translation', $id) || $current === null || $current->exportRevision !== $revision) {
+                if ($this->privacy->projectDeleted('translation', $id) || $current === null || $current->status === 'failed' || $current->exportRevision !== $revision) {
                     return null;
                 }
                 $this->translations->update($id, ['exports' => $exports, 'status' => 'complete', 'failure_reason' => null]);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{ open: boolean; busy: boolean; disabled: boolean; name: string; title: string; consequence: string; notes?: string[]; error: string }>()
+const props = defineProps<{ open: boolean; busy: boolean; disabled: boolean; name: string; title: string; consequence: string; notes?: string[]; error: string; confirmLabel?: string; pendingLabel?: string; dismissLabel?: string }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const headingId = useId()
@@ -39,8 +39,8 @@ onBeforeUnmount(() => { dialog.value?.close(); restoreScroll() })
       <p class="mt-3 text-sm font-medium text-rose-600">This cannot be undone.</p>
       <p v-if="error" role="alert" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{{ error }}</p>
       <div class="mt-6 flex flex-wrap justify-end gap-3">
-        <button type="button" autofocus class="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50" :disabled="busy" @click="cancel">Cancel</button>
-        <button type="button" class="min-h-11 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50" :disabled="busy || disabled" @click="emit('confirm')">{{ busy ? 'Deleting…' : 'Permanently delete' }}</button>
+        <button type="button" autofocus class="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50" :disabled="busy" @click="cancel">{{ dismissLabel ?? 'Cancel' }}</button>
+        <button type="button" class="min-h-11 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50" :disabled="busy || disabled" @click="emit('confirm')">{{ busy ? pendingLabel ?? 'Deleting…' : confirmLabel ?? 'Permanently delete' }}</button>
       </div>
     </dialog>
   </Teleport>

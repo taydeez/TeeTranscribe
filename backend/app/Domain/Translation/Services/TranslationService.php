@@ -129,6 +129,7 @@ final readonly class TranslationService
             $updated = $this->translations->update($id, [
                 'translated_text' => $text, 'segments' => $updatedSegments, 'status' => 'processing',
                 'export_revision' => $revision, 'exports' => [], 'failure_reason' => null,
+                'activity_started_at' => (new DateTimeImmutable)->format(DATE_ATOM), 'cancelled_at' => null,
             ]);
             $this->translations->enqueueExports($id, $revision);
 

@@ -19,5 +19,6 @@ final readonly class Dubbing
         public ?array $translatedSubtitleSegments = null, public ?string $detectedSourceLanguage = null,
         public string $mediaType = 'video', public ?string $audioPreviewStoragePath = null,
         public ?string $folderId = null,
+        public ?string $cancelledAt = null,
     ) {}
 }

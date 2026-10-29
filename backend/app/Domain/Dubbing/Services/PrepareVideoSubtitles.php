@@ -21,12 +21,18 @@ final readonly class PrepareVideoSubtitles
     public function handle(Dubbing $record): void
     {
         $record = $this->records->update($record->id, ['status' => 'processing']);
+        if ($record->status === 'failed') {
+            return;
+        }
         if ($record->sourceSubtitleSegments === null) {
             $transcript = $this->transcriber->transcribe($record, $this->media->sourceUrl($record->sourceStoragePath));
             $segments = $transcript['segments'];
             $this->document->cues($segments, $record->durationMs / 1000);
             $record = $this->records->update($record->id, ['source_subtitle_segments' => $segments,
                 'detected_source_language' => $transcript['detected_language']]);
+            if ($record->status === 'failed') {
+                return;
+            }
         }
         if ($record->translatedSubtitleSegments === null) {
             $source = $this->translationCode($record->sourceLanguage ?? $record->detectedSourceLanguage);
@@ -50,9 +56,15 @@ final readonly class PrepareVideoSubtitles
             });
         }
         if ($record->videoStoragePath === null || $record->audioStoragePath === null) {
+            if ($this->records->find($record->id)?->status === 'failed') {
+                return;
+            }
             $record = $this->records->update($record->id, $this->media->prepareOriginal($record));
         }
         $this->billing->transaction(function () use ($record): void {
+            if ($this->records->find($record->id, lock: true)?->status === 'failed') {
+                return;
+            }
             $this->records->update($record->id, ['subtitle_status' => 'pending', 'failure_reason' => null]);
             $this->records->enqueueSubtitles($record->id);
         });

@@ -14,7 +14,7 @@ final class CreateTranscriptToolQuoteController
     {
         $input = $request->validated();
         $userId = (int) $request->user()->getAuthIdentifier();
-        $quote = $service->quote($transcription, $userId, $input['operation'], $input['client_key']);
+        $quote = $service->quote($transcription, $userId, $input['operation'], $input['client_key'], $input['draft'] ?? null);
         $balance = $credits->balance($userId);
 
         return $response->json($response->quoteData($quote, $balance));

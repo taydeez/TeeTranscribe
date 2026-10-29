@@ -1,0 +1,106 @@
+name: Railway production infrastructure
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.railway/**'
+      - '.github/workflows/railway-production.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.railway/**'
+      - '.github/workflows/railway-production.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-production-infrastructure
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Validate and plan production
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    defaults:
+      run:
+        working-directory: .railway
+    steps:
+      - name: Check out configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: .railway/package-lock.json
+
+      - name: Install pinned infrastructure tooling
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check configuration
+        run: npm run check
+
+      - name: Plan production changes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo '::error::Add RAILWAY_PRODUCTION_TOKEN using a Railway project token scoped to production.'
+            exit 1
+          fi
+          npm run plan:production -- --out "$RUNNER_TEMP/railway-production-plan.json"
+
+      - name: Save production deployment plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: railway-production-plan-${{ github.sha }}
+          path: ${{ runner.temp }}/railway-production-plan.json
+          if-no-files-found: error
+          retention-days: 1
+
+  apply:
+    name: Apply production infrastructure
+    needs: plan
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    defaults:
+      run:
+        working-directory: .railway
+    steps:
+      - name: Check out the planned commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: .railway/package-lock.json
+
+      - name: Install pinned infrastructure tooling
+        run: npm ci --no-audit --no-fund
+
+      - name: Retrieve the plan for this commit
+        uses: actions/download-artifact@v4
+        with:
+          name: railway-production-plan-${{ github.sha }}
+          path: ${{ runner.temp }}
+
+      - name: Apply the saved production plan
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+        run: npm run apply:production -- --plan "$RUNNER_TEMP/railway-production-plan.json" --yes

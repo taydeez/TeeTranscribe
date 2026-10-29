@@ -15,6 +15,6 @@ defineProps<{ disabled: boolean }>()
         <input v-model.number="configuration.concurrency[limit.key]" required type="number" min="1" max="100" step="1" class="billing-input">
       </label>
     </fieldset>
-    <p class="mt-4 text-xs text-[var(--muted)]">Changes apply to new tasks and download regeneration. Existing work continues if limits are lowered. Retries reuse the same task. Stalled tasks are recovered using the processing timeout above.</p>
+    <p class="mt-4 text-xs text-[var(--muted)]">Changes apply to new tasks and download regeneration. Existing work continues if limits are lowered. Retries reuse the same task. Overdue tasks release their slots using the activity and provider deadlines below.</p>
   </section>
 </template>

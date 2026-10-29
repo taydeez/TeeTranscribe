@@ -13,7 +13,11 @@ final class TranscriptionResponse extends ApiResponse
     {
         return ['id' => $record->id, 'transcriptionId' => $record->transcriptionId, 'operation' => $record->operation,
             'status' => $record->status, 'result' => $record->result, 'failureReason' => $record->failureReason,
-            'createdAt' => $record->createdAt, 'stale' => $record->sourceHash !== $fingerprint];
+            'createdAt' => $record->createdAt, 'stale' => $record->sourceHash !== $fingerprint,
+            'source' => ['text' => $record->sourceText, 'segments' => array_map(
+                fn (array $segment): array => ['text' => $segment['text'], 'speaker' => $segment['speaker'] ?? null],
+                $record->sourceSegments,
+            )]];
     }
 
     public function quoteData(array $quote, array $balance): array

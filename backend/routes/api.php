@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Activity\CancelActivityController;
 use App\Http\Controllers\Admin\Account\DeleteAdminAccountController;
 use App\Http\Controllers\Admin\Account\ListAdminAccountController;
 use App\Http\Controllers\Admin\Account\StoreAdminAccountController;
@@ -140,6 +141,8 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/user', ShowUserController::class)->middleware('auth:sanctum');
 
     Route::middleware(['auth:sanctum', 'verified'])->group(function (): void {
+        Route::post('/activities/{type}/{activity}/cancel', CancelActivityController::class)
+            ->whereIn('type', ['transcription', 'translation', 'dubbing', 'transcript_tool'])->whereUlid('activity')->middleware('throttle:billing');
         Route::prefix('privacy')->middleware('throttle:billing')->group(function (): void {
             Route::get('/settings', ShowPrivacySettingsController::class);
             Route::patch('/settings', UpdatePrivacySettingsController::class);

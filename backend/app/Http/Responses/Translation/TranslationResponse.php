@@ -19,6 +19,7 @@ final class TranslationResponse extends ApiResponse
             'targetLanguage' => $record->targetLanguage, 'transcriptionId' => $record->transcriptionId,
             'createdAt' => $record->createdAt, 'failureReason' => $record->failureReason,
             'folderId' => $record->folderId,
+            'cancelledAt' => $record->cancelledAt,
         ];
         if (! $summary) {
             $data += ['sourceText' => $record->sourceText, 'translatedText' => $record->translatedText, 'segments' => $record->segments,

@@ -74,6 +74,8 @@ final class EloquentFolderRepository implements FolderRepositoryInterface
                 name: $transcription->name,
                 fileName: $transcription->file_name,
                 status: $transcription->status,
+                cancelledAt: $transcription->cancelled_at,
+                failureReason: $transcription->failure_reason,
                 transcript: $transcription->transcript,
                 duration: $transcription->duration,
                 provider: $transcription->provider,

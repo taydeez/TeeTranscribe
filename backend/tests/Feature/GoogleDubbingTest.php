@@ -125,6 +125,23 @@ test('Google is configurable for audio and video dubbing and only exposes suppor
     expect(array_column(app(GoogleTextToSpeechClient::class)->languages(), 'code'))->toContain('en', 'fr')->not->toContain('yo', 'ha');
 });
 
+test('an unavailable Google audio voice catalog is requested once and does not block video languages', function () {
+    config(['dubbing.provider' => 'elevenlabs', 'dubbing.key' => 'test-key',
+        'billing.rates.dubbing.elevenlabs.dubbing_v2.credits' => '10',
+        'transcriber.deepgram.key' => null]);
+    Http::fake(['texttospeech.googleapis.com/*' => Http::response([
+        'error' => ['code' => 403, 'message' => 'Cloud Text-to-Speech API is disabled.'],
+    ], 403)]);
+
+    $response = $this->getJson('/api/v1/dubbings/languages')->assertOk()
+        ->assertJsonPath('configured', true)
+        ->assertJsonPath('audioDubbing.configured', false)
+        ->assertJsonPath('audioDubbing.data', []);
+
+    expect(array_column($response->json('data'), 'code'))->toContain('en', 'es');
+    Http::assertSentCount(1);
+});
+
 test('Google dubbing keeps quote voice and pricing snapshots and completes through the existing credit lifecycle', function () {
     $record = confirmedGoogleDubbing($this);
     expect($record->provider_options['voice']['name'])->toBe('fr-FR-Chirp3-HD-Aoede');

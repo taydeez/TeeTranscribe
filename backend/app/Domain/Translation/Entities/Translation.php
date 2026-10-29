@@ -24,5 +24,6 @@ final readonly class Translation
         public ?string $folderId = null,
         public string $provider = 'google',
         public string $model = 'nmt',
+        public ?string $cancelledAt = null,
     ) {}
 }

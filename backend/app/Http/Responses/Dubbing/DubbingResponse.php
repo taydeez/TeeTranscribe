@@ -24,6 +24,7 @@ final class DubbingResponse extends ApiResponse
     {
         $data = ['id' => $record->id, 'name' => $record->name, 'operation' => $record->operation, 'mediaType' => $record->mediaType,
             'folderId' => $record->folderId,
+            'cancelledAt' => $record->cancelledAt,
             'sourceLanguage' => $record->sourceLanguage ?? $record->detectedSourceLanguage, 'targetLanguage' => $record->targetLanguage,
             'durationMs' => $record->durationMs, 'status' => $record->status, 'createdAt' => $record->createdAt,
             'failureReason' => $record->failureReason, 'canRetryExports' => $record->status === 'failed' && $record->providerCompletedAt !== null,

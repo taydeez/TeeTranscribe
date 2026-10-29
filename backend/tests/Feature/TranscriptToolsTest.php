@@ -142,6 +142,61 @@ test('plain text cleanup remains a suggestion and does not invent speaker segmen
     expect($this->record->refresh()->transcript)->toBe('uh this is the recording')->and($this->record->segments)->toBe([]);
 });
 
+test('unsaved plain text can be cleaned up and summarized without saving or exporting it', function (string $operation) {
+    $original = $this->record->transcript;
+    $segments = $this->record->segments;
+    $draft = ['transcript' => 'um this is my unsaved draft', 'segments' => []];
+    $this->providerResult = $operation === 'cleanup' ? ['text' => 'This is my unsaved draft.']
+        : ['summary' => 'An unsaved draft.', 'keyPoints' => [], 'actionItems' => []];
+    $quote = $this->postJson($this->base.'/quotes', [
+        'operation' => $operation, 'client_key' => (string) Str::uuid(), 'draft' => $draft,
+    ])->assertOk()->assertJsonPath('quantity', mb_strlen($draft['transcript']))->json();
+    $tool = submitTool($this, $quote);
+    expect(submitTool($this, $quote)['id'])->toBe($tool['id']);
+    app(ProcessTranscriptTool::class)->handle($tool['id']);
+    $result = $this->getJson($this->base.'/'.$tool['id'])->assertOk()->assertJsonPath('status', 'complete')
+        ->assertJsonPath('source.text', $draft['transcript'])->assertJsonPath('source.segments', [])->json();
+    expect($result['result'][$operation === 'cleanup' ? 'text' : 'summary'])->not->toBeEmpty()
+        ->and($this->record->refresh()->transcript)->toBe($original)->and($this->record->segments)->toBe($segments)
+        ->and($this->record->export_revision)->toBe(0)->and($this->record->status)->toBe('complete');
+    Http::assertSent(fn ($request) => str_contains($request['input'], $draft['transcript']) && ! str_contains($request['input'], $original));
+    Http::assertSentCount(1);
+    $this->assertDatabaseCount('usage_charges', 1);
+    $this->assertDatabaseCount('transcription_exports', 0);
+})->with(['cleanup', 'summary']);
+
+test('unsaved speaker edits preserve authoritative timing and reuse the same generation', function () {
+    $draft = ['transcript' => "um hello my friend\nwelcome everyone", 'segments' => [
+        ['text' => 'um hello my friend', 'speaker' => 'Ada'],
+        ['text' => 'welcome everyone', 'speaker' => 'Bob'],
+    ]];
+    $request = ['operation' => 'cleanup', 'client_key' => (string) Str::uuid(), 'draft' => $draft];
+    $quote = $this->postJson($this->base.'/quotes', $request)->assertOk()->json();
+    $tool = submitTool($this, $quote);
+    $request['client_key'] = (string) Str::uuid();
+    $nextQuote = $this->postJson($this->base.'/quotes', $request)->assertOk()->json();
+    expect(submitTool($this, $nextQuote)['id'])->toBe($tool['id']);
+    app(ProcessTranscriptTool::class)->handle($tool['id']);
+    $this->getJson($this->base.'/'.$tool['id'])->assertOk()->assertJsonPath('source.segments.0.speaker', 'Ada')
+        ->assertJsonPath('result.segments.0.start', 0.25)->assertJsonPath('result.segments.0.end', 1.75)
+        ->assertJsonPath('result.segments.0.speaker', 'Ada');
+    expect($this->record->refresh()->segments[0]['speaker'])->toBe('Alice');
+    $this->assertDatabaseCount('usage_charges', 1);
+    Http::assertSentCount(1);
+});
+
+test('a saved transcript change invalidates an unconfirmed draft quote without charging', function () {
+    $quote = $this->postJson($this->base.'/quotes', [
+        'operation' => 'summary', 'client_key' => (string) Str::uuid(),
+        'draft' => ['transcript' => 'My unsaved text', 'segments' => []],
+    ])->assertOk()->json();
+    $this->record->update(['transcript' => 'Changed in another tab.', 'segments' => []]);
+    $this->postJson($this->base, ['quote_id' => $quote['id']])->assertStatus(409);
+    $this->assertDatabaseCount('usage_charges', 0);
+    $this->assertDatabaseCount('transcript_tools', 0);
+    Http::assertNothingSent();
+});
+
 test('summaries persist key points and action items using the quoted model', function () {
     $this->providerResult = ['summary' => 'Alice and Bob reviewed the plan.', 'keyPoints' => ['The plan is ready.'],
         'actionItems' => ['Bob will send the plan.']];

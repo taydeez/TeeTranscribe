@@ -2,7 +2,8 @@ import type { FolderTranscription, TranscriptSegment, TranscriptionExportVariant
 
 export function hasTranscriptChanges(record: FolderTranscription | null, text: string, segments: TranscriptSegment[] | null) {
   if (!record) return false
-  if (text !== (record.transcript ?? '').trim()) return true
+  const originalText = segments !== null && record.segments?.length ? record.segments.map(segment => segment.text.trim()).join('\n') : (record.transcript ?? '').trim()
+  if (text !== originalText) return true
   const editable = (items: TranscriptSegment[]) => items.map(item => ({ text: item.text.trim(), speaker: item.speaker }))
   return segments !== null && JSON.stringify(editable(segments)) !== JSON.stringify(editable(record.segments ?? []))
 }

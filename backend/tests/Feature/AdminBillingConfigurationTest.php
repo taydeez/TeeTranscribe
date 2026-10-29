@@ -45,6 +45,17 @@ function saveBillingConfiguration($test, array $configuration, int $version = 0)
     ])->assertOk()->assertJsonPath('data.version', $version + 1);
 }
 
+test('provider task deadlines can be configured and audited while older clients preserve them', function () {
+    $this->configuration['task_deadlines']['transcription']['deepgram'] = ['base_minutes' => 5, 'duration_multiplier' => 1.5, 'max_minutes' => 180];
+    saveBillingConfiguration($this, $this->configuration);
+    unset($this->configuration['task_deadlines']);
+    saveBillingConfiguration($this, $this->configuration, 1);
+    $this->getJson('/api/v1/admin/billing/settings')->assertOk()
+        ->assertJsonPath('data.configuration.task_deadlines.transcription.deepgram.base_minutes', 5)
+        ->assertJsonPath('data.configuration.task_deadlines.transcription.deepgram.duration_multiplier', 1.5)
+        ->assertJsonPath('data.history.0.after.task_deadlines.transcription.deepgram.max_minutes', 180);
+});
+
 test('admin concurrency limits are audited and apply without changing existing work', function () {
     $customer = User::factory()->create();
     $record = Transcription::factory()->create(['user_id' => $customer->id, 'status' => 'pending']);

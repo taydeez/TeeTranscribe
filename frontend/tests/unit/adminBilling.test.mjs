@@ -21,6 +21,17 @@ test('billing settings are not requested without permission', async t => {
   await h.state.load(); await h.state.save()
   assert.equal(h.calls.length, 0)
 })
+
+test('provider deadlines are submitted with the billing version and edit reason', async t => {
+  const h = setup(t, async (_url, options) => options ? { data: { ...record(), version: 3, configuration: options.body.configuration } } : { data: record() })
+  await h.state.load()
+  h.state.draft.value.task_deadlines = { transcription: { deepgram: { base_minutes: 5, duration_multiplier: 1.5, max_minutes: 180 } } }
+  h.state.reason.value = 'Shorten stalled transcription deadlines'
+  await h.state.save()
+  assert.deepEqual(h.calls[1].options.body.configuration.task_deadlines.transcription.deepgram, { base_minutes: 5, duration_multiplier: 1.5, max_minutes: 180 })
+  assert.equal(h.calls[1].options.body.version, 2)
+  assert.equal(h.state.dirty.value, false)
+})
 test('read only admins can load settings but cannot save changes', async t => {
   const h = setup(t, async () => ({ data: record() }), ['ViewAny_Pricing'])
   await h.state.load()

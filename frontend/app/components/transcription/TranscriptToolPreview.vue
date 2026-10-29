@@ -24,7 +24,7 @@ async function copy() {
       <h4 class="text-sm font-semibold">{{ record.operation === 'cleanup' ? 'Cleanup preview' : 'Summary' }}</h4>
       <button type="button" class="min-h-11 rounded-lg px-3 text-sm font-medium text-indigo-600 hover:bg-indigo-50" @click="copy">{{ copied ? 'Copied' : 'Copy text' }}</button>
     </div>
-    <p v-if="!fresh" class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">This result is from an older version of this transcript. Generate a new result for the saved text.</p>
+    <p v-if="!fresh" class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">This result is from a different version of this transcript. Generate a new result for your current text.</p>
     <p v-if="copyError" class="mt-3 text-sm text-rose-600" role="alert">{{ copyError }}</p>
     <template v-if="record.operation === 'cleanup'">
       <div v-if="record.result?.segments?.length" class="mt-4 max-h-80 space-y-4 overflow-y-auto">
@@ -35,7 +35,7 @@ async function copy() {
       </div>
       <p v-else class="mt-4 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{{ record.result?.text }}</p>
       <button type="button" class="button-secondary mt-5 w-full disabled:opacity-50 sm:w-auto" :disabled="!canApply" @click="emit('apply')">Use cleaned text</button>
-      <p class="mt-2 text-xs leading-relaxed text-slate-500">{{ blocked ? 'Save or discard your current edits before applying this preview.' : 'Review the preview first. Applying it changes your editor draft; Save changes updates your transcript and downloads.' }}</p>
+      <p class="mt-2 text-xs leading-relaxed text-slate-500">{{ blocked ? 'Wait for saving to finish before applying this preview.' : 'Review the preview first. Applying it changes your editor draft; Save changes updates your transcript and downloads.' }}</p>
     </template>
     <template v-else>
       <div class="mt-4 max-h-96 space-y-5 overflow-y-auto text-sm leading-relaxed text-slate-700">

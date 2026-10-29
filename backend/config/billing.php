@@ -7,6 +7,35 @@ return [
     'checkout_minutes' => 30,
     // Deepgram callbacks expire after 24 hours; recover stranded reservations afterwards.
     'processing_timeout_hours' => 26,
+    'task_deadlines' => [
+        'transcription' => [
+            'default' => ['base_minutes' => 15, 'duration_multiplier' => 2, 'max_minutes' => 1440],
+            'deepgram' => ['base_minutes' => 15, 'duration_multiplier' => 2, 'max_minutes' => 1440],
+            'intron' => ['base_minutes' => 20, 'duration_multiplier' => 3, 'max_minutes' => 1440],
+            'google' => ['base_minutes' => 30, 'duration_multiplier' => 3, 'max_minutes' => 1440],
+            'elevenlabs' => ['base_minutes' => 20, 'duration_multiplier' => 2, 'max_minutes' => 1440],
+            'openai' => ['base_minutes' => 15, 'duration_multiplier' => 2, 'max_minutes' => 1440],
+        ],
+        'translation' => [
+            'default' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30],
+            'google' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30],
+            'openai' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30],
+        ],
+        'video_dubbing' => [
+            'default' => ['base_minutes' => 30, 'duration_multiplier' => 4, 'max_minutes' => 1440],
+            'elevenlabs' => ['base_minutes' => 30, 'duration_multiplier' => 4, 'max_minutes' => 1440],
+            'heygen' => ['base_minutes' => 30, 'duration_multiplier' => 4, 'max_minutes' => 1440],
+            'google' => ['base_minutes' => 30, 'duration_multiplier' => 4, 'max_minutes' => 1440],
+        ],
+        'audio_dubbing' => [
+            'default' => ['base_minutes' => 20, 'duration_multiplier' => 3, 'max_minutes' => 1440],
+            'elevenlabs' => ['base_minutes' => 20, 'duration_multiplier' => 3, 'max_minutes' => 1440],
+            'google' => ['base_minutes' => 20, 'duration_multiplier' => 3, 'max_minutes' => 1440],
+        ],
+        'subtitles' => ['default' => ['base_minutes' => 20, 'duration_multiplier' => 4, 'max_minutes' => 1440]],
+        'cleanup' => ['default' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30], 'openai' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30]],
+        'summary' => ['default' => ['base_minutes' => 10, 'duration_multiplier' => 0, 'max_minutes' => 30], 'openai' => ['base_minutes' => 10, 'duration_multiplier' => 0, 'max_minutes' => 30]],
+    ],
     'fx' => [
         'ngn_per_usd' => env('BILLING_NGN_PER_USD'),
         'updated_at' => env('BILLING_FX_UPDATED_AT'),
