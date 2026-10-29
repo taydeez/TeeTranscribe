@@ -54,9 +54,6 @@ export default defineRailway((ctx) => {
 
   const definition = project(ctx.projectName ?? 'TeeTranscribe', {
     resources: Object.entries(profile.services).map(([role, name]) => service(name, {
-      ...(environment === 'production' && role === 'api'
-        ? { domains: ['prod-api.teescriber.com'] }
-        : {}),
       source: github('taydeez/TeeTranscribe', {
         branch: profile.branch,
         rootDirectory: '/backend',
