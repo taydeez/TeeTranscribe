@@ -11,6 +11,9 @@ class LaravelTranscriptionPollingDispatcher implements TranscriptionPollingDispa
 {
     public function dispatch(Transcription $transcription): void
     {
+        if ($transcription->status !== 'pending') {
+            return;
+        }
         if ($transcription->provider === 'google') {
             PollGoogleTranscription::dispatch($transcription->id)->delay(now()->addSeconds(15))->afterCommit();
 

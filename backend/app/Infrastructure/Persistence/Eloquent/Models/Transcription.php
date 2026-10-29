@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['export_revision', 'user_id', 'guest_session_id', 'audio_path', 'audio_storage_path', 'file_name', 'name', 'folder_name', 'duration', 'provider', 'provider_request_id', 'status', 'transcript', 'segments', 'source_deleted_at', 'privacy_deleted_files'])]
+#[Fillable(['activity_started_at', 'cancelled_at', 'failure_reason', 'export_revision', 'user_id', 'guest_session_id', 'audio_path', 'audio_storage_path', 'file_name', 'name', 'folder_name', 'duration', 'provider', 'provider_request_id', 'status', 'transcript', 'segments', 'source_deleted_at', 'privacy_deleted_files'])]
 #[UseFactory(TranscriptionFactory::class)]
 class Transcription extends Model
 {

@@ -69,14 +69,14 @@ final readonly class ProcessDubbing
                     $record = $this->records->update($id, ['status' => 'processing', 'submission_started_at' => (new \DateTimeImmutable)->format(DATE_ATOM)]);
                     $project = $gateway->create($record, $sourceUrl);
                 }
-                if ($this->privacy->projectDeleted('dubbing', $id)) {
+                if ($this->privacy->projectDeleted('dubbing', $id) || $this->records->find($id)?->status === 'failed') {
                     return true;
                 }
                 $record = $this->records->update($id, ['provider_project_id' => $project['project_id'], 'provider_language_id' => $project['language_ids'][0] ?? null]);
             }
             $gateway = $this->providers->resolve($record->provider);
             $project = $gateway->project($record->projectId);
-            if ($this->privacy->projectDeleted('dubbing', $id)) {
+            if ($this->privacy->projectDeleted('dubbing', $id) || $this->records->find($id)?->status === 'failed') {
                 return true;
             }
             if ($project['status'] === 'failed') {
@@ -92,7 +92,7 @@ final readonly class ProcessDubbing
                 $record = $this->records->update($id, ['provider_language_id' => $languageId]);
             }
             $language = $gateway->language($record->projectId, $record->languageId);
-            if ($this->privacy->projectDeleted('dubbing', $id)) {
+            if ($this->privacy->projectDeleted('dubbing', $id) || $this->records->find($id)?->status === 'failed') {
                 return true;
             }
             if (($language['target_language'] ?? null) !== $record->targetLanguage) {
@@ -117,14 +117,14 @@ final readonly class ProcessDubbing
                     return $record;
                 });
             }
-            if ($this->privacy->projectDeleted('dubbing', $id)) {
+            if ($this->privacy->projectDeleted('dubbing', $id) || $this->records->find($id)?->status === 'failed') {
                 return true;
             }
             $paths = $record->mediaType === 'audio' ? $this->audio->store($record, $language['outputs']['lossless_audio'] ?? '')
                 : (isset($language['outputs']['video']) ? $this->media->storeVideo($record, $language['outputs']['video'])
                     : $this->media->store($record, $language['outputs']['lossless_audio'] ?? ''));
             $this->billing->transaction(function () use ($id, $paths, $record): void {
-                if ($this->privacy->projectDeleted('dubbing', $id)) {
+                if ($this->privacy->projectDeleted('dubbing', $id) || $this->records->find($id, lock: true)?->status === 'failed') {
                     return;
                 }
                 $this->records->update($id, $paths + ['status' => $record->subtitlesEnabled ? 'processing' : 'complete', 'failure_reason' => null]);
@@ -170,7 +170,8 @@ final readonly class ProcessDubbing
                 return;
             }
             $this->credits->assertConcurrency($userId, 'dubbing', $id);
-            $this->records->update($id, ['status' => 'processing', 'failure_reason' => null]);
+            $this->records->update($id, ['status' => 'processing', 'failure_reason' => null,
+                'activity_started_at' => (new \DateTimeImmutable)->format(DATE_ATOM), 'cancelled_at' => null]);
             if ($record->subtitlesEnabled && $record->videoStoragePath !== null && $record->audioStoragePath !== null) {
                 $this->records->update($id, ['subtitle_status' => 'pending']);
                 $this->records->enqueueSubtitles($id, retry: true);

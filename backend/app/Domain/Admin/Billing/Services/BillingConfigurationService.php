@@ -26,6 +26,7 @@ final readonly class BillingConfigurationService
     {
         $configuration = $input['configuration'];
         $configuration['concurrency'] ??= $this->settings->current()['concurrency'];
+        $configuration['task_deadlines'] ??= $this->settings->current()['task_deadlines'];
         foreach ($configuration['packages'] as $package) {
             $this->amount($package['credits'], true);
             $this->amount($package['price_ngn'], true);

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { FolderTranscription } from '~/types/transcription'
-import type { TranscriptToolResult } from '~/types/transcriptTools'
+import type { TranscriptToolResult, TranscriptToolSource } from '~/types/transcriptTools'
 import { formatCredits } from '~/utils/credits'
 import TranscriptToolPreview from './TranscriptToolPreview.vue'
 
-const props = defineProps<{ transcription: FolderTranscription; blocked: boolean }>()
+const props = defineProps<{ transcription: FolderTranscription; source: TranscriptToolSource; blocked: boolean }>()
 const emit = defineEmits<{ apply: [result: TranscriptToolResult] }>()
-const tools = useTranscriptTools(() => props.transcription, () => props.blocked)
-const { operation, loading, configured, busy, error, record, working, quote, fresh, canApply } = tools
+const tools = useTranscriptTools(() => props.transcription, () => props.blocked, () => props.source)
+const { operation, loading, configured, busy, error, record, pendingRecords, working, quote, fresh, canApply } = tools
 const reusable = computed(() => fresh.value && record.value?.status === 'complete')
 function apply() { if (canApply.value && record.value?.result) emit('apply', record.value.result) }
 </script>
@@ -25,9 +25,10 @@ function apply() { if (canApply.value && record.value?.result) emit('apply', rec
     <p v-else-if="!configured && !error" class="mt-4 text-sm text-slate-500">Transcript tools are not available yet.</p>
     <p v-if="error" class="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ error }} <button v-if="!configured" type="button" class="underline" @click="tools.load">Retry</button></p>
     <template v-if="!loading && (configured || record)">
-      <p v-if="blocked" class="mt-4 text-sm text-amber-700">Save your changes first. These tools use your saved transcript.</p>
+      <p class="mt-4 text-xs text-slate-500">These tools use your current editor text, including unsaved edits.</p>
       <p v-if="working" class="mt-4 flex items-center gap-2 text-sm text-indigo-700" role="status"><span class="size-4 rounded-full border-2 border-indigo-200 border-t-indigo-600 motion-safe:animate-spin" aria-hidden="true" />{{ operation === 'cleanup' ? 'Preparing your cleanup preview…' : 'Creating your summary…' }} You can leave this page and return later.</p>
-      <p v-else-if="record?.status === 'failed'" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ record.failureReason ?? 'This request could not be completed.' }}</p>
+      <div v-for="task in pendingRecords" :key="task.id" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-white p-2"><span class="px-2 text-xs text-slate-500">{{ task.operation === 'cleanup' ? 'Cleanup' : 'Summary' }} in progress</span><ActivityCancelTaskButton :id="task.id" type="transcript_tool" :name="transcription.name" @changed="tools.load" /></div>
+      <p v-if="!working && record?.status === 'failed'" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ record.failureReason ?? 'This request could not be completed.' }}</p>
       <TranscriptToolPreview v-if="record?.status === 'complete' && record.result" :record="record" :fresh="fresh" :can-apply="canApply" :blocked="blocked" @apply="apply" />
       <p v-if="reusable" class="mt-3 text-xs text-slate-500">Your saved result is shown above. Viewing it again does not use credits.</p>
       <template v-if="configured && !working && !reusable">

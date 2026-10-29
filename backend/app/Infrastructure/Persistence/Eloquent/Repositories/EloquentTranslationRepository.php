@@ -9,6 +9,7 @@ use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\PrivacyDeletion;
 use App\Infrastructure\Persistence\Eloquent\Models\Transcription;
 use App\Infrastructure\Persistence\Eloquent\Models\Translation as TranslationModel;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentTranslationRepository implements TranslationRepositoryInterface
 {
@@ -22,31 +23,36 @@ final class EloquentTranslationRepository implements TranslationRepositoryInterf
 
     public function create(array $data): Translation
     {
-        return $this->toDomain(TranslationModel::create($data)->refresh());
+        return $this->toDomain(TranslationModel::create($data + ['activity_started_at' => now()])->refresh());
     }
 
     public function update(string $id, array $data): Translation
     {
-        $record = TranslationModel::findOrFail($id);
-        if (! empty($data['exports'])) {
-            $clocks = $record->file_generated_at ?? [];
-            foreach ($data['exports'] as $export) {
-                if (! empty($export['storage_path']) && ($export['status'] ?? '') === 'completed') {
-                    $clocks[$export['format']] = now()->toIso8601String();
+        return DB::transaction(function () use ($id, $data): Translation {
+            $record = TranslationModel::query()->lockForUpdate()->findOrFail($id);
+            if ($record->status === 'failed' && ! isset($data['activity_started_at'])) {
+                return $this->toDomain($record);
+            }
+            if (! empty($data['exports'])) {
+                $clocks = $record->file_generated_at ?? [];
+                foreach ($data['exports'] as $export) {
+                    if (! empty($export['storage_path']) && ($export['status'] ?? '') === 'completed') {
+                        $clocks[$export['format']] = now()->toIso8601String();
+                    }
                 }
+                $data['file_generated_at'] = $clocks;
             }
-            $data['file_generated_at'] = $clocks;
-        }
-        if (isset($data['export_revision']) && $data['export_revision'] !== $record->export_revision) {
-            if (PrivacyDeletion::query()->where('resource_type', 'translation')->where('resource_id', $id)
-                ->where('scope', 'generated')->whereIn('status', ['pending', 'processing', 'failed'])->exists()) {
-                throw new BillingException('Wait for file cleanup to finish before regenerating downloads.', 409);
+            if (isset($data['export_revision']) && $data['export_revision'] !== $record->export_revision) {
+                if (PrivacyDeletion::query()->where('resource_type', 'translation')->where('resource_id', $id)
+                    ->where('scope', 'generated')->whereIn('status', ['pending', 'processing', 'failed'])->exists()) {
+                    throw new BillingException('Wait for file cleanup to finish before regenerating downloads.', 409);
+                }
+                $data['privacy_deleted_files'] = [];
             }
-            $data['privacy_deleted_files'] = [];
-        }
-        $record->update($data);
+            $record->update($data);
 
-        return $this->toDomain($record->refresh());
+            return $this->toDomain($record->refresh());
+        });
     }
 
     public function paginateForUser(int $userId, int $page, int $perPage): array
@@ -78,6 +84,7 @@ final class EloquentTranslationRepository implements TranslationRepositoryInterf
             createdAt: $record->created_at?->toIso8601String(),
             folderId: $record->folder_id,
             provider: $record->provider, model: $record->model,
+            cancelledAt: $record->cancelled_at,
         );
     }
 

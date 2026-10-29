@@ -5,6 +5,7 @@ namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 use App\Domain\Transcriber\Contracts\TranscriptToolRepositoryInterface;
 use App\Domain\Transcriber\Entities\TranscriptTool;
 use App\Infrastructure\Persistence\Eloquent\Models\TranscriptTool as Record;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentTranscriptToolRepository implements TranscriptToolRepositoryInterface
 {
@@ -33,15 +34,20 @@ final class EloquentTranscriptToolRepository implements TranscriptToolRepository
 
     public function create(array $data): TranscriptTool
     {
-        return $this->entity(Record::create($data)->refresh());
+        return $this->entity(Record::create($data + ['activity_started_at' => now()])->refresh());
     }
 
     public function update(string $id, array $data): TranscriptTool
     {
-        $record = Record::findOrFail($id);
-        $record->update($data);
+        return DB::transaction(function () use ($id, $data): TranscriptTool {
+            $record = Record::query()->lockForUpdate()->findOrFail($id);
+            if ($record->status === 'failed') {
+                return $this->entity($record);
+            }
+            $record->update($data);
 
-        return $this->entity($record->refresh());
+            return $this->entity($record->refresh());
+        });
     }
 
     private function entity(Record $record): TranscriptTool

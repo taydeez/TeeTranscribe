@@ -180,7 +180,7 @@
     },
     {
       "key": "billingConfiguration",
-      "value": "{\"packages\":[{\"code\":\"starter\",\"name\":\"Starter\",\"credits\":\"5500\",\"price_ngn\":\"5000\",\"enabled\":true},{\"code\":\"regular\",\"name\":\"Regular\",\"credits\":\"15000\",\"price_ngn\":\"15000\",\"enabled\":true}],\"free_credits\":\"0\",\"fx\":{\"ngn_per_usd\":\"1500\",\"updated_at\":\"{{billingFxUpdatedAt}}\",\"max_age_hours\":24},\"quote_minutes\":45,\"checkout_minutes\":30,\"processing_timeout_hours\":26,\"minimum_checkout\":{\"NGN\":\"50\",\"USD\":\"2\"},\"enabled_currencies\":[\"NGN\",\"USD\"],\"gateways\":{\"paystack\":{\"enabled\":true,\"currencies\":[\"NGN\"]},\"flutterwave\":{\"enabled\":true,\"currencies\":[\"NGN\",\"USD\"]}},\"activities\":{\"transcription\":{\"mode\":\"model\",\"credits\":null},\"translation\":{\"mode\":\"model\",\"credits\":null},\"video_dubbing\":{\"mode\":\"model\",\"credits\":null},\"audio_dubbing\":{\"mode\":\"model\",\"credits\":null},\"subtitles\":{\"mode\":\"model\",\"credits\":null},\"cleanup\":{\"mode\":\"model\",\"credits\":null},\"summary\":{\"mode\":\"model\",\"credits\":null}}}"
+      "value": "{\"packages\":[{\"code\":\"starter\",\"name\":\"Starter\",\"credits\":\"5500\",\"price_ngn\":\"5000\",\"enabled\":true},{\"code\":\"regular\",\"name\":\"Regular\",\"credits\":\"15000\",\"price_ngn\":\"15000\",\"enabled\":true}],\"free_credits\":\"0\",\"fx\":{\"ngn_per_usd\":\"1500\",\"updated_at\":\"{{billingFxUpdatedAt}}\",\"max_age_hours\":24},\"quote_minutes\":45,\"checkout_minutes\":30,\"processing_timeout_hours\":26,\"minimum_checkout\":{\"NGN\":\"50\",\"USD\":\"2\"},\"enabled_currencies\":[\"NGN\",\"USD\"],\"gateways\":{\"paystack\":{\"enabled\":true,\"currencies\":[\"NGN\"]},\"flutterwave\":{\"enabled\":true,\"currencies\":[\"NGN\",\"USD\"]}},\"activities\":{\"transcription\":{\"mode\":\"model\",\"credits\":null},\"translation\":{\"mode\":\"model\",\"credits\":null},\"video_dubbing\":{\"mode\":\"model\",\"credits\":null},\"audio_dubbing\":{\"mode\":\"model\",\"credits\":null},\"subtitles\":{\"mode\":\"model\",\"credits\":null},\"cleanup\":{\"mode\":\"model\",\"credits\":null},\"summary\":{\"mode\":\"model\",\"credits\":null}},\"task_deadlines\":{\"transcription\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440},\"deepgram\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"translation\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}},\"video_dubbing\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"audio_dubbing\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"subtitles\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"cleanup\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}},\"summary\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}}}}"
     },
     {
       "key": "billingFxUpdatedAt",
@@ -201,6 +201,159 @@
   ],
   "item": [
     {
+      "name": "Task lifecycle",
+      "item": [
+        {
+          "name": "Cancel transcription",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/activities/transcription/{{transcriptionId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cancels an owned pending/processing task without deleting its source or saved content. Idempotent: refunds credits still reserved exactly once, frees the activity slot and returns id, status (failed), cancelledAt and failureReason. Completed/failed tasks return their existing state; consumed credits are not refunded. Other users records return 404. Requires a verified customer session; rate limited. Running external work may continue, but late callbacks/worker results cannot revive the task. Dubbing covers video, audio and subtitle tasks; transcript_tool covers cleanup and summaries."
+          }
+        },
+        {
+          "name": "Cancel translation",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/activities/translation/{{translationId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cancels an owned pending/processing task without deleting its source or saved content. Idempotent: refunds credits still reserved exactly once, frees the activity slot and returns id, status (failed), cancelledAt and failureReason. Completed/failed tasks return their existing state; consumed credits are not refunded. Other users records return 404. Requires a verified customer session; rate limited. Running external work may continue, but late callbacks/worker results cannot revive the task. Dubbing covers video, audio and subtitle tasks; transcript_tool covers cleanup and summaries."
+          }
+        },
+        {
+          "name": "Cancel dubbing",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/activities/dubbing/{{dubbingId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cancels an owned pending/processing task without deleting its source or saved content. Idempotent: refunds credits still reserved exactly once, frees the activity slot and returns id, status (failed), cancelledAt and failureReason. Completed/failed tasks return their existing state; consumed credits are not refunded. Other users records return 404. Requires a verified customer session; rate limited. Running external work may continue, but late callbacks/worker results cannot revive the task. Dubbing covers video, audio and subtitle tasks; transcript_tool covers cleanup and summaries."
+          }
+        },
+        {
+          "name": "Cancel transcript tool",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/activities/transcript_tool/{{transcriptToolId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cancels an owned pending/processing task without deleting its source or saved content. Idempotent: refunds credits still reserved exactly once, frees the activity slot and returns id, status (failed), cancelledAt and failureReason. Completed/failed tasks return their existing state; consumed credits are not refunded. Other users records return 404. Requires a verified customer session; rate limited. Running external work may continue, but late callbacks/worker results cannot revive the task. Dubbing covers video, audio and subtitle tasks; transcript_tool covers cleanup and summaries."
+          }
+        }
+      ]
+    },
+    {
       "name": "Administrator billing configuration",
       "description": "Admin session required. Read settings: ViewAny_Pricing. Update settings: Update_Pricing. Reporting: ViewAny_Usage. GET settings saves billingVersion and the complete billingConfiguration as collection variables. PUT replaces the entire configuration; edit the saved billingConfiguration JSON variable first. Monetary values are decimal strings; 1 credit remains NGN 1 and internal credit units are hundredths of a credit. Packages may grant promotional credits independently of price_ngn. USD charges convert price_ngn using the saved NGN-per-USD rate; stale FX blocks new USD quotes. Existing purchase and usage quotes retain their original snapshots. Activity pricing mode model uses existing AI model prices; mode activity overrides customer credits per minute for media or per 1,000 input characters for text, retaining model provider costs. Gateway secrets and callback URLs stay in backend environment variables. Gateway switches control new purchases; stored purchases remain verifiable. Free credits are granted once on wallet access when a positive allowance is configured, including existing users without a previous welcome grant. Processing recovery has a 26-hour minimum to preserve the existing provider callback window. Reporting payment totals are grouped by currency and paid_at; usage is grouped by updated_at. Released credits are not cash refunds; estimated provider costs are not provider invoices.",
       "item": [
@@ -219,7 +372,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/billing/settings",
-            "description": " Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited. Stalled activity recovery runs every 10 minutes using processing_timeout_hours."
+            "description": " Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited.  Task recovery runs every minute. configuration.task_deadlines maps activity then provider (or default) to base_minutes, duration_multiplier and max_minutes. Deadline minutes = min(max_minutes, base_minutes + ceil(media_seconds * duration_multiplier / 60)), measured from the current task attempt start; polling does not reset it. Text tasks use the base allowance. Rules apply to active and new tasks. Expiry marks tasks failed, returns only still-reserved credits, frees concurrency and ignores late results. processing_timeout_hours remains a separate billing reconciliation safety window. Missing task_deadlines preserves current settings for older clients."
           },
           "event": [
             {
@@ -282,7 +435,7 @@
                 }
               }
             },
-            "description": "GET current settings first, then edit collection variable billingConfiguration and PUT with its current billingVersion. Example complete configuration:\n{\n  \"packages\": [\n    {\n      \"code\": \"starter\",\n      \"name\": \"Starter\",\n      \"credits\": \"5500\",\n      \"price_ngn\": \"5000\",\n      \"enabled\": true\n    },\n    {\n      \"code\": \"regular\",\n      \"name\": \"Regular\",\n      \"credits\": \"15000\",\n      \"price_ngn\": \"15000\",\n      \"enabled\": true\n    }\n  ],\n  \"free_credits\": \"0\",\n  \"fx\": {\n    \"ngn_per_usd\": \"1500\",\n    \"updated_at\": \"{{billingFxUpdatedAt}}\",\n    \"max_age_hours\": 24\n  },\n  \"quote_minutes\": 45,\n  \"checkout_minutes\": 30,\n  \"processing_timeout_hours\": 26,\n  \"minimum_checkout\": {\n    \"NGN\": \"50\",\n    \"USD\": \"2\"\n  },\n  \"enabled_currencies\": [\n    \"NGN\",\n    \"USD\"\n  ],\n  \"gateways\": {\n    \"paystack\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\"\n      ]\n    },\n    \"flutterwave\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\",\n        \"USD\"\n      ]\n    }\n  },\n  \"activities\": {\n    \"transcription\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"translation\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"video_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"audio_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"subtitles\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"cleanup\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"summary\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    }\n  }\n} Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited. Stalled activity recovery runs every 10 minutes using processing_timeout_hours."
+            "description": "GET current settings first, then edit collection variable billingConfiguration and PUT with its current billingVersion. Example complete configuration:\n{\n  \"packages\": [\n    {\n      \"code\": \"starter\",\n      \"name\": \"Starter\",\n      \"credits\": \"5500\",\n      \"price_ngn\": \"5000\",\n      \"enabled\": true\n    },\n    {\n      \"code\": \"regular\",\n      \"name\": \"Regular\",\n      \"credits\": \"15000\",\n      \"price_ngn\": \"15000\",\n      \"enabled\": true\n    }\n  ],\n  \"free_credits\": \"0\",\n  \"fx\": {\n    \"ngn_per_usd\": \"1500\",\n    \"updated_at\": \"{{billingFxUpdatedAt}}\",\n    \"max_age_hours\": 24\n  },\n  \"quote_minutes\": 45,\n  \"checkout_minutes\": 30,\n  \"processing_timeout_hours\": 26,\n  \"minimum_checkout\": {\n    \"NGN\": \"50\",\n    \"USD\": \"2\"\n  },\n  \"enabled_currencies\": [\n    \"NGN\",\n    \"USD\"\n  ],\n  \"gateways\": {\n    \"paystack\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\"\n      ]\n    },\n    \"flutterwave\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\",\n        \"USD\"\n      ]\n    }\n  },\n  \"activities\": {\n    \"transcription\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"translation\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"video_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"audio_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"subtitles\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"cleanup\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"summary\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    }\n  }\n} Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited.  Task recovery runs every minute. configuration.task_deadlines maps activity then provider (or default) to base_minutes, duration_multiplier and max_minutes. Deadline minutes = min(max_minutes, base_minutes + ceil(media_seconds * duration_multiplier / 60)), measured from the current task attempt start; polling does not reset it. Text tasks use the base allowance. Rules apply to active and new tasks. Expiry marks tasks failed, returns only still-reserved credits, frees concurrency and ignores late results. processing_timeout_hours remains a separate billing reconciliation safety window. Missing task_deadlines preserves current settings for older clients."
           }
         },
         {
@@ -1339,7 +1492,7 @@
     {
       "name": "Get folder",
       "request": {
-        "description": "Returns translationCount and dubbingCount plus projects containing translation, dubbing and subtitles summaries (id, name, type, status, sourceLanguage, targetLanguage, createdAt, mediaType). Open GET /translations/{id} or /dubbings/{id} for owned editors, previews and temporary download links. Also returns the folder's transcriptions and temporary download links for completed TXT and PDF exports. Transcripts with timing data also include provider, timed segments (start/end seconds, speaker, text, confidence), and audioUrl for playback. R2 playback URLs expire after one hour; reopen the folder to refresh them.",
+        "description": "Returns translationCount and dubbingCount plus projects containing translation, dubbing and subtitles summaries (id, name, type, status, sourceLanguage, targetLanguage, createdAt, mediaType). Open GET /translations/{id} or /dubbings/{id} for owned editors, previews and temporary download links. Also returns the folder's transcriptions and temporary download links for completed TXT and PDF exports. Transcripts with timing data also include provider, timed segments (start/end seconds, speaker, text, confidence), and audioUrl for playback. R2 playback URLs expire after one hour; reopen the folder to refresh them. Task records include nullable cancelledAt; cancelled tasks retain status failed for compatibility. Transcription items also include nullable failureReason.",
         "method": "GET",
         "header": [
           {
@@ -2324,7 +2477,7 @@
           "response": [],
           "request": {
             "method": "GET",
-            "description": "Includes translated text, speaker segments and signed PDF, TXT and DOCX download links when complete.",
+            "description": "Includes translated text, speaker segments and signed PDF, TXT and DOCX download links when complete. Task records include nullable cancelledAt; cancelled tasks retain status failed for compatibility. Transcription items also include nullable failureReason.",
             "url": "{{baseUrl}}/translations/{{translationId}}",
             "header": [
               {
@@ -2663,7 +2816,7 @@
           "name": "View dubbed video",
           "response": [],
           "request": {
-            "description": "Poll pending or processing records, including subtitle rendering. Responses include operation (dubbing or subtitles), subtitlesEnabled, subtitleStyle and subtitleStatus. Subtitles-only keeps original audio, saves timed transcription and translation, and remains processing until rendering and R2 verification finish. Complete records include signed videoUrl, videoDownloadUrl and audioDownloadUrl. When subtitles are enabled, the primary video includes permanent captions, subtitleDownloadUrl downloads SRT and cleanVideoDownloadUrl downloads the video without captions.",
+            "description": "Poll pending or processing records, including subtitle rendering. Responses include operation (dubbing or subtitles), subtitlesEnabled, subtitleStyle and subtitleStatus. Subtitles-only keeps original audio, saves timed transcription and translation, and remains processing until rendering and R2 verification finish. Complete records include signed videoUrl, videoDownloadUrl and audioDownloadUrl. When subtitles are enabled, the primary video includes permanent captions, subtitleDownloadUrl downloads SRT and cleanVideoDownloadUrl downloads the video without captions. Task records include nullable cancelledAt; cancelled tasks retain status failed for compatibility. Transcription items also include nullable failureReason.",
             "method": "GET",
             "header": [
               {
@@ -2773,7 +2926,7 @@
               }
             ],
             "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools",
-            "description": "Returns configured plus up to 20 latest owned cleanup/summary results. Each result includes operation, status, result, failureReason, createdAt and stale. stale is true when the saved transcript text or speaker segments changed after the request. Tools require a verified account. Results stay attached to their source transcript and folder."
+            "description": "Returns configured plus up to 20 latest owned cleanup/summary results. Each result includes operation, status, result, failureReason, createdAt and stale. stale is true when the saved transcript text or speaker segments changed after the request. Tools require a verified account. Results stay attached to their source transcript and folder. Each result also includes source.text and source.segments (text and speaker only). Compare this snapshot with the current editor draft before applying or reusing a result; stale refers to the saved transcript and may be true for a matching unsaved draft."
           }
         },
         {
@@ -2807,10 +2960,10 @@
                   "language": "json"
                 }
               },
-              "raw": "{\r\n  \"operation\": \"{{transcriptToolOperation}}\",\r\n  \"client_key\": \"{{$guid}}\"\r\n}",
+              "raw": "{\r\n  \"operation\": \"{{transcriptToolOperation}}\",\r\n  \"client_key\": \"{{$guid}}\",\r\n  \"draft\": {\r\n    \"transcript\": \"Your current editor text, including unsaved edits.\",\r\n    \"segments\": []\r\n  }\r\n}",
               "mode": "raw"
             },
-            "description": "Set transcriptToolOperation to cleanup or summary. Prices use the saved transcript length; this endpoint does not reserve credits or call the AI provider. Save editor changes first. Reuse client_key only for the same source revision and operation. Supports up to 50,000 characters and 2,500 speaker segments. Requires OPENAI_API_KEY and positive activity rates in backend environment. Cleanup is split into UTF-8-safe bounded batches (maximum 15 requests), with successful batch results saved for retry recovery. Inputs requiring more batches are rejected before a quote or reservation. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available."
+            "description": "Set transcriptToolOperation to cleanup or summary. Prices use an immutable snapshot of the supplied draft, or the saved transcript if draft is omitted. This endpoint does not save editor changes, regenerate exports, reserve credits or call the AI provider. draft requires transcript and segments; use [] for plain text. For speaker drafts, send text and speaker for every existing segment in its original order; transcript must equal the segment texts joined with a newline. Original timing and confidence are retained by the server. Reuse client_key only for the same source revision and operation. Supports up to 50,000 characters and 2,500 speaker segments. Requires OPENAI_API_KEY and positive activity rates in backend environment. Cleanup is split into UTF-8-safe bounded batches (maximum 15 requests), with successful batch results saved for retry recovery. Inputs requiring more batches are rejected before a quote or reservation. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available."
           },
           "event": [
             {
@@ -2858,7 +3011,7 @@
               "raw": "{\r\n  \"quote_id\": \"{{transcriptToolQuoteId}}\"\r\n}",
               "mode": "raw"
             },
-            "description": "After reviewing the quoted credits, confirm processing. Returns 202 for pending/processing or 200 for a cached complete result. Identical source/operation submissions reuse one record and credit reservation, including across different quotes. Changed or expired quotes must be refreshed. Processing uses the model saved on the quote; failed requests refund reserved credits. Poll the returned tool ID. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available."
+            "description": "After reviewing the quoted credits, confirm processing. Returns 202 for pending/processing or 200 for a cached complete result. Identical source/operation submissions reuse one record and credit reservation, including across different quotes. Changed or expired quotes must be refreshed. Processing uses the model saved on the quote; failed requests refund reserved credits. Poll the returned tool ID. Task admission may return 429 when the customer overall or activity concurrency limit is reached, or 503 when admission locking is unavailable. Rejected admission does not reserve credits or enqueue processing; retry the same quote after capacity is available. Processing uses the exact draft snapshot captured by the quote, without saving it to the transcription. Changes to the saved transcript since quoting reject an unsubmitted quote with 409. Editing the local draft requires a fresh quote in the UI."
           },
           "event": [
             {
@@ -2897,7 +3050,7 @@
               }
             ],
             "url": "{{baseUrl}}/transcriptions/{{transcriptionId}}/tools/{{transcriptToolId}}",
-            "description": "Poll while pending/processing. Cleanup result contains text and original speaker segments with cleaned text; timestamps, speaker labels and confidence are preserved. Applying cleanup is a frontend preview: use the existing PATCH transcription endpoint to save and regenerate exports. Summary result contains summary, keyPoints and actionItems and does not modify the transcript. Never apply a stale result to a new transcript revision."
+            "description": "Poll while pending/processing. Cleanup result contains text and original speaker segments with cleaned text; timestamps, speaker labels and confidence are preserved. Applying cleanup is a frontend preview: use the existing PATCH transcription endpoint to save and regenerate exports. Summary result contains summary, keyPoints and actionItems and does not modify the transcript. For unsaved drafts, compare source.text and source.segments with the current editor content before applying: stale compares against the saved transcript, rather than the draft."
           }
         }
       ]

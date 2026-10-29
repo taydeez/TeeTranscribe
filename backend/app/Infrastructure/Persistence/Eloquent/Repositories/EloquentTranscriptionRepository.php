@@ -46,7 +46,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
      */
     public function create(array $data): Transcription
     {
-        $model = new TranscriptionModel($data);
+        $model = new TranscriptionModel($data + ['activity_started_at' => now()]);
 
         if (! $model->save()) {
             throw new \RuntimeException('The transcription could not be created.');
@@ -60,13 +60,18 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
      */
     public function update(string $id, array $data): Transcription
     {
-        $transcription = $this->findModelOrFail($id);
+        return DB::transaction(function () use ($id, $data): Transcription {
+            $transcription = TranscriptionModel::query()->lockForUpdate()->findOrFail($id);
+            if ($transcription->status === 'failed') {
+                return $this->mapper->toDomain($transcription);
+            }
 
-        if (! $transcription->update($data)) {
-            throw new \RuntimeException('The transcription could not be updated.');
-        }
+            if (! $transcription->update($data)) {
+                throw new \RuntimeException('The transcription could not be updated.');
+            }
 
-        return $this->mapper->toDomain($transcription->refresh());
+            return $this->mapper->toDomain($transcription->refresh());
+        });
     }
 
     public function updateTranscriptForUser(string $id, int $userId, string $transcript, ?array $segments = null): TranscriptionEditResult
@@ -101,6 +106,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
             app(CreditService::class)->assertConcurrency($userId, 'transcription', $id);
             $transcription->update([
                 'privacy_deleted_files' => [],
+                'activity_started_at' => now(), 'cancelled_at' => null, 'failure_reason' => null,
                 'transcript' => $transcript,
                 'segments' => $storedSegments,
                 'status' => 'processing',
@@ -146,7 +152,7 @@ class EloquentTranscriptionRepository implements TranscriptionRepositoryInterfac
             }
             if ($needed) {
                 app(CreditService::class)->assertConcurrency($userId, 'transcription', $id);
-                $record->update(['status' => 'processing']);
+                $record->update(['status' => 'processing', 'activity_started_at' => now(), 'cancelled_at' => null, 'failure_reason' => null]);
             }
 
             return new TranscriptionEditResult($this->mapper->toDomain($record->refresh()), $needed);

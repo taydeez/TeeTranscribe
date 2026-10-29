@@ -1,7 +1,7 @@
 import type { FolderTranscription } from '~/types/transcription'
-import type { TranscriptTool, TranscriptToolOperation, TranscriptToolQuote, TranscriptToolsResponse } from '~/types/transcriptTools'
+import type { TranscriptTool, TranscriptToolOperation, TranscriptToolQuote, TranscriptToolsResponse, TranscriptToolSource } from '~/types/transcriptTools'
 
-export function useTranscriptTools(transcription: () => FolderTranscription | null, blocked: () => boolean) {
+export function useTranscriptTools(transcription: () => FolderTranscription | null, blocked: () => boolean, draft?: () => TranscriptToolSource) {
   const operation = ref<TranscriptToolOperation>('cleanup')
   const configured = ref(false)
   const loading = ref(false)
@@ -9,10 +9,13 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
   const error = ref('')
   const records = ref<TranscriptTool[]>([])
   const quote = ref<TranscriptToolQuote | null>(null)
-  const record = computed(() => records.value.find(item => item.operation === operation.value) ?? null)
-  const source = () => JSON.stringify([transcription()?.id, transcription()?.transcript, transcription()?.segments ?? []])
-  const recordSources = new Map<string, string>()
-  const fresh = computed(() => Boolean(record.value && !record.value.stale && recordSources.get(record.value.id) === source()))
+  const record = computed(() => records.value.find(item => item.operation === operation.value && matches(item)) ?? records.value.find(item => item.operation === operation.value) ?? null)
+  const pendingRecords = computed(() => records.value.filter(item => ['pending', 'processing'].includes(item.status)))
+  const input = (): TranscriptToolSource => draft?.() ?? { text: transcription()?.transcript ?? '', segments: transcription()?.segments ?? [] }
+  const serialize = (value: TranscriptToolSource) => JSON.stringify([value.text.trim(), value.segments.map(segment => ({ text: segment.text.trim(), speaker: segment.speaker ?? null }))])
+  const source = () => serialize(input())
+  const matches = (item: TranscriptTool) => serialize(item.source) === source()
+  const fresh = computed(() => Boolean(record.value && matches(record.value)))
   const working = computed(() => Boolean(fresh.value && record.value && ['pending', 'processing'].includes(record.value.status)))
   const canApply = computed(() => operation.value === 'cleanup' && record.value?.status === 'complete' && Boolean(record.value.result?.text?.trim()) && fresh.value && !blocked())
   let active = true
@@ -28,9 +31,8 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
     if (timer) clearTimeout(timer)
     timer = null
   }
-  function remember(item: TranscriptTool, savedSource: string) {
-    records.value = [item, ...records.value.filter(existing => existing.operation !== item.operation)]
-    recordSources.set(item.id, savedSource)
+  function remember(item: TranscriptTool) {
+    records.value = [item, ...records.value.filter(existing => existing.id !== item.id)]
   }
   function schedule() {
     stopPolling()
@@ -45,7 +47,7 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
     if (!id) return
     try {
       const result = await useAuthenticatedFetch<TranscriptTool>(`/api/transcriptions/${id}/tools/${tool}`)
-      if (active && current === context && savedSource === source()) { remember(result, savedSource); error.value = '' }
+      if (active && current === context && savedSource === source()) { remember(result); error.value = '' }
     } catch (failure) { if (active && current === context) error.value = message(failure) }
     finally { if (active && current === context) schedule() }
   }
@@ -53,15 +55,13 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
     const id = transcription()?.id
     if (!id) return
     const current = ++context
-    const savedSource = source()
     stopPolling()
     loading.value = true; error.value = ''
     try {
       const result = await useAuthenticatedFetch<TranscriptToolsResponse>(`/api/transcriptions/${id}/tools`)
-      if (!active || current !== context || savedSource !== source()) return
+      if (!active || current !== context) return
       configured.value = result.configured
-      records.value = []
-      for (const item of result.data) if (!records.value.some(existing => existing.operation === item.operation)) remember(item, savedSource)
+      records.value = result.data
       schedule()
     } catch (failure) { if (active && current === context) error.value = message(failure) }
     finally { if (active && current === context) loading.value = false }
@@ -82,7 +82,8 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
     clientKey ||= crypto.randomUUID()
     busy.value = true; error.value = ''
     try {
-      const result = await useAuthenticatedFetch<TranscriptToolQuote>(`/api/transcriptions/${id}/tools/quotes`, { method: 'POST', body: { operation: selected, client_key: clientKey } })
+      const currentDraft = input()
+      const result = await useAuthenticatedFetch<TranscriptToolQuote>(`/api/transcriptions/${id}/tools/quotes`, { method: 'POST', body: { operation: selected, client_key: clientKey, draft: { transcript: currentDraft.text.trim(), segments: currentDraft.segments.map(segment => ({ text: segment.text.trim(), speaker: segment.speaker ?? null })) } } })
       if (active && current === request && savedSource === source() && selected === operation.value && !blocked()) quote.value = result
     } catch (failure) { if (active && current === request) error.value = message(failure) }
     finally { if (active && current === request) busy.value = false }
@@ -98,7 +99,7 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
     try {
       const result = await useAuthenticatedFetch<TranscriptTool>(`/api/transcriptions/${id}/tools`, { method: 'POST', body: { quote_id: quote.value.id } })
       if (!active || current !== request || savedSource !== source()) return
-      remember(result, savedSource); quote.value = null; clientKey = ''; schedule()
+      remember(result); quote.value = null; clientKey = ''; schedule()
     } catch (failure) { if (active && current === request) error.value = message(failure) }
     finally { if (active && current === request) { busy.value = false; submitting = false } }
   }
@@ -108,11 +109,14 @@ export function useTranscriptTools(transcription: () => FolderTranscription | nu
     request++; busy.value = false; submitting = false
   }
   watch(source, () => {
-    context++; stopPolling(); cancelQuote(true); records.value = []; recordSources.clear(); configured.value = false
+    stopPolling(); cancelQuote(true); schedule()
+  }, { flush: 'sync' })
+  watch(() => JSON.stringify([transcription()?.id, transcription()?.transcript, transcription()?.segments]), () => {
+    context++; stopPolling(); cancelQuote(true); records.value = []; configured.value = false
     if (mounted) void load()
   }, { flush: 'sync' })
   watch(blocked, value => { if (value) cancelQuote() }, { flush: 'sync' })
   onMounted(() => { mounted = true; void load() })
   onBeforeUnmount(() => { active = false; context++; request++; stopPolling() })
-  return { operation, configured, loading, busy, error, record, quote, working, fresh, canApply, select, load, checkPrice, confirm, cancelQuote }
+  return { operation, configured, loading, busy, error, record, pendingRecords, quote, working, fresh, canApply, select, load, checkPrice, confirm, cancelQuote }
 }

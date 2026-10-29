@@ -29,7 +29,12 @@ final class TranscriptionOutcomePublisher implements TranscriptionOutcomePublish
             if ($record->status === 'complete' || ($pendingOnly && $record->status !== 'pending')) {
                 return;
             }
-            $record->update(['status' => 'failed']);
+            if ($record->status === 'failed') {
+                app(CreditService::class)->release($id);
+
+                return;
+            }
+            $record->forceFill(['status' => 'failed', 'failure_reason' => 'Transcription failed. Any credits still reserved have been returned.'])->save();
             app(CreditService::class)->release($id);
             DB::afterCommit(fn () => Event::dispatch(new TranscriptionFailed($id)));
         });

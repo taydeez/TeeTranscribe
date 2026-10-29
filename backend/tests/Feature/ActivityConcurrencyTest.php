@@ -61,6 +61,18 @@ test('transcription admission rejects excess work without spending credits or cr
     $this->assertDatabaseCount('usage_charges', 2);
 });
 
+test('cancelling a pending task immediately permits another transcription at the concurrency limit', function () {
+    $first = $this->postJson('/api/v1/transcribe', ['quote_id' => concurrencyQuote($this->user)->id])->assertAccepted()->json('id');
+    $this->postJson('/api/v1/transcribe', ['quote_id' => concurrencyQuote($this->user)->id])->assertAccepted();
+    $next = concurrencyQuote($this->user);
+    $this->postJson('/api/v1/transcribe', ['quote_id' => $next->id])->assertStatus(429);
+
+    $this->postJson('/api/v1/activities/transcription/'.$first.'/cancel')->assertOk()->assertJsonPath('status', 'failed');
+
+    $this->postJson('/api/v1/transcribe', ['quote_id' => $next->id])->assertAccepted();
+    $this->getJson('/api/v1/billing/balance')->assertJsonPath('available_units', 9800)->assertJsonPath('reserved_units', 200);
+});
+
 test('provider completion keeps its slot while exports process and terminal outcomes free capacity', function (string $outcome) {
     $first = concurrencyQuote($this->user);
     $id = $this->postJson('/api/v1/transcribe', ['quote_id' => $first->id])->assertAccepted()->json('id');
@@ -131,7 +143,7 @@ test('stalled reserved tasks return credits and consumed export tasks also relea
     $consumed = $this->postJson('/api/v1/transcribe', ['quote_id' => concurrencyQuote($this->user)->id])->assertAccepted()->json('id');
     app(CreditService::class)->consume($consumed);
     Transcription::whereKey($consumed)->update(['status' => 'processing', 'transcript' => 'Saved result']);
-    DB::table('transcriptions')->whereIn('id', [$id, $consumed])->update(['updated_at' => now()->subHours(27)]);
+    DB::table('transcriptions')->whereIn('id', [$id, $consumed])->update(['updated_at' => now()->subHours(27), 'activity_started_at' => now()->subHours(27)]);
     $this->artisan('activities:recover')->assertSuccessful();
     $this->artisan('activities:recover')->assertSuccessful();
     expect(Transcription::whereIn('id', [$id, $consumed])->pluck('status')->all())->toBe(['failed', 'failed']);
@@ -165,9 +177,9 @@ test('transient export failures hold capacity until retries are exhausted and st
 });
 
 test('recovery also frees stalled translation dubbing and transcript tool capacity', function () {
-    $translation = Translation::factory()->create(['user_id' => $this->user->id, 'status' => 'processing', 'translated_text' => 'Saved result', 'updated_at' => now()->subHours(27)]);
-    $dubbing = Dubbing::factory()->create(['user_id' => $this->user->id, 'status' => 'pending', 'updated_at' => now()->subHours(27)]);
-    $tool = TranscriptTool::factory()->create(['user_id' => $this->user->id, 'status' => 'pending', 'updated_at' => now()->subHours(27)]);
+    $translation = Translation::factory()->create(['user_id' => $this->user->id, 'status' => 'processing', 'translated_text' => 'Saved result', 'updated_at' => now()->subHours(27), 'activity_started_at' => now()->subHours(27)]);
+    $dubbing = Dubbing::factory()->create(['user_id' => $this->user->id, 'status' => 'pending', 'updated_at' => now()->subHours(27), 'activity_started_at' => now()->subHours(27)]);
+    $tool = TranscriptTool::factory()->create(['user_id' => $this->user->id, 'status' => 'pending', 'updated_at' => now()->subHours(27), 'activity_started_at' => now()->subHours(27)]);
     $this->artisan('activities:recover')->assertSuccessful();
     expect($translation->refresh()->status)->toBe('failed')->and($dubbing->refresh()->status)->toBe('failed')->and($tool->refresh()->status)->toBe('failed');
     // A late translation delivery must not restart rendering after recovery freed its slot.

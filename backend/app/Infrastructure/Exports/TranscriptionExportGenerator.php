@@ -81,7 +81,7 @@ final class TranscriptionExportGenerator
             }
             DB::transaction(function () use ($id, $format, $revision, $path, $variant): void {
                 $record = Transcription::query()->lockForUpdate()->find($id);
-                if ($record === null || $record->export_revision !== $revision) {
+                if ($record === null || $record->export_revision !== $revision || $record->status === 'failed') {
                     return;
                 }
                 $record->exports()->where('format', $format)->where('variant', $variant)->where('export_revision', $revision)

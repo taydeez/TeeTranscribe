@@ -49,6 +49,7 @@ final class FolderResponse extends ApiResponse
             'name' => $transcription->name,
             'fileName' => $transcription->fileName,
             'status' => $transcription->status,
+            'cancelledAt' => $transcription->cancelledAt, 'failureReason' => $transcription->failureReason,
             'transcript' => $transcription->transcript,
             'provider' => $transcription->provider,
             'segments' => $transcription->segments,

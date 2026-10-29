@@ -17,7 +17,7 @@ final readonly class ProcessDubbingSubtitles
     public function handle(string $id): void
     {
         $this->privacy->exclusive('dubbing', $id, function () use ($id): void {
-            if ($this->privacy->projectDeleted('dubbing', $id)) {
+            if ($this->privacy->projectDeleted('dubbing', $id) || $this->records->find($id)?->status === 'failed') {
                 return;
             }
             $this->process($id);

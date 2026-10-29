@@ -5,31 +5,26 @@ import TranscriptTools from './TranscriptTools.vue'
 import PrivacyDeleteAction from '~/components/privacy/PrivacyDeleteAction.vue'
 import type { PrivacyDeletion } from '~/types/privacy'
 import { hasTranscriptChanges } from '~/utils/transcript'
-import type { FolderTranscription, TranscriptSegment, TranscriptUpdate } from '~/types/transcription'
+import type { FolderTranscription, TranscriptUpdate } from '~/types/transcription'
 import type { TranscriptToolResult } from '~/types/transcriptTools'
 const props = defineProps<{ transcription: FolderTranscription | null }>()
 const emit = defineEmits<{ close: []; updated: [value: FolderTranscription]; deletion: [record: PrivacyDeletion]; refresh: [] }>()
-const draft = ref('')
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
 const translation = useTranslationDraftStore()
-const segments = ref<TranscriptSegment[]>([])
-const synced = computed(() => segments.value.length > 0)
-const text = computed(() => synced.value ? segments.value.map(segment => segment.text.trim()).join('\n') : draft.value.trim())
-watch(() => props.transcription?.id, () => { const value = props.transcription; draft.value = value?.transcript ?? ''; segments.value = (value?.segments ?? []).map(segment => ({ ...segment })); error.value = ''; saved.value = false }, { immediate: true })
-const dirty = computed(() => hasTranscriptChanges(props.transcription, text.value, synced.value ? segments.value : null))
+const editor = useTranscriptDraft(() => props.transcription)
+const { view, draft, segments, text, aligned, sourceSegments } = editor
+const toolSource = computed(() => ({ text: text.value, segments: sourceSegments.value }))
+watch(() => props.transcription?.id, () => { error.value = ''; saved.value = false })
+const dirty = computed(() => hasTranscriptChanges(props.transcription, text.value, sourceSegments.value.length ? sourceSegments.value : null))
 watch(dirty, value => { if (value) saved.value = false })
 function prepareTranslation() {
-  if (props.transcription) translation.prepare(props.transcription.id, props.transcription.name, text.value, synced.value ? segments.value : [])
+  if (props.transcription) translation.prepare(props.transcription.id, props.transcription.name, text.value, sourceSegments.value)
 }
 function applyCleanup(result: TranscriptToolResult) {
-  if (dirty.value || saving.value || !result.text?.trim()) return
-  if (synced.value) {
-    if (result.segments?.length !== segments.value.length) { error.value = 'This preview does not match your transcript. Refresh the saved results and try again.'; return }
-    segments.value = segments.value.map((segment, index) => ({ ...segment, text: result.segments![index]!.text }))
-  }
-  draft.value = result.text
+  if (saving.value || !result.text?.trim()) return
+  editor.applyCleanup(result)
   saved.value = false
   error.value = ''
 }
@@ -37,9 +32,9 @@ async function save() {
   if (!props.transcription || !text.value || !dirty.value || saving.value) return
   saving.value = true; error.value = ''; saved.value = false
   try {
-    const result = await useAuthenticatedFetch<TranscriptUpdate>(`/api/transcriptions/${props.transcription.id}`, { method: 'PATCH', body: { transcript: text.value, ...(synced.value ? { segments: segments.value.map(segment => ({ text: segment.text, speaker: segment.speaker })) } : {}) } })
+    const result = await useAuthenticatedFetch<TranscriptUpdate>(`/api/transcriptions/${props.transcription.id}`, { method: 'PATCH', body: { transcript: text.value, ...(sourceSegments.value.length ? { segments: sourceSegments.value.map(segment => ({ text: segment.text, speaker: segment.speaker })) } : {}) } })
     const updated = { ...props.transcription, segments: result.segments, transcript: result.transcript, status: result.status, exports: result.status === 'processing' ? props.transcription.exports.map(item => ({ ...item, status: 'pending' as const, downloadUrl: null })) : props.transcription.exports }
-    emit('updated', updated); draft.value = result.transcript; segments.value = result.segments.map(segment => ({ ...segment })); saved.value = true
+    emit('updated', updated); editor.reset(updated); saved.value = true
   } catch (failure: unknown) {
     const response = failure as { data?: { message?: string } }
     error.value = response.data?.message ?? 'Could not save this transcript.'
@@ -55,10 +50,17 @@ async function save() {
           <div class="min-w-0"><p class="text-xs font-semibold tracking-[.2em] text-indigo-600">TRANSCRIPT</p><h2 id="transcript-editor-heading" class="mt-2 truncate text-2xl font-semibold sm:text-3xl">{{ transcription.name }}</h2><p class="mt-2 truncate text-sm text-slate-500">{{ transcription.fileName }}</p></div>
           <button class="size-11 shrink-0 rounded-full border" aria-label="Close transcript editor" @click="emit('close')"><UiAppIcon name="close" class="mx-auto" /></button>
         </div>
-        <TranscriptTools v-if="transcription.transcript?.trim()" :key="transcription.id" :transcription="transcription" :blocked="dirty || saving" @apply="applyCleanup" />
+        <ActivityCancelTaskButton v-if="['pending', 'processing'].includes(transcription.status)" :id="transcription.id" type="transcription" :name="transcription.name" @changed="emit('refresh')" />
+        <p v-if="transcription.failureReason" class="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ transcription.failureReason }}</p>
+        <TranscriptTools v-if="transcription.transcript?.trim()" :key="transcription.id" :transcription="transcription" :source="toolSource" :blocked="saving || !text" @apply="applyCleanup" />
         <form class="mt-7" @submit.prevent="save">
+          <div v-if="segments.length" class="mb-4 flex flex-wrap gap-2" role="group" aria-label="Transcript view">
+            <button type="button" class="button-secondary aria-pressed:border-indigo-500 aria-pressed:text-indigo-700" :aria-pressed="view === 'plain'" :disabled="saving" @click="editor.selectView('plain')">Plain text</button>
+            <button type="button" class="button-secondary aria-pressed:border-indigo-500 aria-pressed:text-indigo-700 disabled:opacity-50" :aria-pressed="view === 'speakers'" :disabled="saving || !aligned" @click="editor.selectView('speakers')">Speaker view</button>
+          </div>
+          <p v-if="segments.length && !aligned" class="mb-4 text-sm text-amber-700">Saving these plain-text edits removes speaker labels and timestamps. Undo the text edits to return to speaker view.</p>
           <div class="flex justify-between gap-3"><label class="text-xs font-bold" for="transcript-editor">Transcript text</label><span class="text-xs text-slate-400">{{ text.length.toLocaleString() }} characters</span></div>
-          <SyncedTranscriptEditor v-if="synced" v-model="segments" :audio-url="transcription.audioUrl ?? null" :disabled="saving" class="mt-4" />
+          <SyncedTranscriptEditor v-if="view === 'speakers'" v-model="segments" :audio-url="transcription.audioUrl ?? null" :disabled="saving" class="mt-4" />
           <textarea v-else id="transcript-editor" v-model="draft" :disabled="saving" class="mt-2 min-h-72 w-full rounded-2xl border border-slate-300 bg-slate-50 p-4 text-base leading-[1.65]" required />
           <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
             <p v-if="error" class="text-sm text-rose-600" role="alert">{{ error }}</p><p v-else-if="saved" class="text-sm text-emerald-600">Saved.</p><p v-else class="text-xs text-slate-400">Saving changes regenerates TXT, PDF and DOCX.</p>

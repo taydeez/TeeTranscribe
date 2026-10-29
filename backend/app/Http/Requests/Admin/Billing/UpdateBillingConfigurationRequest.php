@@ -14,7 +14,14 @@ final class UpdateBillingConfigurationRequest extends FormRequest
     public function rules(): array
     {
         $rules = ['version' => ['required', 'integer', 'min:0'], 'reason' => ['required', 'string', 'max:1000', 'regex:/\S/'],
-            'configuration' => ['required', 'array:packages,free_credits,fx,quote_minutes,checkout_minutes,processing_timeout_hours,minimum_checkout,enabled_currencies,gateways,activities,concurrency'],
+            'configuration' => ['required', 'array:packages,free_credits,fx,quote_minutes,checkout_minutes,processing_timeout_hours,minimum_checkout,enabled_currencies,gateways,activities,concurrency,task_deadlines'],
+            'configuration.task_deadlines' => ['sometimes', 'required', 'array:transcription,translation,video_dubbing,audio_dubbing,subtitles,cleanup,summary'],
+            'configuration.task_deadlines.*' => ['required', 'array', 'max:30'],
+            'configuration.task_deadlines.*.default' => ['required_with:configuration.task_deadlines', 'array'],
+            'configuration.task_deadlines.*.*' => ['required', 'array:base_minutes,duration_multiplier,max_minutes'],
+            'configuration.task_deadlines.*.*.base_minutes' => ['required', 'integer', 'between:1,1440'],
+            'configuration.task_deadlines.*.*.duration_multiplier' => ['required', 'numeric', 'between:0,20'],
+            'configuration.task_deadlines.*.*.max_minutes' => ['required', 'integer', 'between:1,10080', 'gte:configuration.task_deadlines.*.*.base_minutes'],
             'configuration.concurrency' => ['sometimes', 'required', 'array:overall,transcription,translation,dubbing,transcript_tools'],
             'configuration.packages' => ['present', 'array', 'list', 'max:50'],
             'configuration.packages.*' => ['required', 'array:code,name,credits,price_ngn,enabled'],

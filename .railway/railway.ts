@@ -6,7 +6,7 @@ export const partial = 'teetranscribe-backend';
 // These names must match the services shown in the target Railway environment.
 export const environments = {
   production: {
-    branch: 'deployment',
+    branch: 'main',
     dockerfile: 'Dockerfile.production',
     services: {
       api: 'api',
@@ -54,6 +54,9 @@ export default defineRailway((ctx) => {
 
   const definition = project(ctx.projectName ?? 'TeeTranscribe', {
     resources: Object.entries(profile.services).map(([role, name]) => service(name, {
+      ...(environment === 'production' && role === 'api'
+        ? { domains: ['prod-api.teescriber.com'] }
+        : {}),
       source: github('taydeez/TeeTranscribe', {
         branch: profile.branch,
         rootDirectory: '/backend',

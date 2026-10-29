@@ -56,7 +56,12 @@ final readonly class TranscriptToolService
 
     public static function fingerprint(Transcription $record): string
     {
-        return hash('sha256', json_encode([$record->transcript, $record->segments], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        return self::contentFingerprint($record->transcript, $record->segments);
+    }
+
+    private static function contentFingerprint(?string $text, array $segments): string
+    {
+        return hash('sha256', json_encode([$text, $segments], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
     /** @return list<TranscriptTool> */
@@ -78,7 +83,8 @@ final readonly class TranscriptToolService
         return $record;
     }
 
-    public function quote(string $id, int $userId, string $operation, string $clientKey): array
+    /** @param array{transcript: string, segments: list<array{text: string, speaker?: string|null}>}|null $draft */
+    public function quote(string $id, int $userId, string $operation, string $clientKey, ?array $draft = null): array
     {
         if (! in_array($operation, ['cleanup', 'summary'], true)) {
             throw new BillingException('Choose cleanup or summary.', 422);
@@ -87,14 +93,16 @@ final readonly class TranscriptToolService
         if (! in_array($record->status, ['complete', 'processing'], true) || trim($record->transcript ?? '') === '') {
             throw new BillingException('Wait for the transcript to finish before using these tools.', 409);
         }
-        if (mb_strlen($record->transcript, 'UTF-8') > 50000 || count($record->segments) > 2500) {
+        $text = $draft === null ? $record->transcript : trim($draft['transcript']);
+        $segments = $draft === null ? $record->segments : $this->draftSegments($record, $draft);
+        if ($text === '' || mb_strlen($text, 'UTF-8') > 50000 || count($segments) > 2500) {
             throw new BillingException('These tools currently support up to 50,000 characters and 2,500 speaker segments.', 422);
         }
         if ($operation === 'cleanup') {
-            TranscriptCleanupBatches::plan($record->transcript, $record->segments);
+            TranscriptCleanupBatches::plan($text, $segments);
         }
-        $source = ['transcription_id' => $id, 'source_hash' => self::fingerprint($record),
-            'text' => $record->transcript, 'segments' => $record->segments];
+        $source = ['transcription_id' => $id, 'source_hash' => self::contentFingerprint($text, $segments),
+            'saved_hash' => self::fingerprint($record), 'text' => $text, 'segments' => $segments];
 
         return $this->billing->exclusive('quote:'.$userId.':'.$clientKey, function () use ($source, $userId, $operation, $clientKey): array {
             $existing = $this->billing->quoteByClientKey($userId, $clientKey);
@@ -138,7 +146,7 @@ final readonly class TranscriptToolService
                 throw new BillingException('This quote has expired. Check the price again.', 422);
             }
             $source = $this->source($transcriptionId, $userId);
-            if (self::fingerprint($source) !== $quote['source']['source_hash']) {
+            if (self::fingerprint($source) !== ($quote['source']['saved_hash'] ?? $quote['source']['source_hash'])) {
                 throw new BillingException('The transcript changed. Check the price again.', 409);
             }
             $existing = $this->tools->reusable($transcriptionId, $userId, $quote['activity'], $quote['source']['source_hash']);
@@ -158,5 +166,27 @@ final readonly class TranscriptToolService
 
             return $record;
         }));
+    }
+
+    /** @param array{transcript: string, segments: list<array{text: string, speaker?: string|null}>} $draft */
+    private function draftSegments(Transcription $record, array $draft): array
+    {
+        if ($draft['segments'] === []) {
+            return [];
+        }
+        if (count($draft['segments']) !== count($record->segments)) {
+            throw new BillingException('Speaker segments must match the original transcript.', 422);
+        }
+        $segments = $record->segments;
+        foreach ($segments as $index => &$segment) {
+            $segment['text'] = trim($draft['segments'][$index]['text']);
+            $segment['speaker'] = $draft['segments'][$index]['speaker'] ?? null;
+        }
+        unset($segment);
+        if (implode("\n", array_column($segments, 'text')) !== trim($draft['transcript'])) {
+            throw new BillingException('The draft text must match its speaker segments.', 422);
+        }
+
+        return $segments;
     }
 }

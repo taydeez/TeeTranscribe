@@ -7,6 +7,7 @@ use App\Domain\Dubbing\Entities\Dubbing;
 use App\Infrastructure\Outbox\OutboxService;
 use App\Infrastructure\Persistence\Eloquent\Models\Dubbing as Record;
 use App\Infrastructure\Persistence\Eloquent\Models\UploadSession;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentDubbingRepository implements DubbingRepositoryInterface
 {
@@ -20,23 +21,28 @@ final class EloquentDubbingRepository implements DubbingRepositoryInterface
 
     public function create(array $data): Dubbing
     {
-        return $this->entity(Record::create($data)->refresh());
+        return $this->entity(Record::create($data + ['activity_started_at' => now()])->refresh());
     }
 
     public function update(string $id, array $data): Dubbing
     {
-        $record = Record::findOrFail($id);
-        $clocks = $record->file_generated_at ?? [];
-        foreach (['audio_storage_path' => 'dubbed_audio', 'audio_preview_storage_path' => 'dubbed_audio',
-            'video_storage_path' => 'dubbed_video', 'captioned_video_storage_path' => 'dubbed_video', 'subtitle_storage_path' => 'subtitles'] as $column => $category) {
-            if (! empty($data[$column])) {
-                $clocks[$category] = now()->toIso8601String();
+        return DB::transaction(function () use ($id, $data): Dubbing {
+            $record = Record::query()->lockForUpdate()->findOrFail($id);
+            if ($record->status === 'failed' && ! isset($data['activity_started_at'])) {
+                return $this->entity($record);
             }
-        }
-        $data['file_generated_at'] = $clocks;
-        $record->update($data);
+            $clocks = $record->file_generated_at ?? [];
+            foreach (['audio_storage_path' => 'dubbed_audio', 'audio_preview_storage_path' => 'dubbed_audio',
+                'video_storage_path' => 'dubbed_video', 'captioned_video_storage_path' => 'dubbed_video', 'subtitle_storage_path' => 'subtitles'] as $column => $category) {
+                if (! empty($data[$column])) {
+                    $clocks[$category] = now()->toIso8601String();
+                }
+            }
+            $data['file_generated_at'] = $clocks;
+            $record->update($data);
 
-        return $this->entity($record->refresh());
+            return $this->entity($record->refresh());
+        });
     }
 
     public function history(int $userId, int $page, int $perPage): array
@@ -66,7 +72,7 @@ final class EloquentDubbingRepository implements DubbingRepositoryInterface
             $r->audio_storage_path, $r->video_storage_path, $r->failure_reason, $r->created_at?->toIso8601String(),
             $r->provider, $r->model, $r->provider_options ?? [], $r->subtitles_enabled, $r->subtitle_style, $r->subtitle_status,
             $r->subtitle_storage_path, $r->captioned_video_storage_path, $r->operation, $r->source_subtitle_segments,
-            $r->translated_subtitle_segments, $r->detected_source_language, $r->media_type, $r->audio_preview_storage_path, $r->folder_id);
+            $r->translated_subtitle_segments, $r->detected_source_language, $r->media_type, $r->audio_preview_storage_path, $r->folder_id, $r->cancelled_at);
     }
 
     public function enqueueSubtitles(string $id, bool $retry = false): void

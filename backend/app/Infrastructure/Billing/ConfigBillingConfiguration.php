@@ -13,6 +13,7 @@ final readonly class ConfigBillingConfiguration implements BillingConfigurationI
     {
         $configuration = $this->repository->find()['configuration'] ?? $this->defaults();
         $configuration['concurrency'] = array_replace($this->defaults()['concurrency'], $configuration['concurrency'] ?? []);
+        $configuration['task_deadlines'] = array_replace_recursive($this->defaults()['task_deadlines'], $configuration['task_deadlines'] ?? []);
 
         return $configuration;
     }
@@ -39,6 +40,7 @@ final readonly class ConfigBillingConfiguration implements BillingConfigurationI
                 'updated_at' => config('billing.fx.updated_at'), 'max_age_hours' => (int) config('billing.fx.max_age_hours', 24)],
             'quote_minutes' => (int) config('billing.quote_minutes', 45), 'checkout_minutes' => (int) config('billing.checkout_minutes', 30),
             'processing_timeout_hours' => (int) config('billing.processing_timeout_hours', 26),
+            'task_deadlines' => config('billing.task_deadlines'),
             'minimum_checkout' => ['NGN' => '50', 'USD' => '2'], 'enabled_currencies' => ['NGN', 'USD'],
             'gateways' => $gateways, 'activities' => $activities,
             'concurrency' => ['overall' => 3, 'transcription' => 2, 'translation' => 3, 'dubbing' => 1, 'transcript_tools' => 2]];
