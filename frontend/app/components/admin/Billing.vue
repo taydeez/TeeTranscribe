@@ -4,7 +4,7 @@ const readOnly = computed(() => busy.value || !can('Update_Pricing'))
 </script>
 <template>
   <section class="admin-billing space-y-6">
-    <div class="flex flex-wrap items-start justify-between gap-4"><div><h1 class="text-3xl font-semibold">Credits &amp; billing</h1><p class="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">Manage credit packages, usage pricing and payments in one place.</p></div><span class="rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700">1 credit = ₦1</span></div>
+    <div class="flex flex-wrap items-start justify-between gap-4"><div><h1 class="text-3xl font-semibold">Credits &amp; billing</h1><p class="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">Manage credit packages, usage pricing and payments in one place.</p></div><span class="rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700">1 credit = $0.01</span></div>
     <p v-if="!can('ViewAny_Pricing')" class="surface p-6 text-sm text-[var(--muted)]">You don’t have permission to view billing settings.</p>
     <template v-else>
       <p v-if="error" class="rounded-xl bg-red-50 p-4 text-sm text-red-700" role="alert">{{ error }} <button type="button" :disabled="busy || loading" class="underline disabled:opacity-50" @click="load">Reload saved settings</button><span v-if="dirty" class="mt-2 block text-xs">Reloading replaces your unsaved changes.</span></p>

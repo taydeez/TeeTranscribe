@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const features = useFeatures()
 const auth = useAuthStore()
 const route = useRoute()
 const authOpen = ref(false)
@@ -52,12 +53,12 @@ onMounted(async () => {
     <main id="main-content">
       <section class="marketing-hero" aria-labelledby="hero-title">
         <div>
-          <p class="hero-label"><span /> AUDIO TRANSCRIPTION &amp; VIDEO DUBBING</p>
-          <h1 id="hero-title">Transcribe audio.<br>Dub your videos.<br><span>Reach further.</span></h1>
-          <p class="hero-copy">Turn conversations into text you can use. Give your videos a voice in another language. Bring it all together in one workspace.</p>
+          <p class="hero-label"><span /> YOUR CREATIVE WORKSPACE</p>
+          <h1 id="hero-title"><template v-if="features.enabled('transcription')">Transcribe audio.<br></template><template v-if="features.enabled('video_dubbing')">Dub your videos.<br></template><span>Reach further.</span></h1>
+          <p class="hero-copy">Create, organize, and share your projects from one workspace.</p>
           <div class="mt-8 flex flex-wrap gap-3">
-            <button class="button-primary" type="button" @click="start('transcription')">Transcribe audio <UiAppIcon name="arrow" :size="18" /></button>
-            <button class="button-secondary" type="button" @click="start('dubbing')"><UiAppIcon name="video" :size="18" /> Dub a video</button>
+            <button v-if="features.enabled('transcription')" class="button-primary" type="button" @click="start('transcription')">Transcribe audio <UiAppIcon name="arrow" :size="18" /></button>
+            <button v-if="features.enabled('video_dubbing')" class="button-secondary" type="button" @click="start('dubbing')"><UiAppIcon name="video" :size="18" /> Dub a video</button>
           </div>
           <p class="signup-note"><UiAppIcon name="check" :size="16" /><span>New accounts get <strong>10 free credits.</strong> Sign in to get started.</span></p>
         </div>
@@ -65,7 +66,7 @@ onMounted(async () => {
       </section>
       <MarketingHomeDetails @start="start" />
       <section class="signup-panel" aria-labelledby="signup-title">
-        <div><p class="eyebrow">START WITH SOMETHING YOU’VE ALREADY RECORDED</p><h2 id="signup-title">Your next conversation has somewhere to go.</h2><p>Try audio transcription or video dubbing with 10 free credits when you create an account.</p></div>
+        <div><p class="eyebrow">START WITH SOMETHING YOU’VE ALREADY RECORDED</p><h2 id="signup-title">Your next conversation has somewhere to go.</h2><p>Create an account and get 10 free credits to try the available tools.</p></div>
         <NuxtLink v-if="auth.isAuthenticated" class="button-primary shrink-0" :to="workspace">Go to workspace <UiAppIcon name="arrow" :size="18" /></NuxtLink>
         <button v-else class="button-primary shrink-0" type="button" @click="openAuth('register')">Create your free account <UiAppIcon name="arrow" :size="18" /></button>
       </section>

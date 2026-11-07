@@ -14,7 +14,10 @@ final readonly class ProviderRouting
     {
         $this->assertActivity($activity);
 
-        return $this->repository->find($activity) ?? ['activity' => $activity, 'version' => 0, 'configuration' => $this->catalog->defaults($activity), 'updatedAt' => null];
+        $record = $this->repository->find($activity) ?? ['activity' => $activity, 'version' => 0, 'configuration' => $this->catalog->defaults($activity), 'updatedAt' => null];
+        $record['configuration']['enabled'] ??= true;
+
+        return $record;
     }
 
     public function select(string $activity, ?string $language = null): array

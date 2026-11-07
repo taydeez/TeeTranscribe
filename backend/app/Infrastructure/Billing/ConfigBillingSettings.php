@@ -7,7 +7,6 @@ use App\Domain\Billing\Contracts\BillingConfigurationInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\CreditMath;
-use Carbon\CarbonImmutable;
 
 final class ConfigBillingSettings implements BillingSettingsInterface
 {
@@ -66,26 +65,6 @@ final class ConfigBillingSettings implements BillingSettingsInterface
         }
 
         return $packages;
-    }
-
-    public function fx(): array
-    {
-        $fx = $this->configuration->current()['fx'];
-        $rate = CreditMath::decimal($fx['ngn_per_usd'], 6);
-        $updated = $fx['updated_at'];
-        if ($rate < 1 || ! is_string($updated) || $updated === '') {
-            throw new BillingException('USD pricing is temporarily unavailable.', 503);
-        }
-        try {
-            $time = CarbonImmutable::parse($updated);
-        } catch (\Throwable $exception) {
-            throw new BillingException('USD pricing is temporarily unavailable.', 503);
-        }
-        if ($time->isFuture() || $time->lt(now()->subHours($fx['max_age_hours']))) {
-            throw new BillingException('The currency quote needs to be refreshed.', 503);
-        }
-
-        return ['ngn_per_usd_micros' => $rate, 'updated_at' => $time->toIso8601String()];
     }
 
     public function freeCreditUnits(): int

@@ -1,41 +1,42 @@
 <script setup lang="ts">
+const features = useFeatures()
 defineEmits<{ start: [activity: 'transcription' | 'dubbing'] }>()
-const questions = [
-  { question: 'Do I need an account?', answer: 'Yes. Sign in to transcribe audio, dub videos, or translate text. Your account keeps your projects, downloads, and credits together.' },
+const questions = computed(() => [
+  { question: 'Do I need an account?', answer: 'Yes. Sign in to use the available tools. Your account keeps your projects, downloads, and credits together.' },
   { question: 'What do I get when I sign up?', answer: 'New accounts get 10 free credits to try the tools. Before you start a task, you’ll see how many credits it needs. Different activities and file lengths can cost different amounts.' },
-  { question: 'Can I edit and download my transcript?', answer: 'Yes. Review the text, make changes, and download it as PDF, TXT, or Word. Speaker labels and timestamps are available with supported transcription options.' },
-  { question: 'Can I add subtitles to a video?', answer: 'Yes. You can add subtitles in another language while keeping the original audio, or choose video dubbing to translate the spoken audio.' },
+  { visible: features.enabled('transcription'), question: 'Can I edit and download my transcript?', answer: 'Yes. Review the text, make changes, and download it as PDF, TXT, or Word. Speaker labels and timestamps are available with supported transcription options.' },
+  { visible: features.enabled('subtitles'), question: 'Can I add subtitles to a video?', answer: 'Yes. You can add subtitles in another language while keeping the original audio.' },
   { question: 'Can I delete my files?', answer: 'Yes. Delete source files and finished projects when you need to, or set retention times in your account settings.' },
-]
+].filter(item => item.visible !== false))
 </script>
 
 <template>
   <section id="tools" class="home-section" aria-labelledby="tools-title">
     <div class="section-intro"><p class="eyebrow">FROM THE FIRST RECORDING TO THE FINAL DOWNLOAD</p><h2 id="tools-title">Less retyping. More reaching people.</h2><p>An interview to write up. A tutorial to share abroad. Start with the file you have.</p></div>
     <div class="tool-grid">
-      <article class="tool-card">
+      <article v-if="features.enabled('transcription')" class="tool-card">
         <span class="feature-icon"><UiAppIcon name="transcript" :size="24" /></span>
         <h3>Audio to text, ready to work with.</h3>
         <p>Upload an audio file, paste a link, or record in your browser. Get a transcript you can read, edit, and turn into something useful.</p>
         <ul><li><UiAppIcon name="check" :size="16" /> Interviews, meetings, podcasts, and voice notes</li><li><UiAppIcon name="check" :size="16" /> Speaker labels with supported options</li><li><UiAppIcon name="check" :size="16" /> PDF, TXT, and Word downloads</li></ul>
         <button class="tool-link" type="button" @click="$emit('start', 'transcription')">Start a transcription <UiAppIcon name="arrow" :size="17" /></button>
       </article>
-      <article class="tool-card dubbing-card">
+      <article v-if="features.enabled('video_dubbing')" class="tool-card dubbing-card">
         <span class="feature-icon" data-accent="cyan"><UiAppIcon name="video" :size="24" /></span>
         <h3>Your video. A new language.</h3>
         <p>Give tutorials, presentations, and stories a voice in another language. Choose your target language and download your dubbed video when it’s ready.</p>
-        <ul><li><UiAppIcon name="check" :size="16" /> Translate the speech in your video</li><li><UiAppIcon name="check" :size="16" /> Add subtitles for your audience</li><li><UiAppIcon name="check" :size="16" /> Keep the finished file in your project folder</li></ul>
+        <ul><li><UiAppIcon name="check" :size="16" /> Translate the speech in your video</li><li v-if="features.enabled('subtitles')"><UiAppIcon name="check" :size="16" /> Add subtitles for your audience</li><li><UiAppIcon name="check" :size="16" /> Keep the finished file in your project folder</li></ul>
         <button class="tool-link" type="button" @click="$emit('start', 'dubbing')">Start a video dub <UiAppIcon name="arrow" :size="17" /></button>
       </article>
     </div>
-    <div class="supporting-tools"><span class="feature-icon"><UiAppIcon name="translate" /></span><p><strong>Keep going with your words.</strong> Translate a transcript, clean up the text, or create a summary without starting from scratch.</p></div>
+    <div v-if="features.enabled('translation')" class="supporting-tools"><span class="feature-icon"><UiAppIcon name="translate" /></span><p><strong>Keep going with your words.</strong> Translate a transcript, clean up the text, or create a summary without starting from scratch.</p></div>
   </section>
   <section id="how-it-works" class="home-section steps-section" aria-labelledby="steps-title">
     <div class="section-intro"><p class="eyebrow">THREE STEPS, ONE WORKSPACE</p><h2 id="steps-title">Bring a file. Leave with something useful.</h2></div>
     <ol class="steps-grid">
       <li><span class="step-number">01</span><h3>Create your account</h3><p>Sign up for 10 free credits, then sign in to your workspace. All tools require an account.</p></li>
       <li><span class="step-number">02</span><h3>Choose what you want to make</h3><p>Add your audio or video and choose a language. Check the credit cost before you confirm.</p></li>
-      <li><span class="step-number">03</span><h3>Review and download</h3><p>Edit your transcript or download your dubbed video. Keep everything organised in folders.</p></li>
+      <li><span class="step-number">03</span><h3>Review and download</h3><p>Review the result, download your files, and keep everything organised in folders.</p></li>
     </ol>
   </section>
   <section id="questions" class="home-section faq-section" aria-labelledby="questions-title">

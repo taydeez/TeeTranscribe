@@ -4,13 +4,20 @@ import DubbingSubtitleOptions from '~/components/dubbing/DubbingSubtitleOptions.
 import DubbingOperationSelect from '~/components/dubbing/DubbingOperationSelect.vue'
 import DubbingMediaSelect from '~/components/dubbing/DubbingMediaSelect.vue'
 import FolderSelect from '~/components/folders/FolderSelect.vue'
+import { dubbingSelection } from '~/utils/features'
 import { formatCredits } from '~/utils/credits'
 const props = defineProps<{ workflow: ReturnType<typeof useDubbingWorkflow> }>()
+const features = useFeatures()
 const subtitlesEnabled = props.workflow.subtitlesEnabled
 const subtitleStyle = props.workflow.subtitleStyle
 const operation = props.workflow.operation
 const mediaType = props.workflow.mediaType
 const folderId = props.workflow.folderId
+watchEffect(() => {
+  const choice = dubbingSelection(features.flags.value, mediaType.value, operation.value)
+  if (choice) { mediaType.value = choice.media; operation.value = choice.operation }
+  if (!features.enabled('subtitles')) subtitlesEnabled.value = false
+})
 const mediaName = computed(() => mediaType.value === 'audio' ? 'audio' : 'video')
 const name = defineModel<string>('name', { required: true })
 const source = defineModel<string>('source', { required: true })
@@ -21,8 +28,8 @@ const target = defineModel<string>('target', { required: true })
     <div class="mb-6"><h2 class="text-xl font-semibold text-slate-900">{{ operation === 'subtitles' ? 'Add subtitles to your video' : `Dub your ${mediaName}` }}</h2><p class="mt-2 text-sm leading-relaxed text-slate-500">{{ mediaType === 'audio' ? 'Translate speech into another language while keeping the speakers’ voices.' : operation === 'subtitles' ? 'Make your video accessible in another language while keeping its original sound.' : 'Translate speech while keeping the speakers’ voices and your original visuals.' }}</p></div>
     <form class="space-y-5" @submit.prevent="workflow.checkPrice">
       <fieldset class="space-y-5" :disabled="workflow.busy.value">
-        <DubbingMediaSelect v-model="mediaType" />
-        <DubbingOperationSelect v-if="mediaType === 'video'" v-model="operation" />
+        <DubbingMediaSelect v-model="mediaType" :audio="features.enabled('audio_dubbing')" :video="features.enabled('video_dubbing') || features.enabled('subtitles')" />
+        <DubbingOperationSelect v-if="mediaType === 'video'" v-model="operation" :dubbing="features.enabled('video_dubbing')" :subtitles="features.enabled('subtitles')" />
         <label class="block rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-6 text-center transition hover:border-indigo-400">
           <UiAppIcon name="upload" class="mx-auto mb-3 size-8 text-indigo-500" />
           <span class="block text-sm font-semibold text-indigo-700">{{ workflow.file.value?.name ?? `Choose your ${mediaName}` }}</span>
@@ -34,7 +41,7 @@ const target = defineModel<string>('target', { required: true })
           <TranslationLanguageSelect id="dubbing-source" v-model="source" label="Spoken language" :languages="workflow.sourceLanguages.value" auto />
           <TranslationLanguageSelect id="dubbing-target" v-model="target" :label="operation === 'subtitles' ? 'Subtitle language' : 'Dub into'" :languages="workflow.languages.value" />
         </div>
-        <DubbingSubtitleOptions v-if="mediaType === 'video'" v-model:enabled="subtitlesEnabled" v-model:style="subtitleStyle" :styles="workflow.subtitleStyles.value" :subtitle-only="operation === 'subtitles'" />
+        <DubbingSubtitleOptions v-if="features.enabled('subtitles') && mediaType === 'video'" v-model:enabled="subtitlesEnabled" v-model:style="subtitleStyle" :styles="workflow.subtitleStyles.value" :subtitle-only="operation === 'subtitles'" />
         <FolderSelect id="dubbing-folder" v-model="folderId" :disabled="workflow.busy.value" />
       </fieldset>
       <p v-if="workflow.loadingLanguages.value" class="text-sm text-slate-500">Loading languages…</p>

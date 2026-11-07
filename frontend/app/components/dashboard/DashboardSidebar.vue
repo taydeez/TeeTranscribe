@@ -2,12 +2,13 @@
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: []; logout: [] }>()
 const auth = useAuthStore()
-const items = [
+const features = useFeatures()
+const items = computed(() => [
   { label: 'Home', icon: 'home' as const, to: '/dashboard', exact: true },
-  { label: 'My Transcriptions', icon: 'transcript' as const, to: '/dashboard/transcriptions', exact: false },
-  { label: 'Translations', icon: 'translate' as const, to: '/dashboard/translations', exact: false },
-  { label: 'Dubbing', icon: 'audio' as const, to: '/dashboard/dubbing', exact: false },
-]
+  { label: features.enabled('transcription') ? 'My Transcriptions' : 'My files', icon: 'transcript' as const, to: '/dashboard/transcriptions', exact: false },
+  { feature: 'translation', label: 'Translations', icon: 'translate' as const, to: '/dashboard/translations', exact: false },
+  { feature: 'dubbing', label: features.enabled('audio_dubbing') || features.enabled('video_dubbing') ? 'Dubbing' : 'Subtitles', icon: 'audio' as const, to: '/dashboard/dubbing', exact: false },
+].filter(item => !item.feature || (item.feature === 'translation' ? features.enabled('translation') : features.dubbing.value)))
 const accountItems = [
   { label: 'Usage', icon: 'usage' as const, to: '/dashboard/usage' },
   { label: 'Credits and billing', icon: 'billing' as const, to: '/dashboard/billing' },

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Admin\Billing\Contracts\BillingConfigurationRepositoryInterface;
 use App\Domain\Auth\Contracts\AuthRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingConfigurationInterface;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
@@ -44,6 +45,17 @@ function saveBillingConfiguration($test, array $configuration, int $version = 0)
         'version' => $version, 'reason' => 'Update billing policy', 'configuration' => $configuration,
     ])->assertOk()->assertJsonPath('data.version', $version + 1);
 }
+
+test('Bachs can be enabled in audited billing settings and older clients preserve its configuration', function () {
+    $this->configuration['gateways']['bachs'] = ['enabled' => true, 'currencies' => ['USD']];
+    saveBillingConfiguration($this, $this->configuration);
+    unset($this->configuration['gateways']['bachs']);
+    saveBillingConfiguration($this, $this->configuration, 1);
+    $this->getJson('/api/v1/admin/billing/settings')->assertOk()
+        ->assertJsonPath('data.configuration.gateways.bachs.enabled', true)
+        ->assertJsonPath('data.configuration.gateways.bachs.currencies', ['USD'])
+        ->assertJsonPath('data.history.0.after.gateways.bachs.enabled', true);
+});
 
 test('provider task deadlines can be configured and audited while older clients preserve them', function () {
     $this->configuration['task_deadlines']['transcription']['deepgram'] = ['base_minutes' => 5, 'duration_multiplier' => 1.5, 'max_minutes' => 180];
@@ -96,7 +108,7 @@ test('billing administration requires an admin session and the relevant permissi
 
 test('settings use defaults and changes are versioned and audited without credentials', function () {
     $this->withToken($this->token)->getJson('/api/v1/admin/billing/settings')->assertOk()
-        ->assertJsonPath('data.version', 0)->assertJsonPath('data.credit_value_ngn', '1')
+        ->assertJsonPath('data.version', 0)->assertJsonPath('data.credit_value_usd', '0.01')
         ->assertDontSee('sk_test_private')->assertDontSee('FLWSECK_TEST-private-X');
     $this->configuration['checkout_minutes'] = 60;
     saveBillingConfiguration($this, $this->configuration);
@@ -108,13 +120,13 @@ test('settings use defaults and changes are versioned and audited without creden
     $this->assertDatabaseCount('billing_configuration_changes', 1);
 });
 
-test('discounts and FX change new purchases while existing purchase snapshots stay unchanged', function () {
+test('direct USD prices change new purchases while existing purchase snapshots stay unchanged', function () {
     $service = app(PaymentService::class);
     $key = (string) Str::uuid();
     $before = $service->quote($this->admin->id, $this->admin->email, 'starter', 'USD', $key, 'paystack');
     $this->configuration['packages'] = [
-        ['code' => 'starter', 'name' => 'Bonus bundle', 'credits' => '5500', 'price_ngn' => '4500', 'enabled' => true],
-        ['code' => 'hidden', 'name' => 'Unavailable', 'credits' => '1000', 'price_ngn' => '1000', 'enabled' => false],
+        ['code' => 'starter', 'name' => 'Bonus bundle', 'credits' => '5500', 'price_ngn' => '4500', 'price_usd' => '4.50', 'enabled' => true],
+        ['code' => 'hidden', 'name' => 'Unavailable', 'credits' => '1000', 'price_ngn' => '1000', 'price_usd' => '10.00', 'enabled' => false],
     ];
     $this->configuration['fx']['ngn_per_usd'] = '1000';
     saveBillingConfiguration($this, $this->configuration);
@@ -202,10 +214,10 @@ test('welcome credits are granted once and minimum purchase amounts are enforced
     $this->assertDatabaseCount('payments', 0);
 });
 
-test('stale FX rates prevent new USD purchases while NGN remains available', function () {
+test('legacy FX settings do not block direct USD purchases', function () {
     $this->configuration['fx']['updated_at'] = now()->subDays(2)->toIso8601String();
     saveBillingConfiguration($this, $this->configuration);
-    $this->withToken($this->token)->getJson('/api/v1/billing/packages?currency=USD')->assertStatus(503);
+    $this->withToken($this->token)->getJson('/api/v1/billing/packages?currency=USD')->assertOk()->assertJsonPath('data.0.amount_minor', 5000);
     $this->getJson('/api/v1/billing/packages?currency=NGN')->assertOk();
 });
 
@@ -223,6 +235,18 @@ test('billing report separates payment currencies and credit ledger movements', 
     });
     $this->withToken($this->token)->getJson('/api/v1/admin/billing/report')->assertOk()
         ->assertJsonPath('data.payments.0.currency', 'NGN')->assertJsonPath('data.payments.0.revenue_minor', 500000)
-        ->assertJsonPath('data.payments.1.currency', 'USD')->assertJsonPath('data.payments.1.revenue_minor', 334)
+        ->assertJsonPath('data.payments.1.currency', 'USD')->assertJsonPath('data.payments.1.revenue_minor', 5000)
         ->assertJsonPath('data.ledger.1.kind', 'release')->assertJsonPath('data.ledger.1.credit_units', 500);
+});
+
+test('saved legacy packages receive direct USD prices without using their exchange rate', function () {
+    $legacy = $this->configuration;
+    $legacy['packages'] = [['code' => 'starter', 'name' => 'Starter', 'credits' => '500', 'price_ngn' => '99999', 'enabled' => true]];
+    $legacy['fx'] = ['ngn_per_usd' => '1500', 'updated_at' => now()->subYear()->toIso8601String(), 'max_age_hours' => 24];
+    app(BillingConfigurationRepositoryInterface::class)
+        ->save($legacy, $this->configuration, 0, $this->admin->id, 'Legacy configuration fixture');
+    $this->withToken($this->token)->getJson('/api/v1/admin/billing/settings')->assertOk()
+        ->assertJsonPath('data.configuration.packages.0.price_usd', '5.00')
+        ->assertJsonMissingPath('data.configuration.fx');
+    $this->getJson('/api/v1/billing/packages?currency=USD')->assertOk()->assertJsonPath('data.0.amount_minor', 500);
 });

@@ -36,15 +36,10 @@ return [
         'cleanup' => ['default' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30], 'openai' => ['base_minutes' => 15, 'duration_multiplier' => 0, 'max_minutes' => 30]],
         'summary' => ['default' => ['base_minutes' => 10, 'duration_multiplier' => 0, 'max_minutes' => 30], 'openai' => ['base_minutes' => 10, 'duration_multiplier' => 0, 'max_minutes' => 30]],
     ],
-    'fx' => [
-        'ngn_per_usd' => env('BILLING_NGN_PER_USD'),
-        'updated_at' => env('BILLING_FX_UPDATED_AT'),
-        'max_age_hours' => 24,
-    ],
     'packages' => [
-        'starter' => ['name' => 'Starter', 'credits' => 5000],
-        'regular' => ['name' => 'Regular', 'credits' => 15000],
-        'large' => ['name' => 'Large', 'credits' => 50000],
+        'starter' => ['name' => 'Starter', 'credits' => 5000, 'price_usd' => '50.00'],
+        'regular' => ['name' => 'Regular', 'credits' => 15000, 'price_usd' => '150.00'],
+        'large' => ['name' => 'Large', 'credits' => 50000, 'price_usd' => '500.00'],
     ],
     'rates' => [
         'transcription' => [

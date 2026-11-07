@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { BillingCurrency } from '~/types/billing'
 import { formatCredits, formatMoney } from '~/utils/credits'
 
 const props = defineProps<{ billing: ReturnType<typeof useCreditBilling> }>()
@@ -28,7 +27,7 @@ async function choosePackage(id: string) {
   <section aria-labelledby="add-credits-title" class="purchase-section">
     <div class="purchase-header">
       <div><p class="eyebrow">TOP UP YOUR WORKSPACE</p><h2 id="add-credits-title">Choose your credit package</h2><p>Buy what you need. No subscription required.</p></div>
-      <label class="currency-label">Pay in<select :value="billing.currency.value" :disabled="billing.busy.value || billing.loading.value" @change="billing.changeCurrency(($event.target as HTMLSelectElement).value as BillingCurrency)"><option value="NGN">NGN · Nigerian naira</option><option value="USD">USD · US dollar</option></select></label>
+      <span class="currency-label">Prices in USD</span>
     </div>
     <div class="purchase-grid">
       <div class="space-y-5 min-w-0">
@@ -50,16 +49,15 @@ async function choosePackage(id: string) {
           <p v-if="!billing.catalog.value.payments_enabled" class="purchase-help" role="status">Payments aren’t configured yet. Please check back later.</p>
           <p v-else-if="!billing.paymentMethod.value" class="purchase-help">Choose a payment method above to select a package.</p>
         </div>
-        <div v-else-if="billing.catalog.value" class="surface p-6 text-sm text-slate-500">No packages are available in this currency right now. Try another currency.</div>
+        <div v-else-if="billing.catalog.value" class="surface p-6 text-sm text-slate-500">No packages are available in this currency right now. Please check back later.</div>
         <button v-else class="button-secondary" type="button" @click="billing.refresh">Retry packages</button>
-        <p class="purchase-help">Your currency is suggested from your time zone. You can change it above.</p>
+        <p class="purchase-help">Packages are priced in US dollars. Your selected price is locked for this checkout.</p>
       </div>
       <section ref="confirmation" class="confirmation surface" :class="{ 'confirmation-empty': !billing.purchase.value }" aria-labelledby="purchase-heading" :aria-busy="billing.busy.value">
         <div class="confirmation-heading"><span class="feature-icon"><UiAppIcon name="billing" /></span><div><p class="eyebrow">YOUR ORDER</p><h3 id="purchase-heading" tabindex="-1">Confirm your package</h3></div></div>
         <template v-if="billing.purchase.value">
           <p class="order-name">{{ billing.purchase.value.package_name }}</p>
           <dl class="order-details"><div><dt>Credits added</dt><dd>{{ formatCredits(billing.purchase.value.credit_units) }}</dd></div><div><dt>Currency</dt><dd>{{ billing.purchase.value.currency }}</dd></div><div class="order-total"><dt>Total to pay</dt><dd>{{ formatMoney(billing.purchase.value.amount_minor, billing.purchase.value.currency) }}</dd></div></dl>
-          <p v-if="billing.purchase.value.fx_ngn_per_usd_micros" class="purchase-help">Locked exchange rate: $1 = ₦{{ (billing.purchase.value.fx_ngn_per_usd_micros / 1000000).toLocaleString() }}.</p>
           <button class="checkout-button" type="button" :disabled="billing.busy.value" @click="billing.checkout"><UiAppIcon :name="billing.busy.value ? 'loader' : 'arrow'" :size="18" :class="{ 'animate-spin': billing.busy.value }" />{{ billing.busy.value ? 'Preparing checkout…' : 'Continue to secure checkout' }}</button>
           <button class="cancel-purchase" type="button" :disabled="billing.busy.value" @click="$emit('cancel')">Cancel selection</button>
           <p class="purchase-help text-center">Quote valid until {{ new Date(billing.purchase.value.expires_at).toLocaleTimeString() }}. Credits are added after payment is verified.</p>

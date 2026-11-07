@@ -11,7 +11,11 @@ final class PaymentWebhookController
 {
     public function __invoke(Request $request, string $provider, PaymentService $payments, PaymentResponse $response): JsonResponse
     {
-        $signature = (string) $request->header($provider === 'paystack' ? 'x-paystack-signature' : 'verif-hash');
+        $signature = (string) $request->header(match ($provider) {
+            'bachs' => 'x-bachs-signature-v2',
+            'paystack' => 'x-paystack-signature',
+            default => 'verif-hash',
+        });
         $payments->handleWebhook($provider, $request->getContent(), $signature);
 
         return $response->received();

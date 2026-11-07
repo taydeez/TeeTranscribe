@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'bachs' => [
+        'enabled' => env('BACHS_ENABLED', false),
+        'secret' => env('BACHS_SECRET_KEY'),
+        'webhook_secret' => env('BACHS_WEBHOOK_SECRET'),
+        'callback_url' => env('BACHS_CALLBACK_URL', rtrim(env('FRONTEND_URL', 'http://127.0.0.1:3000'), '/').'/payment/callback'),
+    ],
     'paystack' => [
         'enabled' => env('PAYSTACK_ENABLED', true),
         'secret' => env('PAYSTACK_SECRET_KEY'),

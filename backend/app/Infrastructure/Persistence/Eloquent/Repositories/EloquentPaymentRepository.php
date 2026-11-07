@@ -31,7 +31,11 @@ final class EloquentPaymentRepository implements PaymentRepositoryInterface
     {
         $gateway = $data['gateway'];
         $secret = (string) config('payment.'.$gateway.'.secret');
-        $testMode = $gateway === 'paystack' ? ! str_starts_with($secret, 'sk_live_') : str_starts_with($secret, 'FLWSECK_TEST');
+        $testMode = match ($gateway) {
+            'paystack' => ! str_starts_with($secret, 'sk_live_'),
+            'bachs' => str_starts_with($secret, 'sk_sandbox_'),
+            default => str_starts_with($secret, 'FLWSECK_TEST'),
+        };
 
         return Payment::create([
             ...$data, 'reference' => 'credits_'.Str::ulid(),

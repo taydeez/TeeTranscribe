@@ -2,6 +2,7 @@
 
 namespace App\Domain\Billing\Services;
 
+use App\Domain\AI\Services\FeatureAvailability;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Folder\Services\FolderService;
@@ -20,10 +21,12 @@ final class PaidTranscriptionService
         private readonly TranscriptionRepositoryInterface $transcriptionRepository,
         private readonly FolderService $folders,
         private readonly PrivacyCoordinatorInterface $privacy,
+        private readonly FeatureAvailability $features,
     ) {}
 
     public function submit(int $userId, string $quoteId, ?string $folderId, ?string $name = null): Transcription
     {
+        $this->features->requireEnabled('transcription');
         $quote = $this->repository->quote($quoteId, $userId) ?? throw new BillingException('Quote not found.', 404);
         $path = $quote['source']['audio_storage_path'] ?? 'quote:'.$quoteId;
 

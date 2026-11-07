@@ -17,7 +17,7 @@ final readonly class BillingConfigurationService
         $record['configuration'] = $this->settings->current();
 
         return $record
-            + ['credit_value_ngn' => '1', 'history' => $this->repository->history(),
+            + ['credit_value_usd' => '0.01', 'history' => $this->repository->history(),
                 'activity_units' => ['transcription' => 'minute', 'translation' => '1000_characters', 'video_dubbing' => 'minute',
                     'audio_dubbing' => 'minute', 'subtitles' => 'minute', 'cleanup' => '1000_characters', 'summary' => '1000_characters']];
     }
@@ -27,20 +27,19 @@ final readonly class BillingConfigurationService
         $configuration = $input['configuration'];
         $configuration['concurrency'] ??= $this->settings->current()['concurrency'];
         $configuration['task_deadlines'] ??= $this->settings->current()['task_deadlines'];
+        $configuration['gateways']['bachs'] ??= $this->settings->current()['gateways']['bachs'];
         foreach ($configuration['packages'] as $package) {
             $this->amount($package['credits'], true);
-            $this->amount($package['price_ngn'], true);
+            $this->amount($package['price_usd'], true);
+            if (isset($package['price_ngn'])) {
+                $this->amount($package['price_ngn'], true);
+            }
         }
         $this->amount($configuration['free_credits']);
         foreach ($configuration['minimum_checkout'] as $amount) {
             $this->amount($amount, true);
         }
-        if ($configuration['fx']['ngn_per_usd'] !== null) {
-            $rate = CreditMath::decimal($configuration['fx']['ngn_per_usd'], 6);
-            if ($rate < 1 || $rate > 1000000000000) {
-                throw new BillingException('Choose a positive exchange rate up to 1,000,000 NGN per USD.', 422);
-            }
-        }
+        unset($configuration['fx']);
         foreach ($configuration['activities'] as $pricing) {
             if ($pricing['mode'] === 'activity') {
                 $this->amount($pricing['credits'], true);
