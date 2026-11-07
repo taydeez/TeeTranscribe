@@ -6,7 +6,7 @@ import ts from 'typescript'
 const source = await readFile(new URL('../../app/composables/useAdminBilling.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText
 const { useAdminBilling } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'))
-const record = () => ({ version: 2, configuration: { packages: [{ code: 'starter', name: 'Starter', credits: '5000', price_ngn: '5000', enabled: true }], free_credits: '0' }, history: [] })
+const record = () => ({ version: 2, configuration: { packages: [{ code: 'starter', name: 'Starter', credits: '5000', price_usd: '50.00', enabled: true }], free_credits: '0' }, history: [] })
 function setup(t, fetch, permissions = ['ViewAny_Pricing', 'Update_Pricing']) {
   const calls = []
   const globals = { ref, computed, onMounted: () => {}, useAuthStore: () => ({ user: { permissions } }),

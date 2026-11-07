@@ -47,6 +47,7 @@ beforeEach(function () {
         'transcriber.deepgram.key' => 'test-deepgram-key', 'transcriber.intron.key' => 'test-intron-key',
         'transcriber.deepgram.model' => 'nova-2',
         'transcriber.fallback' => 'deepgram',
+        'transcriber.language_providers' => [],
         'transcriber.intron.languages' => ['yo', 'ig', 'ha', 'pcm', 'en-NG'],
     ]);
     $this->seed(PaymentMethodSeeder::class);
@@ -88,23 +89,23 @@ test('requires authentication for billing and processing', function () {
     $this->postJson('/api/v1/transcribe', [])->assertUnauthorized();
 });
 
-test('provides NGN packages independently of FX and rejects stale USD quotes', function () {
+test('provides direct USD package prices even when FX is stale', function () {
     config(['billing.fx.updated_at' => now()->subDays(2)->toIso8601String()]);
     $this->getJson('/api/v1/billing/packages?currency=NGN')->assertOk()->assertJsonPath('data.0.amount_minor', 500000);
-    $this->getJson('/api/v1/billing/packages?currency=USD')->assertStatus(503);
+    $this->getJson('/api/v1/billing/packages?currency=USD')->assertOk()->assertJsonPath('data.0.amount_minor', 5000)->assertJsonPath('data.0.fx_ngn_per_usd_micros', null);
     $this->getJson('/api/v1/billing/balance')->assertJsonPath('available_units', 0);
 });
 
 test('locks the USD price and initializes checkout once with server amounts', function () {
     $input = ['client_key' => (string) Str::uuid(), 'payment_method' => 'paystack', 'package_id' => 'starter', 'currency' => 'USD'];
-    $quote = $this->postJson('/api/v1/billing/purchases', $input)->assertCreated()->assertJsonPath('amount_minor', 334)->assertJsonPath('credit_units', 500000)->json();
+    $quote = $this->postJson('/api/v1/billing/purchases', $input)->assertCreated()->assertJsonPath('amount_minor', 5000)->assertJsonPath('credit_units', 500000)->json();
     config(['billing.fx.ngn_per_usd' => '2000']);
-    $this->postJson('/api/v1/billing/purchases', $input)->assertCreated()->assertJsonPath('id', $quote['id'])->assertJsonPath('amount_minor', 334);
+    $this->postJson('/api/v1/billing/purchases', $input)->assertCreated()->assertJsonPath('id', $quote['id'])->assertJsonPath('amount_minor', 5000);
     Http::fake(['api.paystack.co/transaction/initialize' => Http::response(['status' => true, 'data' => ['authorization_url' => 'https://checkout.paystack.com/test-code']])]);
     $this->postJson('/api/v1/billing/purchases/'.$quote['id'].'/checkout')->assertOk();
     $this->postJson('/api/v1/billing/purchases/'.$quote['id'].'/checkout')->assertOk();
     Http::assertSentCount(1);
-    Http::assertSent(fn ($request) => $request['amount'] === 334 && $request['currency'] === 'USD' && $request['email'] === $this->user->email);
+    Http::assertSent(fn ($request) => $request['amount'] === 5000 && $request['currency'] === 'USD' && $request['email'] === $this->user->email);
     $this->assertDatabaseCount('credit_transactions', 0);
 });
 
@@ -351,4 +352,13 @@ test('recovers a reserved balance when the providers callback window has elapsed
     $this->artisan('billing:reconcile')->assertSuccessful();
     $this->getJson('/api/v1/billing/balance')->assertJsonPath('available_units', 10000)->assertJsonPath('reserved_units', 0);
     expect(Transcription::findOrFail($id)->status)->toBe('failed');
+});
+
+test('USD checkout works without an exchange rate or timestamp', function () {
+    config(['billing.fx' => null, 'billing.packages.starter.price_usd' => '7.50']);
+    $this->getJson('/api/v1/billing/packages?currency=USD')->assertOk()
+        ->assertJsonPath('data.0.amount_minor', 750)->assertJsonPath('data.0.fx_ngn_per_usd_micros', null);
+    $this->postJson('/api/v1/billing/purchases', ['client_key' => (string) Str::uuid(),
+        'payment_method' => 'paystack', 'package_id' => 'starter', 'currency' => 'USD'])
+        ->assertCreated()->assertJsonPath('amount_minor', 750)->assertJsonPath('fx_ngn_per_usd_micros', null);
 });

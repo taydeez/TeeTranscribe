@@ -31,10 +31,9 @@ final class PaymentService
         if (! in_array($currency, $this->configuration->current()['enabled_currencies'], true)) {
             throw new BillingException('Purchases in this currency are currently unavailable.', 422);
         }
-        $fx = $currency === 'USD' ? $this->settings->fx() : null;
         $packages = [];
         foreach ($this->settings->packages() as $key => $package) {
-            $packages[] = ['id' => $key] + CreditPackagePrice::calculate($package, $currency, $fx);
+            $packages[] = ['id' => $key] + CreditPackagePrice::calculate($package, $currency);
         }
 
         return $packages;

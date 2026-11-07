@@ -2,6 +2,7 @@
 
 namespace App\Domain\Dubbing\Services;
 
+use App\Domain\AI\Services\FeatureAvailability;
 use App\Domain\AI\Services\ProviderRouting;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
@@ -9,17 +10,17 @@ use App\Domain\Dubbing\Contracts\DubbingGatewayResolverInterface;
 
 final class DubbingCatalog
 {
-    public function __construct(private readonly DubbingLanguages $languages, private readonly BillingSettingsInterface $settings, private readonly DubbingGatewayResolverInterface $providers, private readonly VideoSubtitleLanguages $videoSubtitles, private readonly ProviderRouting $routing) {}
+    public function __construct(private readonly DubbingLanguages $languages, private readonly BillingSettingsInterface $settings, private readonly DubbingGatewayResolverInterface $providers, private readonly VideoSubtitleLanguages $videoSubtitles, private readonly ProviderRouting $routing, private readonly FeatureAvailability $features) {}
 
     public function all(): array
     {
-        $data = $this->availableLanguages('video');
+        $data = $this->features->enabled('video_dubbing') ? $this->availableLanguages('video') : [];
         $configured = $data !== [];
-        $audioData = $this->availableLanguages('audio');
+        $audioData = $this->features->enabled('audio_dubbing') ? $this->availableLanguages('audio') : [];
         $audioConfigured = $audioData !== [];
 
         return ['data' => $data, 'sourceLanguages' => $this->languages->sourceLanguages(),
-            'subtitleStyles' => SubtitleStyles::catalog(), 'configured' => $configured, 'subtitlesOnly' => $this->videoSubtitles->catalog(),
+            'subtitleStyles' => SubtitleStyles::catalog(), 'configured' => $configured, 'subtitlesOnly' => $this->features->enabled('subtitles') ? $this->videoSubtitles->catalog() : ['configured' => false, 'data' => [], 'sourceLanguages' => []],
             'audioDubbing' => ['configured' => $audioConfigured, 'data' => $audioData, 'sourceLanguages' => $this->languages->sourceLanguages()]];
     }
 

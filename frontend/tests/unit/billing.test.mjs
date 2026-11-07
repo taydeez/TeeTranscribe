@@ -138,6 +138,12 @@ test('checkout supports Flutterwave sandbox and rejects unsafe or mismatched URL
     ['flutterwave', 'https://checkout-v2.dev-flutterwave.com/pay/test', true],
     ['flutterwave', 'https://checkout.flutterwave.com/pay/live', true],
     ['paystack', 'https://checkout.paystack.com/pay/test', true],
+    ['bachs', 'https://checkout.bachs.io/c/live', true],
+    ['bachs', 'https://sandbox-checkout.bachs.io/c/test', true],
+    ['bachs', 'https://checkout.bachs.io.attacker.example/c/test', false],
+    ['bachs', 'http://checkout.bachs.io/c/test', false],
+    ['bachs', 'https://user:pass@checkout.bachs.io/c/test', false],
+    ['unknown', 'https://checkout.paystack.com/pay/test', false],
     ['paystack', 'https://checkout-v2.dev-flutterwave.com/pay/test', false],
     ['flutterwave', 'https://checkout-v2.dev-flutterwave.com.attacker.example/pay', false],
     ['flutterwave', 'http://checkout-v2.dev-flutterwave.com/pay', false],
@@ -153,4 +159,21 @@ test('checkout supports Flutterwave sandbox and rejects unsafe or mismatched URL
     assert.equal(redirects.length, before + (allowed ? 1 : 0))
     assert.equal(billing.error.value === '', allowed)
   }
+})
+
+
+test('billing loads USD packages even when a previous visit selected NGN', async () => {
+  globalThis.ref = ref
+  let mount
+  globalThis.onMounted = callback => { mount = callback }
+  globalThis.localStorage = { getItem: () => 'NGN' }
+  const calls = []
+  globalThis.useAuthenticatedFetch = async (url, options) => {
+    calls.push({ url, options })
+    return url.endsWith('/balance') ? { available_units: 0 } : { data: [], payment_methods: [] }
+  }
+  const billing = useCreditBilling()
+  await mount()
+  assert.equal(billing.currency.value, 'USD')
+  assert.equal(calls.find(call => call.url.endsWith('/packages')).options.query.currency, 'USD')
 })

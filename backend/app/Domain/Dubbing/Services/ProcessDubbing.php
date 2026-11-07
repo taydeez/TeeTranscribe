@@ -2,6 +2,7 @@
 
 namespace App\Domain\Dubbing\Services;
 
+use App\Domain\AI\Services\FeatureAvailability;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Billing\Services\CreditService;
@@ -16,7 +17,8 @@ final readonly class ProcessDubbing
 {
     public function __construct(private DubbingRepositoryInterface $records, private BillingRepositoryInterface $billing,
         private DubbingGatewayResolverInterface $providers, private DubbingMediaInterface $media, private CreditService $credits,
-        private PrepareVideoSubtitles $videoSubtitles, private AudioDubbingMediaInterface $audio, private PrivacyCoordinatorInterface $privacy) {}
+        private PrepareVideoSubtitles $videoSubtitles, private AudioDubbingMediaInterface $audio, private PrivacyCoordinatorInterface $privacy,
+        private FeatureAvailability $features) {}
 
     /** Returns true when the outbox event can be acknowledged; false means poll again. */
     public function handle(string $id): bool
@@ -166,6 +168,7 @@ final readonly class ProcessDubbing
     {
         $this->billing->transaction(function () use ($id, $userId): void {
             $record = $this->records->find($id, $userId, lock: true) ?? throw new BillingException('Dubbing not found.', 404);
+            $this->features->requireDubbing(['media_type' => $record->mediaType, 'operation' => $record->operation, 'subtitles_enabled' => $record->subtitlesEnabled]);
             if ($record->status !== 'failed' || $record->providerCompletedAt === null) {
                 return;
             }

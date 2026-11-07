@@ -1,7 +1,10 @@
+<script setup lang="ts">
+const features = useFeatures()
+</script>
 <template>
   <div class="preview-stage" aria-label="Illustrative examples of an audio transcript and a dubbed video">
     <div class="preview-glow" aria-hidden="true" />
-    <article class="transcript-preview surface">
+    <article v-if="features.enabled('transcription')" class="transcript-preview surface">
       <header class="preview-header"><span><UiAppIcon name="audio" :size="18" /> Interview recording</span><span class="example-label">Example</span></header>
       <div class="waveform" aria-hidden="true"><span v-for="(height, index) in [16, 28, 20, 36, 48, 26, 18, 38, 54, 42, 24, 32, 48, 28, 18, 36, 52, 30, 20, 42, 28, 16, 34, 46, 22, 16]" :key="index" :style="{ height: `${height}px` }" /></div>
       <div class="transcript-body">
@@ -10,7 +13,7 @@
       </div>
       <footer class="preview-footer"><span><UiAppIcon name="transcript" :size="15" /> Editable transcript</span><span>PDF · TXT · DOCX</span></footer>
     </article>
-    <article class="dubbing-preview surface">
+    <article v-if="features.enabled('video_dubbing')" class="dubbing-preview surface">
       <div class="video-illustration" aria-hidden="true"><div class="video-orbit" /><UiAppIcon name="video" :size="34" /><span>Hola. Aquí empieza nuestra historia.</span></div>
       <div class="dubbing-body"><div><p class="dubbing-title">Same story. Another language.</p><p class="language-pair">English <UiAppIcon name="arrow" :size="14" /> Spanish</p></div><span class="dub-icon"><UiAppIcon name="volume" :size="20" /></span></div>
     </article>

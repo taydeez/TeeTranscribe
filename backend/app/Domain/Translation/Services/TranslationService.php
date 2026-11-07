@@ -2,6 +2,7 @@
 
 namespace App\Domain\Translation\Services;
 
+use App\Domain\AI\Services\FeatureAvailability;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
@@ -23,10 +24,12 @@ final readonly class TranslationService
         private TranslationLanguages $languages,
         private FolderService $folders,
         private TranslationGatewayResolverInterface $gateways,
+        private FeatureAvailability $features,
     ) {}
 
     public function quote(int $userId, array $input, string $key): array
     {
+        $this->features->requireEnabled('translation');
         $source = $this->source($userId, $input);
 
         return $this->billing->exclusive('quote:'.$userId.':'.$key, function () use ($userId, $source, $key): array {
@@ -60,6 +63,8 @@ final readonly class TranslationService
 
     public function submit(int $userId, string $quoteId): Translation
     {
+        $this->features->requireEnabled('translation');
+
         return $this->billing->transaction(function () use ($userId, $quoteId): Translation {
             $quote = $this->billing->quote($quoteId, $userId, lock: true) ?? throw new BillingException('Quote not found.', 404);
             if ($quote['activity'] !== 'translation') {
@@ -102,6 +107,8 @@ final readonly class TranslationService
 
     public function edit(string $id, int $userId, string $text, ?array $segments): Translation
     {
+        $this->features->requireEnabled('translation');
+
         return $this->billing->transaction(function () use ($id, $userId, $text, $segments): Translation {
             $record = $this->translations->find($id, $userId, lock: true) ?? throw new BillingException('Translation not found.', 404);
             if ($record->translatedText === null) {

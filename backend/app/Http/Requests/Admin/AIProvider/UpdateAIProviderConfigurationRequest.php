@@ -15,7 +15,8 @@ final class UpdateAIProviderConfigurationRequest extends FormRequest
     public function rules(): array
     {
         return ['version' => ['required', 'integer', 'min:0'], 'reason' => ['required', 'string', 'max:1000', 'regex:/\S/'],
-            'configuration' => ['required', 'array:default_provider,providers,language_rules,models'],
+            'configuration' => ['required', 'array:enabled,default_provider,providers,language_rules,models'],
+            'configuration.enabled' => ['sometimes', 'boolean'],
             'configuration.default_provider' => ['required', 'string', 'max:40'],
             'configuration.providers' => ['required', 'array', 'min:1', 'max:10'],
             'configuration.providers.*' => ['required', 'array:enabled,model,languages'],

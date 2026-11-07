@@ -42,6 +42,7 @@ final readonly class AIProviderConfigurationService
         $this->routing->assertActivity($activity);
         $catalog = $this->catalog->providers($activity);
         $configuration = $input['configuration'];
+        $configuration['enabled'] ??= $this->routing->configuration($activity)['configuration']['enabled'];
         $configuration['models'] ??= $this->record($activity)['configuration']['models'];
         $this->models->check($activity, $configuration['models'], $catalog);
         if (in_array($activity, ['cleanup', 'summary'], true) && $configuration['language_rules'] !== []) {

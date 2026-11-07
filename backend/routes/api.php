@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\Role\ShowRoleController;
 use App\Http\Controllers\Admin\Role\StoreRoleController;
 use App\Http\Controllers\Admin\Role\SyncRolePermissionsController;
 use App\Http\Controllers\Admin\Role\UpdateRoleController;
+use App\Http\Controllers\AI\ListFeaturesController;
 use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\GoogleCallbackController;
@@ -98,6 +99,7 @@ use App\Http\Controllers\Upload\StartMultipartUploadController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
+    Route::get('/features', ListFeaturesController::class);
     Route::post('/auth/register', RegisterController::class)->middleware('throttle:auth');
     Route::post('/auth/login', LoginController::class)->middleware('throttle:auth');
     Route::post('/auth/forgot-password', ForgotPasswordController::class)->middleware('throttle:password-reset');
@@ -208,7 +210,7 @@ Route::prefix('v1')->group(function (): void {
         });
     });
 
-    Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['paystack', 'flutterwave']);
+    Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['paystack', 'flutterwave', 'bachs']);
     Route::post('/guest-sessions', StoreGuestSessionController::class);
     Route::post('/uploads/presign', PresignAudioUploadController::class);
 
