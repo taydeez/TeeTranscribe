@@ -9,6 +9,7 @@ import type { FolderTranscription, TranscriptUpdate } from '~/types/transcriptio
 import type { TranscriptToolResult } from '~/types/transcriptTools'
 const props = defineProps<{ transcription: FolderTranscription | null }>()
 const emit = defineEmits<{ close: []; updated: [value: FolderTranscription]; deletion: [record: PrivacyDeletion]; refresh: [] }>()
+const features = useFeatures()
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
@@ -67,7 +68,7 @@ async function save() {
             <button class="w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-50 sm:w-auto" :disabled="saving || !text || !dirty">{{ saving ? 'Saving…' : 'Save changes' }}</button>
           </div>
         </form>
-        <NuxtLink v-if="text && !saving" class="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800" to="/dashboard/translations" @click="prepareTranslation"><UiAppIcon name="translate" :size="18" />Translate this text</NuxtLink>
+        <NuxtLink v-if="features.enabled('translation') && text && !saving" class="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800" to="/dashboard/translations" @click="prepareTranslation"><UiAppIcon name="translate" :size="18" />Translate this text</NuxtLink>
         <TranscriptionExportDownloads :transcription="transcription" @updated="emit('updated', $event)" @refresh="emit('refresh')" />
         <div class="mt-6 flex flex-wrap gap-4 border-t border-slate-100 pt-4"><PrivacyDeleteAction resource-type="transcription" :resource-id="transcription.id" scope="source" show-label :name="transcription.name" label="Delete source file" :disabled="saving" @completed="emit('refresh')" /><PrivacyDeleteAction resource-type="transcription" :resource-id="transcription.id" scope="project" show-label :name="transcription.name" label="Delete transcription" :disabled="saving" @accepted="emit('deletion', $event)" /></div>
       </section>

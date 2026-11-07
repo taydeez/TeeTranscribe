@@ -6,6 +6,8 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
+    {"key": "bachsCheckoutId", "value": ""},
+    {"key": "bachsSignatureV2", "value": ""},
     {
       "key": "adminAccountId",
       "value": ""
@@ -180,11 +182,7 @@
     },
     {
       "key": "billingConfiguration",
-      "value": "{\"packages\":[{\"code\":\"starter\",\"name\":\"Starter\",\"credits\":\"5500\",\"price_ngn\":\"5000\",\"enabled\":true},{\"code\":\"regular\",\"name\":\"Regular\",\"credits\":\"15000\",\"price_ngn\":\"15000\",\"enabled\":true}],\"free_credits\":\"0\",\"fx\":{\"ngn_per_usd\":\"1500\",\"updated_at\":\"{{billingFxUpdatedAt}}\",\"max_age_hours\":24},\"quote_minutes\":45,\"checkout_minutes\":30,\"processing_timeout_hours\":26,\"minimum_checkout\":{\"NGN\":\"50\",\"USD\":\"2\"},\"enabled_currencies\":[\"NGN\",\"USD\"],\"gateways\":{\"paystack\":{\"enabled\":true,\"currencies\":[\"NGN\"]},\"flutterwave\":{\"enabled\":true,\"currencies\":[\"NGN\",\"USD\"]}},\"activities\":{\"transcription\":{\"mode\":\"model\",\"credits\":null},\"translation\":{\"mode\":\"model\",\"credits\":null},\"video_dubbing\":{\"mode\":\"model\",\"credits\":null},\"audio_dubbing\":{\"mode\":\"model\",\"credits\":null},\"subtitles\":{\"mode\":\"model\",\"credits\":null},\"cleanup\":{\"mode\":\"model\",\"credits\":null},\"summary\":{\"mode\":\"model\",\"credits\":null}},\"task_deadlines\":{\"transcription\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440},\"deepgram\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"translation\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}},\"video_dubbing\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"audio_dubbing\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"subtitles\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"cleanup\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}},\"summary\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}}}}"
-    },
-    {
-      "key": "billingFxUpdatedAt",
-      "value": ""
+      "value": "{\"packages\":[{\"code\":\"starter\",\"name\":\"Starter\",\"credits\":\"5500\",\"price_ngn\":\"5000\",\"enabled\":true,\"price_usd\":\"50.00\"},{\"code\":\"regular\",\"name\":\"Regular\",\"credits\":\"15000\",\"price_ngn\":\"15000\",\"enabled\":true,\"price_usd\":\"150.00\"}],\"free_credits\":\"0\",\"quote_minutes\":45,\"checkout_minutes\":30,\"processing_timeout_hours\":26,\"minimum_checkout\":{\"NGN\":\"50\",\"USD\":\"2\"},\"enabled_currencies\":[\"NGN\",\"USD\"],\"gateways\":{\"paystack\":{\"enabled\":true,\"currencies\":[\"NGN\"]},\"flutterwave\":{\"enabled\":true,\"currencies\":[\"NGN\",\"USD\"]}},\"activities\":{\"transcription\":{\"mode\":\"model\",\"credits\":null},\"translation\":{\"mode\":\"model\",\"credits\":null},\"video_dubbing\":{\"mode\":\"model\",\"credits\":null},\"audio_dubbing\":{\"mode\":\"model\",\"credits\":null},\"subtitles\":{\"mode\":\"model\",\"credits\":null},\"cleanup\":{\"mode\":\"model\",\"credits\":null},\"summary\":{\"mode\":\"model\",\"credits\":null}},\"task_deadlines\":{\"transcription\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440},\"deepgram\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"translation\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}},\"video_dubbing\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"audio_dubbing\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"subtitles\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":2,\"max_minutes\":1440}},\"cleanup\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}},\"summary\":{\"default\":{\"base_minutes\":15,\"duration_multiplier\":0,\"max_minutes\":1440}}}}"
     },
     {
       "key": "billingReportFrom",
@@ -200,6 +198,175 @@
     }
   ],
   "item": [
+    {
+      "name": "Bachs payments",
+      "description": "USD hosted card checkout through the existing credit purchase service. Configure BACHS_ENABLED, BACHS_SECRET_KEY, BACHS_WEBHOOK_SECRET and BACHS_CALLBACK_URL. Run the payments provider_checkout_id migration and PaymentMethodSeeder. Enable Bachs for USD in admin billing settings. API host is chosen from the sk_sandbox_ or sk_live_ key prefix. Both checkout modes use the same application endpoints. Provider checkout IDs stay server-side. Purchases, verification, invoices, expiry and reconciliation retain their existing contracts.",
+      "item": [
+        {
+          "name": "Available USD methods",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/payment-methods?currency=USD"
+          }
+        },
+        {
+          "name": "Quote Bachs credit purchase",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/purchases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_key\": \"{{$guid}}\",\n  \"package_id\": \"starter\",\n  \"currency\": \"USD\",\n  \"payment_method\": \"bachs\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Save id as paymentId and reference as paymentReference. Prices and credits come from the saved package, never browser input."
+          }
+        },
+        {
+          "name": "Open Bachs checkout",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/purchases/{{paymentId}}/checkout",
+            "description": "Returns the hosted checkout_url. BACHS_CALLBACK_URL supplies success and cancel URLs, both with the local payment reference appended so existing /payment/callback handling works. USD_CARD is the only permitted corridor. Duplicate checkout attempts reuse the session and Idempotency-Key. Sandbox links use sandbox-checkout.bachs.io; live links use checkout.bachs.io."
+          }
+        },
+        {
+          "name": "Verify Bachs purchase",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sanctumToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/billing/payments/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{paymentReference}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Uses the stored provider checkout ID, verifies completed session and succeeded charge, reference, currency, exact amount and environment. A successful purchase grants credits and enqueues its invoice once, independent of payer email. Callback query parameters are not payment proof."
+          }
+        },
+        {
+          "name": "Bachs signed webhook",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Bachs-Signature-V2",
+                "value": "{{bachsSignatureV2}}"
+              }
+            ],
+            "url": "{{baseUrl}}/webhooks/bachs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_example\",\n  \"type\": \"collection.succeeded\",\n  \"data\": {\n    \"checkout_id\": \"{{bachsCheckoutId}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Use a real sandbox checkout ID from Bachs. Set bachsSignatureV2 to t=UNIX_SECONDS,v1=HMAC_SHA256_HEX(secret, timestamp + '.' + exact resolved raw body). Uses BACHS_WEBHOOK_SECRET; keep it private. Timestamp tolerance is 300 seconds. All v1 signatures are checked for rotation support. Invalid/stale signatures return 403 before provider access. Accepted events: collection.succeeded, collection.failed, collection.underpaid, checkout.completed, checkout.expired. Backend fetches authoritative checkout state; duplicate or out-of-order successful events cannot double-credit. Return is {received:true}. Reconciliation uses billing:reconcile if a webhook is missed."
+          }
+        }
+      ]
+    },
     {
       "name": "Task lifecycle",
       "item": [
@@ -355,7 +522,7 @@
     },
     {
       "name": "Administrator billing configuration",
-      "description": "Admin session required. Read settings: ViewAny_Pricing. Update settings: Update_Pricing. Reporting: ViewAny_Usage. GET settings saves billingVersion and the complete billingConfiguration as collection variables. PUT replaces the entire configuration; edit the saved billingConfiguration JSON variable first. Monetary values are decimal strings; 1 credit remains NGN 1 and internal credit units are hundredths of a credit. Packages may grant promotional credits independently of price_ngn. USD charges convert price_ngn using the saved NGN-per-USD rate; stale FX blocks new USD quotes. Existing purchase and usage quotes retain their original snapshots. Activity pricing mode model uses existing AI model prices; mode activity overrides customer credits per minute for media or per 1,000 input characters for text, retaining model provider costs. Gateway secrets and callback URLs stay in backend environment variables. Gateway switches control new purchases; stored purchases remain verifiable. Free credits are granted once on wallet access when a positive allowance is configured, including existing users without a previous welcome grant. Processing recovery has a 26-hour minimum to preserve the existing provider callback window. Reporting payment totals are grouped by currency and paid_at; usage is grouped by updated_at. Released credits are not cash refunds; estimated provider costs are not provider invoices.",
+      "description": "Admin session required. Read settings: ViewAny_Pricing. Update settings: Update_Pricing. Reporting: ViewAny_Usage. GET settings saves billingVersion and the complete billingConfiguration as collection variables. PUT replaces the entire configuration; edit the saved billingConfiguration JSON variable first. Monetary values are decimal strings; the standard credit value is USD 0.01 and internal credit units are hundredths of a credit. Packages use a direct decimal-string price_usd and may grant promotional credits independently of price. No exchange rate or FX timestamp is required. Legacy packages without price_usd default to USD 0.01 per credit, rounded up to cents; configure exact prices in admin. Historical payment amounts remain unchanged; new USD quotes have a null fx_ngn_per_usd_micros field. Existing purchase and usage quotes retain their original snapshots. Activity pricing mode model uses existing AI model prices; mode activity overrides customer credits per minute for media or per 1,000 input characters for text, retaining model provider costs. Gateway secrets and callback URLs stay in backend environment variables. Gateway switches control new purchases; stored purchases remain verifiable. Free credits are granted once on wallet access when a positive allowance is configured, including existing users without a previous welcome grant. Processing recovery has a 26-hour minimum to preserve the existing provider callback window. Reporting payment totals are grouped by currency and paid_at; usage is grouped by updated_at. Released credits are not cash refunds; estimated provider costs are not provider invoices.",
       "item": [
         {
           "name": "Read billing settings and audit history",
@@ -394,8 +561,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const timestamp = new Date().toISOString(); pm.collectionVariables.set('billingFxUpdatedAt', timestamp);",
-                  "const configuration = JSON.parse(pm.collectionVariables.get('billingConfiguration')); if (configuration.fx.updated_at === '{{billingFxUpdatedAt}}') configuration.fx.updated_at = timestamp; pm.variables.set('billingConfiguration', JSON.stringify(configuration));"
+                  "const configuration = JSON.parse(pm.collectionVariables.get('billingConfiguration')); pm.variables.set('billingConfiguration', JSON.stringify(configuration));"
                 ]
               }
             },
@@ -435,7 +601,7 @@
                 }
               }
             },
-            "description": "GET current settings first, then edit collection variable billingConfiguration and PUT with its current billingVersion. Example complete configuration:\n{\n  \"packages\": [\n    {\n      \"code\": \"starter\",\n      \"name\": \"Starter\",\n      \"credits\": \"5500\",\n      \"price_ngn\": \"5000\",\n      \"enabled\": true\n    },\n    {\n      \"code\": \"regular\",\n      \"name\": \"Regular\",\n      \"credits\": \"15000\",\n      \"price_ngn\": \"15000\",\n      \"enabled\": true\n    }\n  ],\n  \"free_credits\": \"0\",\n  \"fx\": {\n    \"ngn_per_usd\": \"1500\",\n    \"updated_at\": \"{{billingFxUpdatedAt}}\",\n    \"max_age_hours\": 24\n  },\n  \"quote_minutes\": 45,\n  \"checkout_minutes\": 30,\n  \"processing_timeout_hours\": 26,\n  \"minimum_checkout\": {\n    \"NGN\": \"50\",\n    \"USD\": \"2\"\n  },\n  \"enabled_currencies\": [\n    \"NGN\",\n    \"USD\"\n  ],\n  \"gateways\": {\n    \"paystack\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\"\n      ]\n    },\n    \"flutterwave\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\",\n        \"USD\"\n      ]\n    }\n  },\n  \"activities\": {\n    \"transcription\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"translation\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"video_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"audio_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"subtitles\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"cleanup\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"summary\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    }\n  }\n} Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited.  Task recovery runs every minute. configuration.task_deadlines maps activity then provider (or default) to base_minutes, duration_multiplier and max_minutes. Deadline minutes = min(max_minutes, base_minutes + ceil(media_seconds * duration_multiplier / 60)), measured from the current task attempt start; polling does not reset it. Text tasks use the base allowance. Rules apply to active and new tasks. Expiry marks tasks failed, returns only still-reserved credits, frees concurrency and ignores late results. processing_timeout_hours remains a separate billing reconciliation safety window. Missing task_deadlines preserves current settings for older clients."
+            "description": "GET current settings first, then edit collection variable billingConfiguration and PUT with its current billingVersion. Example complete configuration:\n{\n  \"packages\": [\n    {\n      \"code\": \"starter\",\n      \"name\": \"Starter\",\n      \"credits\": \"5500\",\n      \"price_ngn\": \"5000\",\n      \"enabled\": true,\n      \"price_usd\": \"50.00\"\n    },\n    {\n      \"code\": \"regular\",\n      \"name\": \"Regular\",\n      \"credits\": \"15000\",\n      \"price_ngn\": \"15000\",\n      \"enabled\": true,\n      \"price_usd\": \"150.00\"\n    }\n  ],\n  \"free_credits\": \"0\",\n  \"quote_minutes\": 45,\n  \"checkout_minutes\": 30,\n  \"processing_timeout_hours\": 26,\n  \"minimum_checkout\": {\n    \"NGN\": \"50\",\n    \"USD\": \"2\"\n  },\n  \"enabled_currencies\": [\n    \"NGN\",\n    \"USD\"\n  ],\n  \"gateways\": {\n    \"paystack\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\"\n      ]\n    },\n    \"flutterwave\": {\n      \"enabled\": true,\n      \"currencies\": [\n        \"NGN\",\n        \"USD\"\n      ]\n    }\n  },\n  \"activities\": {\n    \"transcription\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"translation\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"video_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"audio_dubbing\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"subtitles\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"cleanup\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    },\n    \"summary\": {\n      \"mode\": \"model\",\n      \"credits\": null\n    }\n  }\n} Concurrency configuration: configuration.concurrency contains overall (default 3), transcription (2), translation (3), dubbing (1, shared with subtitles), transcript_tools (2, shared by summaries and cleanup). Each value is an integer 1–100. Queued/processing work counts through final exports; retries reuse the task. Lowering limits preserves existing work. Missing concurrency preserves saved/default limits. Changes are versioned and audited.  Task recovery runs every minute. configuration.task_deadlines maps activity then provider (or default) to base_minutes, duration_multiplier and max_minutes. Deadline minutes = min(max_minutes, base_minutes + ceil(media_seconds * duration_multiplier / 60)), measured from the current task attempt start; polling does not reset it. Text tasks use the base allowance. Rules apply to active and new tasks. Expiry marks tasks failed, returns only still-reserved credits, frees concurrency and ignores late results. processing_timeout_hours remains a separate billing reconciliation safety window. Missing task_deadlines preserves current settings for older clients."
           }
         },
         {
@@ -459,8 +625,25 @@
       ]
     },
     {
+      "name": "Feature availability",
+      "description": "Public visibility switches only; no credentials or provider configuration. Defaults are enabled for existing installations. Admin changes are saved under AI providers with Update_AIProvider permission, an edit reason, version checking, and an audit trail. Disabled features reject new quotes, submissions (including older quotes), and export retries with HTTP 403. Already running work and access to saved files are preserved. Subtitles are independently gated for standalone captions and the video-dubbing add-on. Customer navigation refreshes on navigation, window focus, and every 30 seconds in the dashboard.",
+      "item": [
+        {
+          "name": "List enabled features",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/features",
+            "description": "Returns data containing boolean transcription, translation, audio_dubbing, video_dubbing, subtitles. Cache-Control: no-store. The Nuxt frontend proxies this as GET /api/features."
+          }
+        }
+      ]
+    },
+    {
       "name": "Administrator AI provider configuration",
-      "description": "Admin email 2FA session required. Read requires ViewAny_AIProvider; updates require Update_AIProvider. Credentials remain in backend environment. Rules match spoken language for transcription/subtitles and output language for translation/dubbing. Cleanup and summary use defaults only. New quotes snapshot provider and model; no automatic fallback. The history contains the latest 20 before/after changes. Model catalogs are stored per activity/provider in configuration.models with the same version check and atomic audit trail. Each model has id, label, enabled, languages, capabilities (speakers/timestamps), and pricing (unit, credits, provider_cost, provider_currency). Credits and provider costs are decimal strings or null. Media uses minute; text uses character or 1000_characters. Null credit pricing prevents paid quotes. GET returns compatible model choices and whether arbitrary API model IDs can be added. Existing quoted prices and selected models remain unchanged.",
+      "description": "Admin email 2FA session required. Read requires ViewAny_AIProvider; updates require Update_AIProvider. Credentials remain in backend environment. Rules match spoken language for transcription/subtitles and output language for translation/dubbing. Cleanup and summary use defaults only. New quotes snapshot provider and model; no automatic fallback. The history contains the latest 20 before/after changes. Model catalogs are stored per activity/provider in configuration.models with the same version check and atomic audit trail. Each model has id, label, enabled, languages, capabilities (speakers/timestamps), and pricing (unit, credits, provider_cost, provider_currency). Credits and provider costs are decimal strings or null. Media uses minute; text uses character or 1000_characters. Null credit pricing prevents paid quotes. GET returns compatible model choices and whether arbitrary API model IDs can be added. Existing quoted prices and selected models remain unchanged. Feature switches: configuration.enabled defaults to true for older records. Set false to hide the activity and reject new customer requests; set true to restore it. Missing enabled preserves the saved value for older clients. Switches for transcription, translation, audio_dubbing, video_dubbing and subtitles are independent of individual provider switches.",
       "item": [
         {
           "name": "List provider settings, model catalogs and audit history",
@@ -500,7 +683,7 @@
             "url": "{{baseUrl}}/admin/ai-providers/transcription",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"version\": 0,\n  \"reason\": \"Configure transcription defaults and Nigerian language routing\",\n  \"configuration\": {\n    \"default_provider\": \"deepgram\",\n    \"providers\": {\n      \"deepgram\": {\n        \"enabled\": true,\n        \"model\": \"nova-2\",\n        \"languages\": []\n      },\n      \"intron\": {\n        \"enabled\": true,\n        \"model\": \"default\",\n        \"languages\": []\n      },\n      \"google\": {\n        \"enabled\": true,\n        \"model\": \"chirp_3\",\n        \"languages\": []\n      },\n      \"elevenlabs\": {\n        \"enabled\": true,\n        \"model\": \"scribe_v2\",\n        \"languages\": []\n      },\n      \"openai\": {\n        \"enabled\": true,\n        \"model\": \"gpt-4o-transcribe-diarize\",\n        \"languages\": []\n      }\n    },\n    \"language_rules\": {\n      \"en-ng\": {\n        \"provider\": \"intron\",\n        \"model\": \"default\"\n      },\n      \"yo\": \"intron\",\n      \"ig\": \"intron\",\n      \"ha\": \"intron\",\n      \"pcm\": \"intron\"\n    }\n  }\n}"
+              "raw": "{\n  \"version\": 0,\n  \"reason\": \"Configure transcription defaults and Nigerian language routing\",\n  \"configuration\": {\n    \"default_provider\": \"deepgram\",\n    \"providers\": {\n      \"deepgram\": {\n        \"enabled\": true,\n        \"model\": \"nova-2\",\n        \"languages\": []\n      },\n      \"intron\": {\n        \"enabled\": true,\n        \"model\": \"default\",\n        \"languages\": []\n      },\n      \"google\": {\n        \"enabled\": true,\n        \"model\": \"chirp_3\",\n        \"languages\": []\n      },\n      \"elevenlabs\": {\n        \"enabled\": true,\n        \"model\": \"scribe_v2\",\n        \"languages\": []\n      },\n      \"openai\": {\n        \"enabled\": true,\n        \"model\": \"gpt-4o-transcribe-diarize\",\n        \"languages\": []\n      }\n    },\n    \"language_rules\": {\n      \"en-ng\": {\n        \"provider\": \"intron\",\n        \"model\": \"default\"\n      },\n      \"yo\": \"intron\",\n      \"ig\": \"intron\",\n      \"ha\": \"intron\",\n      \"pcm\": \"intron\"\n    },\n    \"enabled\": true\n  }\n}"
             },
             "description": "First GET settings and copy the activity configuration/version. Send the complete configuration, using catalog model options. A stale version returns 409. Activity values: transcription, translation, video_dubbing, audio_dubbing, subtitles, cleanup, summary. Disabling a default makes unmatched new requests unavailable. Missing credentials are shown without exposing secrets. Language rules also accept {\"provider\":\"deepgram\",\"model\":\"nova-3\"} to override both. To manage models, first GET and copy the full configuration.models object, edit its provider model lists, then PUT the complete configuration with version and reason. Omitting models preserves the saved catalog. Model IDs must be unique per provider and compatible with the existing API. Disable entries to retire models; existing jobs retain their saved model. Model capability flags describe outputs and do not enable provider features. Pricing changes apply only to new quotes. Provider cost currency is USD or NGN."
           }
@@ -2084,7 +2267,7 @@
                 }
               }
             },
-            "description": "Choose a payment_method code from the active payment methods endpoint (paystack or flutterwave). Both gateways may be enabled simultaneously. The chosen method is stored on this purchase and cannot change on an idempotent retry. Amounts are minor currency units."
+            "description": "Choose a payment_method code from the active payment methods endpoint (paystack, flutterwave or bachs). All gateways may be enabled simultaneously; Bachs is currently USD only. The chosen method is stored on this purchase and cannot change on an idempotent retry. Amounts are minor currency units."
           },
           "event": [
             {

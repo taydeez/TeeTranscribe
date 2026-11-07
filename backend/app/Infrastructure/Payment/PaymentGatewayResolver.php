@@ -5,6 +5,7 @@ namespace App\Infrastructure\Payment;
 use App\Domain\Billing\Exceptions\BillingException;
 use App\Domain\Payment\Contracts\PaymentGatewayInterface;
 use App\Domain\Payment\Contracts\PaymentGatewayResolverInterface;
+use App\Infrastructure\Payment\Gateways\BachsPaymentGateway;
 use App\Infrastructure\Payment\Gateways\FlutterwavePaymentGateway;
 use App\Infrastructure\Payment\Gateways\PaystackPaymentGateway;
 
@@ -13,6 +14,7 @@ final class PaymentGatewayResolver implements PaymentGatewayResolverInterface
     public function __construct(
         private readonly PaystackPaymentGateway $paystack,
         private readonly FlutterwavePaymentGateway $flutterwave,
+        private readonly BachsPaymentGateway $bachs,
     ) {}
 
     public function resolve(string $provider): PaymentGatewayInterface
@@ -20,6 +22,7 @@ final class PaymentGatewayResolver implements PaymentGatewayResolverInterface
         return match ($provider) {
             'paystack' => $this->paystack,
             'flutterwave' => $this->flutterwave,
+            'bachs' => $this->bachs,
             default => throw new BillingException('The payment gateway is not supported.', 503),
         };
     }

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Dubbing\Services;
 
+use App\Domain\AI\Services\FeatureAvailability;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Exceptions\BillingException;
@@ -21,10 +22,12 @@ final readonly class DubbingService
     public function __construct(private DubbingRepositoryInterface $records, private BillingRepositoryInterface $billing,
         private BillingSettingsInterface $settings, private CreditService $credits, private DubbingLanguages $languages,
         private DubbingMediaInterface $media, private DubbingGatewayResolverInterface $providers, private VideoSubtitleLanguages $videoSubtitles,
-        private AudioDubbingMediaInterface $audio, private FolderService $folders, private PrivacyCoordinatorInterface $privacy) {}
+        private AudioDubbingMediaInterface $audio, private FolderService $folders, private PrivacyCoordinatorInterface $privacy,
+        private FeatureAvailability $features) {}
 
     public function quote(int $userId, array $source, string $key): array
     {
+        $this->features->requireDubbing($source);
         $this->assertSource($this->sourcePath($source));
         if (! empty($source['folder_id'])) {
             $this->folders->findOrFail($source['folder_id'], $userId);
@@ -137,6 +140,7 @@ final readonly class DubbingService
     public function submit(int $userId, string $quoteId): Dubbing
     {
         $quote = $this->billing->quote($quoteId, $userId) ?? throw new BillingException('Quote not found.', 404);
+        $this->features->requireDubbing($quote['source']);
         $path = ! empty($quote['source']) ? $this->sourcePath($quote['source']) : 'quote:'.$quoteId;
 
         return $this->privacy->exclusive('source', $path, fn (): Dubbing => $this->confirm($userId, $quoteId));

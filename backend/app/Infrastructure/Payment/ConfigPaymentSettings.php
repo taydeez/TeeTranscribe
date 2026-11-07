@@ -15,6 +15,7 @@ final class ConfigPaymentSettings implements PaymentSettingsInterface
         $gateway = $settings['gateways'][$provider] ?? null;
 
         return $gateway !== null && $gateway['enabled'] && filled(config('payment.'.$provider.'.secret'))
+            && ($provider !== 'bachs' || ($currency === 'USD' && filled(config('payment.bachs.webhook_secret'))))
             && in_array($currency, $settings['enabled_currencies'], true) && in_array($currency, $gateway['currencies'], true);
     }
 }

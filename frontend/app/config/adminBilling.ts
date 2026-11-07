@@ -1,5 +1,5 @@
 import type { BillingActivity, BillingCurrency } from '~/types/adminBilling'
-export const billingCurrencies: BillingCurrency[] = ['NGN', 'USD']
+export const billingCurrencies: BillingCurrency[] = ['USD']
 export const billingActivities: { key: BillingActivity; label: string; unit: string }[] = [
   { key: 'transcription', label: 'Transcription', unit: 'minute' },
   { key: 'translation', label: 'Translation', unit: '1,000 input characters' },

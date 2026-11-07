@@ -6,6 +6,7 @@ import FolderProjectList from '~/components/folders/FolderProjectList.vue'
 import type { FolderTranscription } from '~/types/transcription'
 import type { PrivacyDeletion } from '~/types/privacy'
 
+const features = useFeatures()
 definePageMeta({ layout: 'dashboard', title: 'My Transcriptions' })
 const route = useRoute()
 const { folder, loading, error, load } = useFolderTranscriptions(() => String(route.params.folderId))
@@ -35,7 +36,7 @@ function deletion(record: PrivacyDeletion) {
     <template v-else>
       <p v-if="deletionRequested" class="m-6 rounded-xl bg-indigo-50 p-4 text-sm text-indigo-700" role="status">Deletion requested. <NuxtLink to="/dashboard/settings#privacy" class="font-semibold underline">Follow cleanup progress</NuxtLink></p>
       <p v-if="error" class="m-6 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ error }}</p>
-      <div v-if="folder" class="flex flex-wrap gap-3 px-6 py-5 sm:px-8"><PrivacyDeleteAction resource-type="folder" :resource-id="folder.id" scope="project" :name="folder.name" label="Delete folder" show-label @accepted="navigateTo('/dashboard/transcriptions')" /><NuxtLink class="button-secondary" :to="{ path: '/dashboard/translations', query: { folder: folder.id } }">New translation</NuxtLink><NuxtLink class="button-secondary" :to="{ path: '/dashboard/dubbing', query: { folder: folder.id } }">New dubbing or subtitles</NuxtLink></div>
+      <div v-if="folder" class="flex flex-wrap gap-3 px-6 py-5 sm:px-8"><PrivacyDeleteAction resource-type="folder" :resource-id="folder.id" scope="project" :name="folder.name" label="Delete folder" show-label @accepted="navigateTo('/dashboard/transcriptions')" /><NuxtLink v-if="features.enabled('translation')" class="button-secondary" :to="{ path: '/dashboard/translations', query: { folder: folder.id } }">New translation</NuxtLink><NuxtLink v-if="features.dubbing.value" class="button-secondary" :to="{ path: '/dashboard/dubbing', query: { folder: folder.id } }">New media project</NuxtLink></div>
       <TranscriptionList v-if="folder?.transcriptions.length || !folder?.projects.length" :items="folder?.transcriptions ?? []" @select="selected = $event" @deletion="deletion" @refresh="load(true)" />
       <FolderProjectList v-if="folder" :items="folder.projects ?? []" :folder-id="folder.id" @deletion="deletion" />
     </template>

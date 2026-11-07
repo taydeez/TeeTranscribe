@@ -1,8 +1,7 @@
 import type { BillingCurrency, CreditBalance, PackageCatalog, PurchaseQuote } from '~/types/billing'
-import { suggestedCurrency } from '~/utils/credits'
 
 export function useCreditBilling() {
-  const currency = ref<BillingCurrency>('NGN')
+  const currency = ref<BillingCurrency>('USD')
   const balance = ref<CreditBalance | null>(null)
   const catalog = ref<PackageCatalog | null>(null)
   const paymentMethod = ref('')
@@ -64,10 +63,12 @@ export function useCreditBilling() {
       purchase.value = await useAuthenticatedFetch<PurchaseQuote>(`/api/billing/purchases/${purchase.value.id}/checkout`, { method: 'POST' })
       if (purchase.value.status === 'paid') { notice.value = 'This purchase has already been credited.'; await refresh(); return }
       const url = new URL(purchase.value.checkout_url ?? '')
-      const hosts = purchase.value.gateway === 'flutterwave'
-        ? ['checkout.flutterwave.com', 'checkout-v2.dev-flutterwave.com']
-        : ['checkout.paystack.com']
-      if (url.protocol !== 'https:' || !hosts.includes(url.hostname) || url.username || url.password || url.port) throw new Error('The checkout link could not be verified.')
+      const hosts: Record<string, string[]> = {
+        flutterwave: ['checkout.flutterwave.com', 'checkout-v2.dev-flutterwave.com'],
+        paystack: ['checkout.paystack.com'],
+        bachs: ['checkout.bachs.io', 'sandbox-checkout.bachs.io'],
+      }
+      if (url.protocol !== 'https:' || !(hosts[purchase.value.gateway] ?? []).includes(url.hostname) || url.username || url.password || url.port) throw new Error('The checkout link could not be verified.')
       window.location.assign(url.toString())
       redirecting = true
     } catch (failure: unknown) { fail(failure) }
@@ -86,8 +87,7 @@ export function useCreditBilling() {
   }
 
   onMounted(async () => {
-    const stored = localStorage.getItem('billing-currency')
-    currency.value = stored === 'NGN' || stored === 'USD' ? stored : suggestedCurrency(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    currency.value = 'USD'
     await refresh()
   })
   return { currency, balance, catalog, paymentMethod, changePaymentMethod, purchase, busy, loading, error, notice, historyVersion, refresh, changeCurrency, selectPackage, checkout, verify }

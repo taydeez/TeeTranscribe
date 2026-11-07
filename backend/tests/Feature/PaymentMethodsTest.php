@@ -10,7 +10,7 @@ use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 beforeEach(function () {
-    config(['payment.paystack.secret' => 'sk_test_methods', 'payment.paystack.enabled' => true, 'payment.paystack.usd_enabled' => true, 'payment.flutterwave.secret' => 'FLWSECK_TEST-methods-X', 'payment.flutterwave.enabled' => true, 'payment.flutterwave.usd_enabled' => false, 'payment.flutterwave.secret_hash' => 'webhook-test-hash', 'billing.free_credits' => '0']);
+    config(['payment.bachs.enabled' => false, 'payment.paystack.secret' => 'sk_test_methods', 'payment.paystack.enabled' => true, 'payment.paystack.usd_enabled' => true, 'payment.flutterwave.secret' => 'FLWSECK_TEST-methods-X', 'payment.flutterwave.enabled' => true, 'payment.flutterwave.usd_enabled' => false, 'payment.flutterwave.secret_hash' => 'webhook-test-hash', 'billing.free_credits' => '0']);
     $this->seed(PaymentMethodSeeder::class);
     $this->user = User::factory()->create();
     Sanctum::actingAs($this->user);
@@ -41,7 +41,7 @@ test('purchase retries preserve the method and cannot switch providers', functio
 test('seeding again preserves activation and does not create payments', function () {
     PaymentMethod::where('code', 'paystack')->update(['is_active' => false]);
     $this->seed(PaymentMethodSeeder::class);
-    $this->assertDatabaseCount('payment_methods', 2);
+    $this->assertDatabaseCount('payment_methods', 3);
     $this->assertDatabaseCount('payments', 0);
     expect(PaymentMethod::where('code', 'paystack')->first()->is_active)->toBeFalse();
 });

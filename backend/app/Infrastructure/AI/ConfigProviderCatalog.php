@@ -81,7 +81,7 @@ final class ConfigProviderCatalog implements ProviderCatalogInterface
             }
         }
 
-        return ['default_provider' => $default, 'providers' => $providers, 'language_rules' => $rules];
+        return ['enabled' => true, 'default_provider' => $default, 'providers' => $providers, 'language_rules' => $rules];
     }
 
     private function model(string $activity, string $provider): string

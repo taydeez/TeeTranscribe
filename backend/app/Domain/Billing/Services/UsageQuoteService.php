@@ -2,6 +2,7 @@
 
 namespace App\Domain\Billing\Services;
 
+use App\Domain\AI\Services\FeatureAvailability;
 use App\Domain\Billing\Contracts\BillingRepositoryInterface;
 use App\Domain\Billing\Contracts\BillingSettingsInterface;
 use App\Domain\Billing\Contracts\MediaDurationInspectorInterface;
@@ -18,10 +19,12 @@ final class UsageQuoteService
         private readonly TranscriberGatewayResolverInterface $resolver,
         private readonly MediaDurationInspectorInterface $media,
         private readonly PrivacyCoordinatorInterface $privacy,
+        private readonly FeatureAvailability $features,
     ) {}
 
     public function create(int $userId, array $source, string $key): array
     {
+        $this->features->requireEnabled('transcription');
         $this->assertSource($source['audio_storage_path'] ?? null);
 
         return $this->repository->exclusive('quote:'.$userId.':'.$key, function () use ($userId, $source, $key): array {
