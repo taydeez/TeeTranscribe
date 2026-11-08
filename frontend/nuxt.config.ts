@@ -6,6 +6,9 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@pinia/nuxt', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
+  nitro: {
+    cloudflare: { deployConfig: false, nodeCompat: true },
+  },
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
     trustedProxyIps: '',
