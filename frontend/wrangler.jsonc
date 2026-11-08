@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "teescriber-staging",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2025-07-15",
+  "compatibility_flags": ["nodejs_compat", "no_nodejs_compat_v2"],
+  "build": {
+    "command": "npm run build:cloudflare"
+  },
+  "assets": {
+    "directory": ".output/public",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NUXT_API_BASE": "https://staging-api.teescriber.com/api/v1"
+  },
+  "env": {
+    "staging": {
+      "name": "teescriber-staging",
+      "vars": {
+        "NUXT_API_BASE": "https://staging-api.teescriber.com/api/v1"
+      }
+    },
+    "production": {
+      "name": "teescriber-production",
+      "vars": {
+        "NUXT_API_BASE": "https://prod-api.teescriber.com/api/v1"
+      }
+    }
+  }
+}
