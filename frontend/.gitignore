@@ -4,6 +4,9 @@
 .nuxt
 .nitro
 .cache
+.wrangler
+.dev.vars
+.dev.vars.*
 dist
 
 # Node dependencies

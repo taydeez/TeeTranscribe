@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
+    "build:cloudflare": "nuxt build --preset cloudflare_module",
     "check": "npm run check:architecture && npm run lint && npm run test:unit && npm run typecheck && npm run build",
     "check:architecture": "node scripts/check-architecture.mjs",
     "typecheck": "nuxt typecheck",

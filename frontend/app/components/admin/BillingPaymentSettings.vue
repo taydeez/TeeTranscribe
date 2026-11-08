@@ -10,7 +10,7 @@ const gateways = [{ key: 'paystack', name: 'Paystack' }, { key: 'flutterwave', n
     <section class="surface p-5 sm:p-6"><h2 class="text-lg font-semibold">Checkout settings</h2><p class="mt-1 text-sm leading-6 text-[var(--muted)]">Package prices are set directly in USD. No exchange rate or currency refresh is needed. The standard value is $0.01 per credit; package discounts can be configured separately.</p>
       <fieldset :disabled="disabled" class="mt-5 space-y-5"><legend class="sr-only">Checkout settings</legend>
         <div><p class="billing-label">Accept purchases in</p><div class="mt-3 flex gap-6"><label v-for="currency in billingCurrencies" :key="currency" class="flex items-center gap-2 text-sm"><input v-model="configuration.enabled_currencies" :value="currency" type="checkbox" class="accent-indigo-600">{{ currency }}</label></div></div>
-        <label class="billing-label">Minimum checkout (USD)<input v-model="configuration.minimum_checkout.USD" required type="number" min="0.01" max="999999.99" step="0.01" class="billing-input"></label>
+        <label class="billing-label">Minimum checkout (USD)<input :value="configuration.minimum_checkout.USD" required type="number" min="0.01" max="999999.99" step="0.01" class="billing-input" @input="configuration.minimum_checkout.USD = ($event.target as HTMLInputElement).value"></label>
       </fieldset>
     </section>
     <section class="surface p-5 sm:p-6"><h2 class="text-lg font-semibold">Payment gateways</h2><p class="mt-1 text-sm leading-6 text-[var(--muted)]">Enable multiple gateways at once. Each requires valid backend credentials and merchant support for the selected currencies.</p>
