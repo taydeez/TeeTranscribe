@@ -3,42 +3,39 @@
   "name": "teescriber-staging",
   "main": ".output/server/index.mjs",
   "compatibility_date": "2025-07-15",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "no_nodejs_compat_v2"
-  ],
+  "compatibility_flags": ["nodejs_compat", "no_nodejs_compat_v2"],
   "build": {
-    "command": "npm run build:cloudflare"
+    "command": "npm run build:cloudflare",
   },
   "assets": {
     "directory": ".output/public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
   },
   "vars": {
-    "NUXT_API_BASE": "https://staging-api.teescriber.com/api/v1"
+    "NUXT_API_BASE": "https://staging-api.teescriber.com/api/v1",
   },
   "env": {
     "staging": {
       "name": "teescriber-staging",
       "vars": {
-        "NUXT_API_BASE": "https://staging-api.teescriber.com/api/v1"
-      }
+        "NUXT_API_BASE": "https://staging-api.teescriber.com/api/v1",
+      },
     },
     "production": {
       "name": "teescriber-production",
       "vars": {
-        "NUXT_API_BASE": "https://prod-api.teescriber.com/api/v1"
+        "NUXT_API_BASE": "https://api-prod.teescriber.com/api/v1",
       },
       "routes": [
         {
           "pattern": "teescriber.com",
-          "custom_domain": true
+          "custom_domain": true,
         },
         {
           "pattern": "www.teescriber.com",
-          "custom_domain": true
-        }
-      ]
-    }
-  }
+          "custom_domain": true,
+        },
+      ],
+    },
+  },
 }
