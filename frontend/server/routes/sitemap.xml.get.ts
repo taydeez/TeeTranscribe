@@ -1,6 +1,9 @@
 import { sitemapXml } from '../../shared/utils/siteSeo'
 
-export default defineEventHandler((event) => {
+import { cachedMarketingFeatures } from '../utils/marketingFeatures'
+
+export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/xml; charset=utf-8')
-  return sitemapXml()
+  const features = await cachedMarketingFeatures(useRuntimeConfig(event).apiBase)
+  return sitemapXml(features)
 })

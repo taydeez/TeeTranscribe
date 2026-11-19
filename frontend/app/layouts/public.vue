@@ -16,7 +16,7 @@ onMounted(() => { void auth.initialize() })
     <nav class="flex flex-wrap gap-x-7 gap-y-3 border-b border-slate-200 py-4 text-sm text-slate-500" aria-label="Information pages">
       <NuxtLink v-for="page in publicPages" :key="page.to" :to="page.to" class="hover:text-indigo-600" active-class="font-semibold text-indigo-600">{{ page.label }}</NuxtLink>
     </nav>
-    <main id="page-content" tabindex="-1" class="public-content"><slot /></main>
+    <MarketingProductLinks /><main id="page-content" tabindex="-1" class="public-content"><slot /></main>
     <PublicSiteFooter />
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const features = useFeatures()
+const features = useMarketingFeatures()
 </script>
 <template>
   <div class="preview-stage" aria-label="Illustrative examples of an audio transcript and a dubbed video">
@@ -27,12 +27,12 @@ const features = useFeatures()
 .transcript-preview { position:relative; margin-right:28px; border-radius:20px; overflow:hidden; box-shadow:0 20px 60px #0f172a0c; }
 .preview-header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:20px; border-bottom:1px solid var(--line); }
 .preview-header > span:first-child { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
-.preview-header svg { color:#6366f1; }
+.preview-header svg { color:var(--muted); }
 .example-label { font-size:10px; color:var(--muted); border:1px solid var(--line); border-radius:5px; padding:3px 6px; }
 .waveform { display:flex; gap:5px; align-items:center; justify-content:center; height:90px; margin:20px 20px 0; border-radius:12px; background:#6366f10a; overflow:hidden; }
 .waveform span { width:5px; flex-shrink:0; border-radius:5px; background:linear-gradient(#06b6d4,#6366f1); }
 .transcript-body { padding:24px; display:grid; gap:24px; }
-.segment-label { display:flex; align-items:center; gap:14px; font-size:11px; color:#6366f1; font-weight:600; margin-bottom:10px; }
+.segment-label { display:flex; align-items:center; gap:14px; font-size:11px; color:var(--muted); font-weight:600; margin-bottom:10px; }
 .segment-label span { color:var(--muted); font-family:var(--font-code); font-weight:400; }
 .segment > p:last-child { font-size:14px; line-height:1.75; }
 .preview-footer { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; padding:16px 20px; font-size:10px; color:var(--muted); border-top:1px solid var(--line); }

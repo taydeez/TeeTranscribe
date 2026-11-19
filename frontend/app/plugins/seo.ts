@@ -1,10 +1,11 @@
-import { canonicalPageUrl, isProductionSeoHost, publicSeoPage, siteImage, siteName, siteOrigin } from '#shared/utils/siteSeo'
+import { canonicalPageUrl, isProductionSeoHost, publicSeoPage, siteImage, siteLogo, siteName, siteOrigin } from '#shared/utils/siteSeo'
 import { faqGroups } from '~/config/publicPages'
 
 export default defineNuxtPlugin(() => {
   const route = useRoute()
   const hostname = useRequestURL().hostname
-  const page = computed(() => publicSeoPage(route.path))
+  const marketing = useMarketingFeatures()
+  const page = computed(() => publicSeoPage(route.path, marketing.flags.value ?? undefined))
   const canonical = computed(() => canonicalPageUrl(route.path))
 
   useSeoMeta({
@@ -19,10 +20,10 @@ export default defineNuxtPlugin(() => {
     ogLocale: 'en_US',
     ogImage: siteImage,
     ogImageType: 'image/png',
-    ogImageWidth: 1254,
-    ogImageHeight: 1254,
+    ogImageWidth: 1200,
+    ogImageHeight: 630,
     ogImageAlt: 'TeeScriber — audio transcription and video dubbing',
-    twitterCard: 'summary',
+    twitterCard: 'summary_large_image',
     twitterTitle: () => page.value?.title ?? siteName,
     twitterDescription: () => page.value?.description,
     twitterImage: siteImage,
@@ -42,9 +43,10 @@ export default defineNuxtPlugin(() => {
       ...(current.path === '/faq' ? { mainEntity: faqGroups.flatMap(group => group.items.map(item => ({ '@type': 'Question', name: item.question, acceptedAnswer: { '@type': 'Answer', text: item.answer } }))) } : {}),
     }
     const graph = [
-      { '@type': 'Organization', '@id': organizationId, name: siteName, url: siteOrigin, logo: { '@type': 'ImageObject', url: siteImage } },
+      { '@type': 'Organization', '@id': organizationId, name: siteName, url: siteOrigin, logo: { '@type': 'ImageObject', url: siteLogo } },
       { '@type': 'WebSite', '@id': websiteId, url: siteOrigin, name: siteName, inLanguage: 'en', publisher: { '@id': organizationId } },
       pageSchema,
+      ...(current.path !== '/' ? [{ '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: siteName, item: siteOrigin }, { '@type': 'ListItem', position: 2, name: current.title.split('|')[0]?.trim(), item: url }] }] : []),
     ]
     return {
       link: [{ key: 'canonical', rel: 'canonical', href: url }],

@@ -1,0 +1,24 @@
+<script setup lang="ts">
+import type { PublicPricingCatalog } from '~/types/publicPricing'
+import { formatCredits, formatMoney } from '~/utils/credits'
+const auth = useAuthStore()
+const purchaseUrl = computed(() => auth.isAuthenticated ? '/dashboard/billing' : '/?register=1')
+const features = useMarketingFeatures()
+const labels = { transcription: 'Transcription', translation: 'Text translation', video_dubbing: 'Video dubbing', audio_dubbing: 'Audio dubbing', subtitles: 'Video subtitles' }
+const { data, status, error, refresh } = await useAsyncData('public-pricing', () => $fetch<{ data: PublicPricingCatalog }>('/api/marketing/pricing'))
+const catalog = computed(() => data.value?.data)
+const rates = computed(() => (catalog.value?.rates ?? []).filter(rate => features.enabled(rate.activity)))
+</script>
+<template>
+  <article>
+    <section class="public-intro"><p class="eyebrow">Pricing</p><h1>Buy credits.<br>Use them when you need them.</h1><p class="intro-copy">Choose a package for your next project. TeeScriber shows the credit cost before you confirm a task, so you can decide before processing starts.</p><p v-if="catalog && catalog.free_credit_units > 0" class="mt-5 font-semibold text-indigo-600">New accounts receive {{ formatCredits(catalog.free_credit_units) }} free credits.</p></section>
+    <p v-if="status === 'pending'" class="surface p-6" role="status">Loading current packages…</p>
+    <p v-else-if="error" class="surface p-6 text-sm" role="alert">Current package prices could not be loaded. <button class="font-semibold text-indigo-600 underline" @click="refresh()">Try again</button>. You can also review the latest prices after signing in.</p>
+    <section v-else-if="catalog?.packages.length" class="grid gap-5 md:grid-cols-3" aria-label="Credit packages"><article v-for="pack in catalog.packages" :key="pack.id" class="surface flex flex-col items-start p-6 sm:p-8"><h2 class="text-xl font-semibold">{{ pack.name }}</h2><p class="mt-6 text-4xl font-bold tracking-tight">{{ formatMoney(pack.amount_minor, pack.currency) }}</p><p class="mt-3 text-base text-[var(--muted)]">{{ formatCredits(pack.credit_units) }} credits</p><NuxtLink class="button-primary mt-7 w-full" :to="purchaseUrl">Choose package</NuxtLink></article></section>
+    <p v-else class="surface p-6 text-sm">Credit packages are not currently available. <NuxtLink class="underline" to="/contact">Contact us</NuxtLink> if you need help with a purchase.</p>
+    <p class="body-copy mt-5 text-sm">Prices are in US dollars. The signed-in checkout confirms the package price and available payment methods before you pay.</p>
+    <section class="mt-14"><h2 class="section-heading">What do activities cost?</h2><p class="body-copy mt-4 max-w-3xl">These are example rates for the current default configuration. Language, processing options and file length can change the quote. The workspace measures your media or counts your text and shows the exact credit cost before you confirm.</p><div v-if="rates.length" class="mt-6 overflow-x-auto rounded-xl border border-[var(--line)]"><table class="w-full text-left text-sm"><caption class="sr-only">Current example activity rates in credits</caption><thead class="bg-[var(--page)]"><tr><th class="p-4" scope="col">Activity</th><th class="p-4" scope="col">Example rate</th></tr></thead><tbody class="divide-y divide-[var(--line)]"><tr v-for="rate in rates" :key="rate.activity"><th class="p-4 font-medium" scope="row">{{ labels[rate.activity] }}</th><td class="p-4">{{ rate.credit_units === null ? 'Check in your workspace' : `${formatCredits(rate.credit_units)} credits per ${rate.unit === 'minute' ? 'minute' : '1,000 input characters'}` }}</td></tr></tbody></table></div></section>
+    <section class="mt-12 grid gap-6 md:grid-cols-3"><div><h2 class="text-lg font-semibold">You confirm before work starts</h2><p class="body-copy mt-3 text-sm">A quote shows the credits needed for the activity. You can add credits or change the source before confirming.</p></div><div><h2 class="text-lg font-semibold">Reserved while it processes</h2><p class="body-copy mt-3 text-sm">Credits are reserved for the job. If a task fails, credits still reserved for that task are returned to your balance.</p></div><div><h2 class="text-lg font-semibold">Keep a record of purchases</h2><p class="body-copy mt-3 text-sm">Confirmed purchases appear in your payment history, where you can download the available invoice.</p></div></section>
+    <section class="mt-12 rounded-2xl bg-indigo-50 p-7 text-slate-800"><h2 class="text-xl font-semibold">Have a pricing question?</h2><p class="mt-3 text-sm leading-7">Tell us what you want to make, the language, and the approximate file length. Please do not send passwords or payment card details.</p><NuxtLink to="/contact" class="button-secondary mt-5">Contact TeeScriber</NuxtLink></section>
+  </article>
+</template>
