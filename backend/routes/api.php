@@ -50,6 +50,7 @@ use App\Http\Controllers\Billing\ListBillingHistoryController;
 use App\Http\Controllers\Billing\ListCreditPackagesController;
 use App\Http\Controllers\Billing\ListPaymentMethodsController;
 use App\Http\Controllers\Billing\ShowBalanceController;
+use App\Http\Controllers\Billing\ShowPublicPricingController;
 use App\Http\Controllers\Billing\ShowUsageQuoteController;
 use App\Http\Controllers\Billing\StorePurchaseController;
 use App\Http\Controllers\Billing\VerifyPaymentController;
@@ -100,6 +101,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/features', ListFeaturesController::class);
+    Route::get('/public/pricing', ShowPublicPricingController::class)->middleware('throttle:60,1');
     Route::post('/auth/register', RegisterController::class)->middleware('throttle:auth');
     Route::post('/auth/login', LoginController::class)->middleware('throttle:auth');
     Route::post('/auth/forgot-password', ForgotPasswordController::class)->middleware('throttle:password-reset');

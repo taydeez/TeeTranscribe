@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const features = useFeatures()
+const features = useMarketingFeatures()
 defineEmits<{ start: [activity: 'transcription' | 'dubbing'] }>()
 const questions = computed(() => [
   { question: 'Do I need an account?', answer: 'Yes. Sign in to use the available tools. Your account keeps your projects, downloads, and credits together.' },
@@ -57,9 +57,9 @@ const questions = computed(() => [
 .tool-card > p { margin-top:16px; color:var(--muted); line-height:1.85; font-size:14px; }
 .tool-card ul { display:grid; gap:12px; margin-top:24px; }
 .tool-card li { display:flex; align-items:flex-start; gap:10px; font-size:13px; line-height:1.7; }
-.tool-card li svg { flex-shrink:0; margin-top:3px; color:#6366f1; }
+.tool-card li svg { flex-shrink:0; margin-top:3px; color:#4f46e5; }
 .dubbing-card li svg { color:#0891b2; }
-.tool-link { display:inline-flex; gap:8px; align-items:center; min-height:44px; margin-top:20px; color:#6366f1; font-size:13px; font-weight:600; }
+.tool-link { display:inline-flex; gap:8px; align-items:center; min-height:44px; margin-top:20px; color:#4f46e5; font-size:13px; font-weight:600; }
 .tool-link:hover { text-decoration:underline; text-underline-offset:4px; }
 .supporting-tools { display:flex; align-items:center; gap:16px; margin-top:20px; border:1px solid var(--line); border-radius:16px; padding:20px 24px; }
 .supporting-tools > span { flex-shrink:0; }
@@ -67,7 +67,7 @@ const questions = computed(() => [
 .supporting-tools strong { color:var(--text); }
 .steps-section { padding-top:48px; border-top:1px solid var(--line); }
 .steps-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:40px; }
-.step-number { display:inline-grid; place-items:center; width:40px; height:40px; border-radius:50%; background:#6366f10d; color:#6366f1; font-size:12px; font-weight:600; }
+.step-number { display:inline-grid; place-items:center; width:40px; height:40px; border-radius:50%; background:#6366f10d; color:#4f46e5; font-size:12px; font-weight:600; }
 .steps-grid h3 { margin-top:20px; font-size:17px; font-weight:700; letter-spacing:-.02em; }
 .steps-grid p { margin-top:12px; color:var(--muted); font-size:14px; line-height:1.85; }
 .faq-section { display:grid; grid-template-columns:1fr 1.3fr; gap:64px; }
@@ -80,4 +80,5 @@ const questions = computed(() => [
 .questions details > p { padding:0 28px 20px 0; font-size:14px; line-height:1.85; color:var(--muted); }
 @media(max-width:800px) { .home-section { padding-bottom:56px; } .faq-section { grid-template-columns:1fr; gap:0; } .tool-card { padding:24px; } .steps-grid { gap:24px; } }
 @media(max-width:640px) { .tool-grid,.steps-grid { grid-template-columns:1fr; } .steps-grid { gap:32px; } .supporting-tools { align-items:flex-start; padding:20px; } .steps-section { padding-top:32px; } }
+:global(:root[data-theme="dark"]) :is(.tool-link, .step-number) { color:#a5b4fc; }
 </style>

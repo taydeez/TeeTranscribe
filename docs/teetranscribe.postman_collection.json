@@ -625,6 +625,22 @@
       ]
     },
     {
+      "name": "Public pricing",
+      "item": [
+        {
+          "name": "List public credit packages and example activity rates",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/public/pricing",
+            "description": "Public catalog with data.packages (id, name, credit_units, amount_minor, currency), data.free_credit_units and data.rates (activity, unit, credit_units nullable). USD prices come directly from saved billing configuration. Disabled packages and activities are omitted. Example rates use the default enabled routing configuration; text is normalized to 1,000 characters and media to one minute. No provider identities, provider costs, credentials or user balances are included. Actual signed-in quotes remain authoritative. Cache-Control public max-age=60. Frontend proxy GET /api/marketing/pricing caches for 60 seconds with bounded stale fallback. Public marketing feature catalog GET /api/marketing/features caches the existing GET /features catalog for fast rendering. Dashboard feature enforcement still uses the uncached catalog."
+          }
+        }
+      ]
+    },
+    {
       "name": "Feature availability",
       "description": "Public visibility switches only; no credentials or provider configuration. Defaults are enabled for existing installations. Admin changes are saved under AI providers with Update_AIProvider permission, an edit reason, version checking, and an audit trail. Disabled features reject new quotes, submissions (including older quotes), and export retries with HTTP 403. Already running work and access to saved files are preserved. Subtitles are independently gated for standalone captions and the video-dubbing add-on. Customer navigation refreshes on navigation, window focus, and every 30 seconds in the dashboard.",
       "item": [

@@ -1,15 +1,15 @@
 export const publicPages = [
+  { label: 'Pricing', to: '/pricing' },
   { label: 'About', to: '/about' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Contact', to: '/contact' },
   { label: 'Privacy Policy', to: '/privacy-policy' },
 ]
 
-// Replace these addresses with monitored inboxes before launch.
 export const contactEmails = {
-  support: 'support@example.com',
-  privacy: 'privacy@example.com',
-  business: 'hello@example.com',
+  support: 'contact@teescriber.com',
+  privacy: 'contact@teescriber.com',
+  business: 'contact@teescriber.com',
 }
 
 export const faqGroups = [
