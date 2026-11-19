@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const features = useFeatures()
+const features = useMarketingFeatures()
 const auth = useAuthStore()
 const route = useRoute()
 const authOpen = ref(false)
@@ -20,6 +20,7 @@ onMounted(async () => {
     return
   }
   if (route.query.login === '1') openAuth('login')
+  if (route.query.register === '1') openAuth('register')
   const hashToken = new URLSearchParams(window.location.hash.slice(1)).get('token')
   if (hashToken) {
     history.replaceState(null, '', window.location.pathname)
@@ -36,7 +37,7 @@ onMounted(async () => {
     <header class="marketing-header">
       <NuxtLink class="brand" to="/"><UiBrandLogo /></NuxtLink>
       <nav class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex" aria-label="Homepage">
-        <a href="#tools">What you can do</a><a href="#how-it-works">How it works</a><a href="#questions">Questions</a>
+        <a href="#tools">What you can do</a><NuxtLink to="/pricing">Pricing</NuxtLink><a href="#how-it-works">How it works</a><a href="#questions">Questions</a>
       </nav>
       <div class="marketing-actions">
         <div class="header-theme"><UiThemeToggle /></div>
@@ -54,24 +55,24 @@ onMounted(async () => {
       <section class="marketing-hero" aria-labelledby="hero-title">
         <div>
           <p class="hero-label"><span /> YOUR CREATIVE WORKSPACE</p>
-          <h1 id="hero-title"><template v-if="features.enabled('transcription')">Transcribe audio.<br></template><template v-if="features.enabled('video_dubbing')">Dub your videos.<br></template><span>Reach further.</span></h1>
-          <p class="hero-copy">Create, organize, and share your projects from one workspace.</p>
+          <h1 id="hero-title"><template v-if="features.enabled('transcription')">Transcribe audio.<br></template><template v-if="features.enabled('video_dubbing')">Dub your videos.<br></template><template v-if="!features.flags.value">Work with words.<br></template><span>Reach further.</span></h1>
+          <p class="hero-copy">Keep recordings, text, and finished media together. Review your results, download your files, and share your work with another audience.</p>
           <div class="mt-8 flex flex-wrap gap-3">
             <button v-if="features.enabled('transcription')" class="button-primary" type="button" @click="start('transcription')">Transcribe audio <UiAppIcon name="arrow" :size="18" /></button>
             <button v-if="features.enabled('video_dubbing')" class="button-secondary" type="button" @click="start('dubbing')"><UiAppIcon name="video" :size="18" /> Dub a video</button>
           </div>
           <p class="signup-note"><UiAppIcon name="check" :size="16" /><span>New accounts get <strong>10 free credits.</strong> Sign in to get started.</span></p>
         </div>
-        <MarketingProductPreview />
+        <MarketingProductPreview v-if="features.flags.value" /><aside v-else class="surface p-8"><h2 class="text-xl font-semibold">Your projects, together.</h2><p class="mt-4 leading-7 text-slate-500">Organise files in folders, choose when they are deleted, and review the credit cost before starting a task.</p></aside>
       </section>
-      <MarketingHomeDetails @start="start" />
+      <MarketingProductLinks /><MarketingHomeDetails @start="start" />
       <section class="signup-panel" aria-labelledby="signup-title">
         <div><p class="eyebrow">START WITH SOMETHING YOU’VE ALREADY RECORDED</p><h2 id="signup-title">Your next conversation has somewhere to go.</h2><p>Create an account and get 10 free credits to try the available tools.</p></div>
         <NuxtLink v-if="auth.isAuthenticated" class="button-primary shrink-0" :to="workspace">Go to workspace <UiAppIcon name="arrow" :size="18" /></NuxtLink>
         <button v-else class="button-primary shrink-0" type="button" @click="openAuth('register')">Create your free account <UiAppIcon name="arrow" :size="18" /></button>
       </section>
     </main>
-    <AuthModal v-model:open="authOpen" :initial-mode="authMode" />
+    <LazyAuthModal v-if="authOpen" v-model:open="authOpen" :initial-mode="authMode" />
     <PublicSiteFooter />
   </div>
 </template>

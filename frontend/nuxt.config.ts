@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   modules: ['@pinia/nuxt', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
   nitro: {
+    compressPublicAssets: true,
     cloudflare: { deployConfig: false, nodeCompat: true },
   },
   vite: { plugins: [tailwindcss()] },
@@ -19,10 +20,9 @@ export default defineNuxtConfig({
       title: 'TeeScriber | Audio Transcription & Video Dubbing',
       htmlAttrs: { lang: 'en' },
       link: [
+        { rel: 'preload', as: 'font', type: 'font/woff2', href: '/fonts/manrope-latin.woff2', crossorigin: 'anonymous' },
+        { rel: 'preload', as: 'font', type: 'font/woff2', href: '/fonts/inter-latin.woff2', crossorigin: 'anonymous' },
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
-        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap' },
       ],
       meta: [{ name: 'description', content: 'Transcribe audio, dub videos, and translate text with TeeScriber. Sign up for 10 free credits and keep your projects together in one workspace.' }],
     },

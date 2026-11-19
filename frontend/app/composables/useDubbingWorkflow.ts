@@ -4,9 +4,9 @@ import type { CompletedUpload } from '~/types/upload'
 
 export function useDubbingWorkflow() {
   const uploader = useResumableUpload()
-  const operation = ref<VideoOperation>('dubbing')
-  const mediaType = ref<DubbingMediaType>('video')
   const route = useRoute(), router = useRouter()
+  const mediaType = ref<DubbingMediaType>(route.query.media === 'audio' ? 'audio' : 'video')
+  const operation = ref<VideoOperation>(mediaType.value === 'video' && route.query.operation === 'subtitles' ? 'subtitles' : 'dubbing')
   const folderId = ref(typeof route.query.folder === 'string' ? route.query.folder : '')
   const file = ref<File | null>(null), name = ref(''), sourceLanguage = ref(''), targetLanguage = ref('en')
   const languages = ref<DubbingLanguage[]>([]), configured = ref(false), loadingLanguages = ref(false)
